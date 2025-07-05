@@ -1274,22 +1274,25 @@
               fetch(file.download_url)
                 .then(res => res.text())
                 .then(csvText => {
-                  // 파일명에 따라 자동 분류 및 파싱 (entry → 출전정보, 주행스타일 → 주행스타일, 매핑완료 → 과거기록)
-                  if (file.name.includes('entry')) {
-                    // 출전정보
-                    const { rows, headers } = validateCSVFile(csvText, file.name);
-                    globalData.entry.header = createStandardizedHeaderMap(headers);
-                    globalData.entry.rows = rows.slice(1).map(r => r.split(','));
-                  } else if (file.name.includes('주행스타일')) {
+                  // 파일명에 따라 자동 분류 및 파싱 (주행스타일 → 주행스타일, 매핑완료 → 과거기록, entry → 출전정보)
+                  if (file.name.includes('주행스타일')) {
                     // 주행스타일
                     const { rows, headers } = validateCSVFile(csvText, file.name);
                     globalData.style.header = createStandardizedHeaderMap(headers);
                     globalData.style.rows = rows.slice(1).map(r => r.split(','));
+                    console.log('주행스타일 rows:', globalData.style.rows.length);
                   } else if (file.name.includes('매핑완료')) {
                     // 과거기록
                     const { rows, headers } = validateCSVFile(csvText, file.name);
                     globalData.history.header = createStandardizedHeaderMap(headers);
                     globalData.history.rows = rows.slice(1).map(r => r.split(','));
+                    console.log('과거기록 rows:', globalData.history.rows.length);
+                  } else if (file.name.includes('entry')) {
+                    // 출전정보
+                    const { rows, headers } = validateCSVFile(csvText, file.name);
+                    globalData.entry.header = createStandardizedHeaderMap(headers);
+                    globalData.entry.rows = rows.slice(1).map(r => r.split(','));
+                    console.log('출전정보 rows:', globalData.entry.rows.length);
                   }
                   loadedCount++;
                   // 모든 파일이 다 불러와졌을 때 분석/렌더링 실행
