@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>출마등록자료 통합 분석</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts: Inter & Noto Sans KR -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans KR', 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        .table-container {
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        thead th {
+            position: sticky;
+            top: 0;
+            background-color: #f3f4f6;
+            z-index: 10;
+        }
+        .race-nav-btn.active, .loc-btn.active {
+            background-color: #2563eb;
+            color: white;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+        .loc-btn:not(.active) {
+            background-color: white;
+            color: #374151;
+        }
+        .file-input-grid {
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .chart-container {
+            position: relative;
+            margin: auto;
+            height: 300px;
+            width: 100%;
+            max-width: 350px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <!-- 페이지 상단 헤더 -->
+        <header class="flex justify-between items-center mb-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">출마등록자료</h1>
+                <p class="text-sm text-gray-500">Summary Form</p>
+            </div>
+            <div class="flex space-x-2">
+                <button id="seoul-btn" class="loc-btn font-semibold py-2 px-6 border border-gray-300 rounded-lg shadow-sm transition duration-200 active">서울</button>
+                <button id="busan-btn" class="loc-btn font-semibold py-2 px-6 border border-gray-300 rounded-lg shadow-sm transition duration-200">부산</button>
+            </div>
+        </header>
+
+        <!-- 메인 정보 카드 -->
+        <div id="main-info-card" class="bg-indigo-900 text-white rounded-xl p-6 mb-4 flex flex-wrap justify-between items-center shadow-lg">
+            <div class="w-full md:w-auto mb-4 md:mb-0">
+                <h2 id="race-title" class="text-3xl font-bold">데이터 없음</h2>
+                <p id="race-date" class="text-indigo-300">파일을 업로드해주세요</p>
+            </div>
+            <div class="text-center mx-2">
+                <p class="text-sm text-indigo-300">등급/거리</p>
+                <p id="race-grade-dist" class="font-semibold text-lg">-</p>
+            </div>
+            <div class="text-center mx-2">
+                <p class="text-sm text-indigo-300">총상금</p>
+                <p id="race-prize" class="font-semibold text-lg">-</p>
+            </div>
+            <div class="text-center mx-2">
+                <p class="text-sm text-indigo-300">출전두수</p>
+                <p id="race-horse-count" class="font-semibold text-lg">-</p>
+            </div>
+            <div class="mt-4 md:mt-0">
+                <p id="race-time" class="text-5xl font-bold">--:--</p>
+            </div>
+        </div>
+
+        <!-- 경주 번호 네비게이션 -->
+        <div id="race-nav-container" class="flex flex-wrap space-x-1 mb-4 bg-gray-200 p-1 rounded-lg">
+             <!-- 경주 버튼이 동적으로 추가될 영역 -->
+        </div>
+
+        <!-- CSV 파일 업로드 섹션 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="file-input-grid bg-white">
+                <h3 class="font-bold text-lg mb-2 text-center">1. 출전 정보 파일 업로드</h3>
+                <input type="file" id="entry-file-input" accept=".csv" class="file-input" data-type="entry" multiple/>
+                 <p class="text-xs text-gray-500 mt-2">서울, 부산 출전 정보 파일을 모두 선택하여 한번에 올릴 수 있습니다.</p>
+            </div>
+            <div class="file-input-grid bg-white">
+                <h3 class="font-bold text-lg mb-2 text-center">2. 과거 기록 파일 업로드</h3>
+                <input type="file" id="history-file-input" accept=".csv" class="file-input" data-type="history" multiple/>
+                 <p class="text-xs text-gray-500 mt-2">서울, 부산 과거 기록 파일을 모두 선택하여 한번에 올릴 수 있습니다.</p>
+            </div>
+        </div>
+
+
+        <!-- 데이터 테이블 -->
+        <div class="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 mt-4">
+            <div class="table-container">
+                <table class="w-full text-sm text-left text-gray-600">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-200">
+                        <tr>
+                            <th scope="col" class="px-2 py-3 text-center">NO</th>
+                            <th scope="col" class="px-2 py-3">마명</th>
+                            <th scope="col" class="px-2 py-3">등급</th>
+                            <th scope="col" class="px-2 py-3">산지/성별/연령</th>
+                            <th scope="col" class="px-2 py-3">기수</th>
+                            <th scope="col" class="px-2 py-3">조교사</th>
+                            <th scope="col" class="px-2 py-3">마주</th>
+                            <th scope="col" class="px-2 py-3">레이팅</th>
+                            <th scope="col" class="px-2 py-3">출전주기</th>
+                            <th scope="col" class="px-2 py-3">부중</th>
+                            <th scope="col" class="px-2 py-3 text-center" colspan="3">기록(해당거리)</th>
+                            <th scope="col" class="px-2 py-3">S1F</th>
+                            <th scope="col" class="px-2 py-3">G3F</th>
+                            <th scope="col" class="px-2 py-3">직전경주(거리/기록)</th>
+                            <th scope="col" class="px-2 py-3">최근착순</th>
+                        </tr>
+                         <tr class="border-t">
+                            <th scope="col" class="px-2 py-2"></th>
+                            <th scope="col" class="px-2 py-2"></th>
+                            <th scope="col" class="px-2 py-2"></th>
+                            <th scope="col" class="px-2 py-2"></th>
+                            <th scope="col" class="px-2 py-2"></th>
+                            <th scope="col" class="px-2 py-2"></th>
+                            <th scope="col" class="px-2 py-2"></th>
+                            <th scope="col" class="px-2 py-2"></th>
+                            <th scope="col" class="px-2 py-2"></th>
+                            <th scope="col" class="px-2 py-2"></th>
+                            <th scope="col" class="px-2 py-2 text-center font-medium">최근</th>
+                            <th scope="col" class="px-2 py-2 text-center font-medium">평균</th>
+                            <th scope="col" class="px-2 py-2 text-center font-medium">최고</th>
+                            <th scope="col" class="px-2 py-2"></th>
+                            <th scope="col" class="px-2 py-2"></th>
+                            <th scope="col" class="px-2 py-2"></th>
+                            <th scope="col" class="px-2 py-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="data-table-body">
+                        <tr id="no-data-message">
+                            <td colspan="17" class="text-center py-16 text-gray-500">
+                                <p>파일을 업로드해주세요.</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Analysis Section -->
+        <div id="analysis-section" class="mt-8 hidden">
+             <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">경주 분석</h2>
+             <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-bold mb-2 text-cyan-700">경주 개요 및 페이스 예측</h3>
+                    <p id="pace-prediction" class="text-md font-semibold text-gray-800 mb-2"></p>
+                    <p id="race-analysis" class="text-sm text-gray-600"></p>
+                </div>
+                <div class="lg:col-span-3 bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-bold mb-4 text-center text-cyan-700">주행스타일 분포</h3>
+                    <div class="chart-container">
+                        <canvas id="style-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 과거 기록 누적 출력 영역 -->
+        <div id="history-section" class="mt-8">
+            <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">선택된 말들의 과거 기록</h2>
+            <div id="history-content" class="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
+                <div class="p-4 text-center text-gray-500">
+                    말 이름을 클릭하면 과거 기록이 여기에 표시됩니다.
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 모달 팝업 HTML 복구 -->
+    <div id="history-modal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden">
+      <div class="bg-white rounded-lg shadow-lg max-w-6xl w-[90vw] p-6 relative">
+        <button id="close-modal-btn" class="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-2xl">&times;</button>
+        <h3 id="modal-title" class="text-xl font-bold mb-4"></h3>
+        <div class="max-h-[60vh] overflow-x-visible">
+          <table class="min-w-full text-sm text-left text-gray-700 border">
+            <thead>
+              <tr id="modal-table-header"></tr>
+            </thead>
+            <tbody id="modal-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <script>
+        // Data storage
+        const globalData = {
+            entry: { rows: [], header: {} },
+            history: { rows: [], header: {} }
+        };
+        const locationData = {
+            '서울': { merged: null },
+            '부산': { merged: null }
+        };
+        let currentLoc = '서울';
+        let currentChart = null;
+
+        // 체크박스 상태 저장용 전역 객체
+        const checkedHorses = {};
+
+        // --- Hardcoded Analysis Data ---
+        const analysisData = {
+            '서울': [
+                { race: 1, title: "제1경주 (국6등급, 1200m)", pace_prediction: "보통 페이스", analysis: "압도적인 선행마가 없어 초반 선두 다툼이 과열되기보다는, 적당한 스피드를 갖춘 말이 비교적 수월하게 선두를 장악하고 경주가 진행될 것입니다." },
+                { race: 2, title: "제2경주 (국5등급, 1300m)", pace_prediction: "보통 또는 약간 빠른 페이스", analysis: "다수의 선행/선입마들이 포진해 서로 견제하며 페이스가 빨라질 수 있습니다. 이는 선입 그룹에게 이상적인 시나리오를 제공합니다." },
+                { race: 3, title: "제3경주 (국5등급, 1400m)", pace_prediction: "보통 페이스", analysis: "절대적인 선행마는 부재하며, 다수의 선입형 말들이 포진해 있어 초반 선두권 경쟁보다는 각자 유리한 위치를 선점하려는 눈치 싸움이 치열할 것입니다." },
+                { race: 4, title: "제4경주 (국4등급, 1400m)", pace_prediction: "빠른 페이스", analysis: "다수의 선행 능력마들이 출전하여 초반부터 치열한 경쟁이 예상됩니다. 이러한 빠른 페이스는 후방의 선입마나 추입마에게 유리한 상황을 만들어 줄 수 있습니다." },
+                { race: 5, title: "제5경주 (국5등급, 1700m)", pace_prediction: "느린 또는 보통 페이스", analysis: "1700m 거리 특성상 체력을 안배하려는 움직임이 지배적일 것입니다. 단독 선행이 나올 경우, 선두권이나 선입 그룹에 위치한 말들이 절대적으로 유리합니다." },
+                { race: 6, title: "제6경주 (국4등급, 1700m)", pace_prediction: "보통 페이스", analysis: "장거리 경주의 특성상 체력 안배가 중요하므로, 선두권 말들이 서로를 견제하며 페이스를 조절할 것입니다. 이는 선입 그룹에게 유리한 환경을 제공합니다." },
+                { race: 7, title: "제7경주 (혼4등급, 1200m)", pace_prediction: "빠른 페이스", analysis: "빠른 스타트 능력을 갖춘 말들이 다수 포진해 초반 선두 경합이 치열할 것입니다. 이는 후방에서 기회를 엿보는 추입마들에게 유리할 수 있습니다." },
+                { race: 8, title: "제8경주 (혼3등급, 1200m)", pace_prediction: "매우 빠른 페이스 및 페이스 붕괴 가능성", analysis: "강력한 선행마들이 대거 출전하여 초반부터 극심한 선두 다툼이 예상됩니다. '페이스 붕괴'는 후방의 선입/추입형 말들에게 절호의 기회를 제공할 수 있습니다." },
+                { race: 9, title: "제9경주 (혼3등급, 1800m)", pace_prediction: "보통 페이스", analysis: "1800m 거리 부담 때문에 초반 오버페이스를 경계하는 심리가 작용할 것입니다. 선두권과 선입 그룹이 비교적 안정적인 흐름 속에서 경주를 풀어갈 가능성이 높습니다." },
+                { race: 10, title: "제10경주 (국3등급, 1800m)", pace_prediction: "보통 페이스", analysis: "1800m라는 거리 부담 때문에 선두권이 무리한 경쟁보다는 안정적인 흐름을 유지하려 할 가능성이 높습니다. 이는 선두권과 선입 그룹에게 유리합니다." },
+                { race: 11, title: "제11경주 (1등급, 1800m)", pace_prediction: "보통 또는 약간 빠른 페이스", analysis: "1등급 경주인 만큼 무리한 선두 다툼보다는 각 기수가 페이스를 조절하며 최적의 전개를 펼칠 것입니다. 안정적이면서도 긴장감 넘치는 페이스가 유지될 것입니다." }
+            ],
+            '부산': [
+                { race: 1, title: "제1경주 (혼4등급, 1400m)", pace_prediction: "보통 페이스", analysis: "절대적인 선행마는 부재하며, 여러 말이 앞선에 나설 수 있습니다. 서로 무리한 경쟁보다는 안정적인 페이스 속에서 각자 유리한 위치를 선점하려는 눈치 싸움이 예상됩니다." },
+                { race: 2, title: "제2경주 (국6등급, 1200m)", pace_prediction: "보통 또는 약간 빠른 페이스", analysis: "경험이 적은 신예마들의 경주로, 선행 가능마들이 다수 포진해 초반 선두권 경쟁이 다소 치열할 수 있습니다. 이는 선입마나 추입마에게 기회가 될 수 있습니다." },
+                { race: 3, title: "제3경주 (국5등급, 1400m)", pace_prediction: "보통 페이스", analysis: "#6 나이스버디가 확실한 선행마로 나서고 다른 말들이 무리하게 따라붙기보다는 안정적인 흐름을 만들 가능성이 높습니다. 이는 선행마와 선입마에게 유리합니다." },
+                { race: 4, title: "제4경주 (국4등급, 1400m)", pace_prediction: "빠른 페이스", analysis: "#4 트로피웨어라는 확실한 선행마가 있어 초반부터 페이스가 빨라질 가능성이 높습니다. 빠른 흐름은 후방의 추입마들에게 기회를 제공할 수 있습니다." },
+                { race: 5, title: "제5경주 (국3등급, 1800m)", pace_prediction: "보통 페이스", analysis: "1800m라는 거리 부담 때문에 서로 무리한 경쟁보다는 안정적인 페이스를 유지하려 할 가능성이 높습니다. 이는 선두권과 선입 그룹에게 유리합니다." },
+                { race: 6, title: "제6경주 (1등급, 1200m)", pace_prediction: "매우 빠른 페이스 및 페이스 붕괴 가능성", analysis: "무려 7두의 강력한 선행마가 출전하여 초반 페이스가 상상 이상으로 빨라질 수 있습니다. '페이스 붕괴'는 후방의 추입마에게 절호의 기회를 제공할 수 있습니다." }
+            ]
+        };
+        const styleColors = {
+            '선행': { bg: 'bg-red-100', text: 'text-red-800', chart: 'rgba(239, 68, 68, 0.8)' },
+            '선입': { bg: 'bg-blue-100', text: 'text-blue-800', chart: 'rgba(59, 130, 246, 0.8)' },
+            '추입': { bg: 'bg-green-100', text: 'text-green-800', chart: 'rgba(34, 197, 94, 0.8)' },
+            '자유': { bg: 'bg-purple-100', text: 'text-purple-800', chart: 'rgba(168, 85, 247, 0.8)' },
+            '선행/선입': { bg: 'bg-orange-100', text: 'text-orange-800', chart: 'rgba(249, 115, 22, 0.8)' },
+            '선입/추입': { bg: 'bg-teal-100', text: 'text-teal-800', chart: 'rgba(20, 184, 166, 0.8)' },
+            '선입/자유': { bg: 'bg-yellow-100', text: 'text-yellow-800', chart: 'rgba(234, 179, 8, 0.8)' }
+        };
+
+        // DOM Elements
+        const tableBody = document.getElementById('data-table-body');
+        const raceNavContainer = document.getElementById('race-nav-container');
+        const seoulBtn = document.getElementById('seoul-btn');
+        const busanBtn = document.getElementById('busan-btn');
+
+        // --- Intelligent Header Mapping ---
+        const HEADER_MAPPING = {
+            horseNumber: ['번호', 'NO', '마번', '출전번호'],
+            horseName: ['마명'],
+            origin: ['산지'],
+            gender: ['성별'],
+            age: ['연령'],
+            trainer: ['조교사명', '조교사'],
+            owner: ['마주명', '마주'],
+            rating: ['레이팅'],
+            jockey: ['기수명', '기수'],
+            weight: ['부담중량', '부중'],
+            weightChange: ['증감'],
+            raceInterval: ['출전주기'],
+            location: ['경주장'],
+            raceDate: ['경주일자'],
+            raceNumber: ['경주번호'],
+            raceGrade: ['경주등급', '등급'],
+            raceDistance: ['거리'],
+            totalPrize: ['총상금'],
+            startTime: ['출발시각'],
+            pastDate: ['과거_경주일자'],
+            pastDistance: ['과거_거리'],
+            pastRecord: ['과거_기록'],
+            pastRank: ['과거_순위'],
+            pastGrade: ['과거_등급'],
+            pastS1F: ['과거_S-1F'],
+            pastG3F: ['과거_G-3F'],
+            style: ['주행스타일']
+        };
+
+        function createStandardizedHeaderMap(rawHeaders) {
+            const standardizedMap = {};
+            const cleanedHeaders = rawHeaders.map(h => h.replace(/^\uFEFF/, '').trim().replace(/"/g, ''));
+
+            for (const standardKey in HEADER_MAPPING) {
+                const possibleNames = HEADER_MAPPING[standardKey];
+                for (const name of possibleNames) {
+                    const index = cleanedHeaders.indexOf(name);
+                    if (index !== -1) {
+                        standardizedMap[standardKey] = index;
+                        break; 
+                    }
+                }
+            }
+            return standardizedMap;
+        }
+        
+        // --- Helper Functions ---
+        function timeStringToSeconds(timeStr) {
+            if (!timeStr || !timeStr.includes(':')) return null;
+            const parts = timeStr.split(':');
+            const minutes = parseInt(parts[0], 10);
+            const seconds = parseFloat(parts[1]);
+            if (isNaN(minutes) || isNaN(seconds)) return null;
+            return minutes * 60 + seconds;
+        }
+
+        function secondsToTimeString(totalSeconds) {
+            if (totalSeconds === null || typeof totalSeconds === 'undefined' || isNaN(totalSeconds)) return '-';
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = (totalSeconds % 60).toFixed(1);
+            return `${minutes}:${seconds.padStart(4, '0')}`;
+        }
+
+        function normalizeLocation(loc) {
+            if (!loc) return '';
+            if (loc.includes('부산') || loc.includes('부경')) return '부산';
+            if (loc.includes('서울')) return '서울';
+            return loc;
+        }
+
+        // 모달 열기 함수
+        function openHistoryModal(horseName, historyRows, historyHeaderRaw) {
+            const modal = document.getElementById('history-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalHeader = document.getElementById('modal-table-header');
+            const modalBody = document.getElementById('modal-table-body');
+
+            modalTitle.textContent = `${horseName} - 지난 경주 기록`;
+
+            // 제외할 항목
+            const excludeCols = ['경주일자', '경주번호', '경주장', '출전번호'];
+            // 표시할 컬럼 인덱스와 이름(과거_ 접두사 제거)
+            const displayCols = historyHeaderRaw
+                .map((col, idx) => ({
+                    idx,
+                    name: col.startsWith('과거_') ? col.replace('과거_', '') : col
+                }))
+                .filter(colObj => !excludeCols.includes(historyHeaderRaw[colObj.idx]));
+
+            // 헤더
+            modalHeader.innerHTML = '';
+            displayCols.forEach(colObj => {
+                const th = document.createElement('th');
+                th.className = 'px-2 py-2 border-b bg-gray-100';
+                th.textContent = colObj.name;
+                modalHeader.appendChild(th);
+            });
+
+            // 데이터
+            modalBody.innerHTML = '';
+            if (historyRows.length === 0) {
+                const tr = document.createElement('tr');
+                const td = document.createElement('td');
+                td.colSpan = displayCols.length;
+                td.className = 'text-center py-6 text-gray-400';
+                td.textContent = '지난 경주 데이터가 없습니다.';
+                tr.appendChild(td);
+                modalBody.appendChild(tr);
+            } else {
+                historyRows.forEach(row => {
+                    const tr = document.createElement('tr');
+                    displayCols.forEach(colObj => {
+                        const td = document.createElement('td');
+                        td.className = 'px-2 py-2 border-b';
+                        td.textContent = row[colObj.idx] || '-';
+                        tr.appendChild(td);
+                    });
+                    modalBody.appendChild(tr);
+                });
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        // 모달 닫기
+        function closeHistoryModal() {
+            document.getElementById('history-modal').classList.add('hidden');
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('close-modal-btn')?.addEventListener('click', closeHistoryModal);
+            document.getElementById('history-modal')?.addEventListener('click', function(e) {
+                if (e.target === this) closeHistoryModal();
+            });
+        });
+
+        // --- Core Functions ---
+        function handleFileUpload(event) {
+            const files = event.target.files;
+            const type = event.target.dataset.type;
+            if (!files.length || !type) return;
+
+            let filesProcessed = 0;
+            globalData[type].rows = []; // Reset data for this type
+
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const text = e.target.result;
+                    const rows = text.trim().split(/\r?\n/);
+                    const headers = rows[0].split(',');
+                    const data = rows.slice(1).map(r => r.split(','));
+                    
+                    if (Object.keys(globalData[type].header).length === 0) {
+                        globalData[type].header = createStandardizedHeaderMap(headers);
+                        if (type === 'history') {
+                            globalData[type].headerRaw = headers; // 원본 컬럼명 저장
+                        }
+                    }
+                   
+                    globalData[type].rows.push(...data);
+                    
+                    filesProcessed++;
+                    if (filesProcessed === files.length) {
+                        if (globalData.entry.rows.length > 0 && globalData.history.rows.length > 0) {
+                            processAndMergeAllData();
+                        }
+                    }
+                };
+                reader.onerror = () => alert('파일 읽기 오류');
+                reader.readAsText(file, 'EUC-KR');
+            });
+        }
+        
+        function processAndMergeAllData() {
+            ['서울', '부산'].forEach(loc => {
+                const entryHeader = globalData.entry.header;
+                const historyHeader = globalData.history.header;
+
+                const filteredEntryData = globalData.entry.rows.filter(row => normalizeLocation(row[entryHeader.location]) === loc);
+                const filteredHistoryData = globalData.history.rows.filter(row => normalizeLocation(row[historyHeader.location]) === loc);
+
+                if (filteredEntryData.length > 0 && filteredHistoryData.length > 0) {
+                    mergeDataForLocation(loc, filteredEntryData, filteredHistoryData, entryHeader, historyHeader);
+                }
+            });
+            switchLocation(currentLoc);
+        }
+
+
+        function mergeDataForLocation(loc, entryData, historyData, entryHeader, historyHeader) {
+            const locData = locationData[loc];
+            locData.merged = {};
+            
+            const historyByHorse = historyData.reduce((acc, histRow) => {
+                const horseName = histRow[historyHeader.horseName];
+                if (horseName) {
+                    if (!acc[horseName]) acc[horseName] = [];
+                    acc[horseName].push(histRow);
+                }
+                return acc;
+            }, {});
+
+            entryData.forEach(entryRow => {
+                const raceNum = entryRow[entryHeader.raceNumber];
+                const horseName = entryRow[entryHeader.horseName];
+                
+                if (raceNum && horseName) {
+                    if (!locData.merged[raceNum]) {
+                        locData.merged[raceNum] = { horses: {}, details: {} };
+                        locData.merged[raceNum].details = {
+                            date: entryRow[entryHeader.raceDate],
+                            grade: entryRow[entryHeader.raceGrade],
+                            distance: entryRow[entryHeader.raceDistance],
+                            prize: entryRow[entryHeader.totalPrize],
+                            time: entryRow[entryHeader.startTime]
+                        };
+                    }
+
+                    locData.merged[raceNum].horses[horseName] = {
+                        entry: entryRow,
+                        history: historyByHorse[horseName] || []
+                    };
+                }
+            });
+        }
+
+        function switchLocation(loc) {
+            currentLoc = loc;
+            seoulBtn.classList.toggle('active', loc === '서울');
+            busanBtn.classList.toggle('active', loc === '부산');
+            
+            const locData = locationData[loc];
+            if (!locData.merged) {
+                raceNavContainer.innerHTML = '';
+                tableBody.innerHTML = `<tr><td colspan="17" class="text-center py-16 text-gray-500"><p>${loc} 지역의 출전 정보와 과거 기록 파일을 모두 업로드해주세요.</p></td></tr>`;
+                document.getElementById('analysis-section').classList.add('hidden');
+                document.getElementById('race-title').textContent = '데이터 없음';
+                document.getElementById('race-date').textContent = '파일을 업로드해주세요';
+                document.getElementById('race-grade-dist').textContent = '-';
+                document.getElementById('race-prize').textContent = '-';
+                document.getElementById('race-horse-count').textContent = '-';
+                document.getElementById('race-time').textContent = '--:--';
+                return;
+            }
+
+            const raceNumbers = Object.keys(locData.merged).sort((a, b) => parseInt(a.match(/\d+/)[0]) - parseInt(b.match(/\d+/)[0]));
+            setupRaceNavigation(raceNumbers);
+
+            if (raceNumbers.length > 0) {
+                displayRaceData(raceNumbers[0]);
+            } else {
+                 raceNavContainer.innerHTML = '';
+                 tableBody.innerHTML = '<tr><td colspan="17" class="text-center py-16 text-gray-500">해당 지역의 경주 데이터가 없습니다.</td></tr>';
+                 document.getElementById('analysis-section').classList.add('hidden');
+            }
+        }
+
+        function setupRaceNavigation(raceNumbers) {
+            raceNavContainer.innerHTML = '';
+            raceNumbers.forEach((raceNum, index) => {
+                const button = document.createElement('button');
+                button.textContent = raceNum.replace('제', '').replace('경주', 'R');
+                button.className = 'race-nav-btn flex-1 text-center py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-white transition-colors';
+                if (index === 0) button.classList.add('active');
+                
+                button.addEventListener('click', (e) => {
+                    document.querySelectorAll('.race-nav-btn').forEach(btn => btn.classList.remove('active'));
+                    e.currentTarget.classList.add('active');
+                    displayRaceData(raceNum);
+                });
+                raceNavContainer.appendChild(button);
+            });
+        }
+        
+        function displayRaceData(raceNum) {
+            const race = locationData[currentLoc]?.merged?.[raceNum];
+            if (!race) return;
+            
+            updateMainInfoCard(race, raceNum);
+            updateDataTable(race.horses, race.details);
+            displayAnalysis(raceNum);
+        }
+
+        function updateMainInfoCard(race, raceNum) {
+            const details = race.details;
+            const horseCount = Object.keys(race.horses).length;
+            
+            document.getElementById('race-title').textContent = `${currentLoc} ${raceNum}`;
+            document.getElementById('race-date').textContent = details.date?.replace(/년|월/g, '.').replace('일', '') || '-';
+            document.getElementById('race-grade-dist').textContent = `${details.grade}, ${details.distance}M`;
+            document.getElementById('race-prize').textContent = details.prize ? `${parseInt(details.prize).toLocaleString()}원` : '-';
+            document.getElementById('race-horse-count').textContent = `${horseCount}두`;
+            document.getElementById('race-time').textContent = details.time || '--:--';
+        }
+
+        function updateDataTable(horses, raceDetails) {
+            tableBody.innerHTML = '';
+            if (Object.keys(horses).length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="17" class="text-center py-16 text-gray-500"><p>표시할 데이터가 없습니다.</p></td></tr>`;
+                return;
+            }
+            
+            const currentRaceDistNum = parseInt(raceDetails.distance, 10);
+            const entryHeader = globalData.entry.header;
+            const historyHeader = globalData.history.header;
+
+            // 경주별 키 (예: '서울-1', '부산-3')
+            const raceKey = `${currentLoc}-${raceDetails.date || ''}-${raceDetails.grade || ''}-${raceDetails.distance || ''}`;
+            if (!checkedHorses[raceKey]) checkedHorses[raceKey] = [];
+
+            const sortedHorses = Object.values(horses).sort((a, b) => 
+                parseInt(a.entry[entryHeader.horseNumber]) - parseInt(b.entry[entryHeader.horseNumber])
+            );
+
+            sortedHorses.forEach(horse => {
+                const entry = horse.entry;
+                
+                const relevantHistory = horse.history.filter(h => {
+                    const histDist = h[historyHeader.pastDistance];
+                    return histDist && (parseInt(histDist, 10) === currentRaceDistNum);
+                });
+
+                const dateSort = (a, b) => {
+                    const dateAStr = a[historyHeader.pastDate];
+                    const dateBStr = b[historyHeader.pastDate];
+                    if (!dateAStr || !dateBStr) return 0;
+                    const dateA = new Date(dateAStr.split('-')[0].replace(/\//g, '-'));
+                    const dateB = new Date(dateBStr.split('-')[0].replace(/\//g, '-'));
+                    return dateB - dateA;
+                };
+
+                relevantHistory.sort(dateSort);
+                const recentRecordAtDistance = relevantHistory[0] || [];
+
+                let bestTime = null, averageTime = null;
+                const timesInSeconds = relevantHistory.map(h => timeStringToSeconds(h[historyHeader.pastRecord])).filter(t => t !== null);
+                if (timesInSeconds.length > 0) {
+                    bestTime = Math.min(...timesInSeconds);
+                    averageTime = timesInSeconds.reduce((acc, t) => acc + t, 0) / timesInSeconds.length;
+                }
+
+                const overallHistory = [...horse.history].sort(dateSort);
+                const latestOverallHistory = overallHistory[0] || [];
+                
+                let displayGrade = entry[entryHeader.raceGrade]; 
+                if (latestOverallHistory && Object.keys(latestOverallHistory).length > 0) {
+                    const latestRaceDist = parseInt(latestOverallHistory[historyHeader.pastDistance], 10);
+                    if (latestRaceDist === 1000 && overallHistory.length > 1) {
+                        displayGrade = overallHistory[1][historyHeader.pastGrade];
+                    } else {
+                        displayGrade = latestOverallHistory[historyHeader.pastGrade];
+                    }
+                }
+                
+                const recent5RanksHtml = overallHistory.slice(0, 5).map(race => {
+                    const rank = race[historyHeader.pastRank];
+                    const raceDist = parseInt(race[historyHeader.pastDistance], 10);
+                    if (raceDist === currentRaceDistNum) {
+                        return `<span class="text-red-600 font-bold">${rank}</span>`;
+                    }
+                    return rank;
+                }).join(', ');
+
+                const lastRaceText = `${latestOverallHistory[historyHeader.pastDistance] || '-'} / ${latestOverallHistory[historyHeader.pastRecord] || '-'}`;
+                const lastRaceDist = parseInt(latestOverallHistory[historyHeader.pastDistance], 10);
+                
+                const tr = document.createElement('tr');
+                tr.className = 'bg-white border-b hover:bg-gray-50';
+                
+                const weight = entry[entryHeader.weight];
+                const weightChange = entry[entryHeader.weightChange];
+                let weightDisplay = weight || '-';
+                if (weightChange && parseFloat(weightChange) !== 0) {
+                    const sign = parseFloat(weightChange) > 0 ? '+' : '';
+                    weightDisplay += `(${sign}${weightChange})`;
+                }
+
+                const cells = [
+                    entry[entryHeader.horseNumber],
+                    entry[entryHeader.horseName],
+                    displayGrade,
+                    `${entry[entryHeader.origin] || ''} / ${entry[entryHeader.gender]} / ${entry[entryHeader.age]}`,
+                    entry[entryHeader.jockey],
+                    entry[entryHeader.trainer],
+                    entry[entryHeader.owner],
+                    entry[entryHeader.rating],
+                    entry[entryHeader.raceInterval],
+                    weightDisplay,
+                    recentRecordAtDistance[historyHeader.pastRecord] || '-',
+                    secondsToTimeString(averageTime),
+                    secondsToTimeString(bestTime),
+                    latestOverallHistory[historyHeader.pastS1F] || '-',
+                    latestOverallHistory[historyHeader.pastG3F] || '-',
+                    lastRaceText, 
+                    recent5RanksHtml
+                ];
+
+                cells.forEach((cellData, index) => {
+                    const td = document.createElement('td');
+                    td.className = 'px-2 py-3 whitespace-nowrap';
+                    if (index === 1) { // 마명(말 이름) 셀
+                        // 체크박스 추가
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.className = 'align-middle mr-2';
+                        checkbox.value = cellData;
+                        checkbox.name = 'horse-checkbox';
+                        // 체크 상태 복원
+                        checkbox.checked = checkedHorses[raceKey].includes(cellData);
+                        // 체크 이벤트
+                        checkbox.onchange = function() {
+                            const arr = checkedHorses[raceKey];
+                            if (checkbox.checked) {
+                                if (!arr.includes(cellData)) arr.push(cellData);
+                            } else {
+                                const idx = arr.indexOf(cellData);
+                                if (idx !== -1) arr.splice(idx, 1);
+                            }
+                        };
+                        td.appendChild(checkbox);
+                        // 마명 텍스트 및 클릭 이벤트
+                        const nameSpan = document.createElement('span');
+                        nameSpan.textContent = cellData || '-';
+                        nameSpan.className = 'cursor-pointer text-blue-700 hover:underline';
+                        nameSpan.onclick = function() {
+                            const historyHeaderRaw = globalData.history.headerRaw || [];
+                            const historyRows = horse.history || [];
+                            addHistoryToSection(cellData, historyRows, historyHeaderRaw);
+                        };
+                        td.appendChild(nameSpan);
+                    } else if (index === 15) { // 직전경주
+                        if (lastRaceDist === currentRaceDistNum) {
+                            td.classList.add('text-red-600', 'font-bold');
+                        }
+                        td.textContent = cellData;
+                    } else if (index === 16) { // 최근착순
+                        td.innerHTML = cellData || '-';
+                    } else {
+                        td.textContent = cellData || '-';
+                    }
+                    tr.appendChild(td);
+                });
+                tableBody.appendChild(tr);
+            });
+        }
+
+        function displayAnalysis(raceNum) {
+            const raceNumber = parseInt(raceNum.match(/\d+/)[0]);
+            const raceAnalysisData = analysisData[currentLoc]?.find(r => r.race === raceNumber);
+            const analysisSection = document.getElementById('analysis-section');
+            
+            if (!raceAnalysisData) {
+                analysisSection.classList.add('hidden');
+                return;
+            }
+            
+            analysisSection.classList.remove('hidden');
+            document.getElementById('pace-prediction').textContent = raceAnalysisData.pace_prediction;
+            document.getElementById('race-analysis').textContent = raceAnalysisData.analysis;
+
+            // Chart Data
+            const raceData = locationData[currentLoc].merged[raceNum];
+            const entryHeader = globalData.entry.header;
+            const styleCounts = Object.values(raceData.horses).reduce((acc, horse) => {
+                const style = horse.entry[entryHeader.style] || '미분류';
+                acc[style] = (acc[style] || 0) + 1;
+                return acc;
+            }, {});
+
+            const labels = Object.keys(styleCounts);
+            const data = Object.values(styleCounts);
+            const chartColors = labels.map(label => styleColors[label]?.chart || 'rgba(156, 163, 175, 0.8)');
+
+            const ctx = document.getElementById('style-chart').getContext('2d');
+            if (currentChart) {
+                currentChart.destroy();
+            }
+            currentChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '주행스타일 분포',
+                        data: data,
+                        backgroundColor: chartColors,
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.label}: ${context.parsed}두`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // --- Initial Setup ---
+        document.querySelectorAll('.file-input').forEach(input => {
+            input.className = `block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100`;
+            input.addEventListener('change', handleFileUpload);
+        });
+        
+        // 지역 버튼 클릭 이벤트 리스너 추가
+        seoulBtn.addEventListener('click', () => switchLocation('서울'));
+        busanBtn.addEventListener('click', () => switchLocation('부산'));
+
+        // 과거 기록 누적 출력 함수 추가
+        function addHistoryToSection(horseName, historyRows, headerNames) {
+            const historyContent = document.getElementById('history-content');
+            
+            // 제외할 항목
+            const excludeCols = ['경주일자', '경주번호', '경주장', '출전번호'];
+            const displayCols = headerNames
+                .map((col, idx) => ({
+                    idx,
+                    name: col.startsWith('과거_') ? col.replace('과거_', '') : col
+                }))
+                .filter(colObj => !excludeCols.includes(headerNames[colObj.idx]));
+
+            // 말별 구분선 및 제목
+            const horseSection = document.createElement('div');
+            horseSection.className = 'border-t border-gray-300 p-4';
+            
+            const title = document.createElement('h3');
+            title.className = 'text-lg font-bold text-blue-700 mb-3';
+            title.textContent = `${horseName} - 과거 경주 기록`;
+            horseSection.appendChild(title);
+
+            // 테이블 생성
+            const table = document.createElement('table');
+            table.className = 'min-w-full text-sm text-left text-gray-700 border';
+            
+            // 헤더
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            displayCols.forEach(colObj => {
+                const th = document.createElement('th');
+                th.className = 'px-2 py-2 border-b bg-gray-100';
+                th.textContent = colObj.name;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            // 데이터
+            const tbody = document.createElement('tbody');
+            if (historyRows.length === 0) {
+                const tr = document.createElement('tr');
+                const td = document.createElement('td');
+                td.colSpan = displayCols.length;
+                td.className = 'text-center py-6 text-gray-400';
+                td.textContent = '과거 경주 데이터가 없습니다.';
+                tr.appendChild(td);
+                tbody.appendChild(tr);
+            } else {
+                historyRows.forEach(row => {
+                    const tr = document.createElement('tr');
+                    displayCols.forEach(colObj => {
+                        const td = document.createElement('td');
+                        td.className = 'px-2 py-2 border-b';
+                        td.textContent = row[colObj.idx] || '-';
+                        tr.appendChild(td);
+                    });
+                    tbody.appendChild(tr);
+                });
+            }
+            table.appendChild(tbody);
+            horseSection.appendChild(table);
+
+            // 닫기 버튼
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'mt-2 px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600';
+            closeBtn.textContent = '이 말 기록 삭제';
+            closeBtn.onclick = function() {
+                historyContent.removeChild(horseSection);
+                if (historyContent.children.length === 0) {
+                    historyContent.innerHTML = '<div class="p-4 text-center text-gray-500">말 이름을 클릭하면 과거 기록이 여기에 표시됩니다.</div>';
+                }
+            };
+            horseSection.appendChild(closeBtn);
+
+            // 기존 "말 이름을 클릭하면..." 메시지 제거
+            if (historyContent.children.length === 1 && historyContent.children[0].textContent.includes('말 이름을 클릭하면')) {
+                historyContent.innerHTML = '';
+            }
+            
+            historyContent.appendChild(horseSection);
+        }
+    </script>
+</body>
+</html>
