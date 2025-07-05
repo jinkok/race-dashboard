@@ -1275,7 +1275,7 @@
                 .then(res => res.text())
                 .then(csvText => {
                   // 파일명에 따라 자동 분류 및 파싱
-                  if (file.name.includes('출전정보')) {
+                  if (file.name.includes('매핑완료')) {
                     const { rows, headers } = validateCSVFile(csvText, file.name);
                     globalData.entry.header = createStandardizedHeaderMap(headers);
                     globalData.entry.rows = rows.slice(1).map(r => r.split(','));
@@ -1283,7 +1283,7 @@
                     const { rows, headers } = validateCSVFile(csvText, file.name);
                     globalData.style.header = createStandardizedHeaderMap(headers);
                     globalData.style.rows = rows.slice(1).map(r => r.split(','));
-                  } else if (file.name.includes('과거기록')) {
+                  } else if (file.name.includes('entry')) {
                     const { rows, headers } = validateCSVFile(csvText, file.name);
                     globalData.history.header = createStandardizedHeaderMap(headers);
                     globalData.history.rows = rows.slice(1).map(r => r.split(','));
