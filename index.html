@@ -87,26 +87,15 @@
              <!-- 경주 버튼이 동적으로 추가될 영역 -->
         </div>
 
-        <!-- CSV 파일 업로드 섹션 -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="file-input-grid bg-white">
-                <h3 class="font-bold text-lg mb-2 text-center">1. 출전 정보</h3>
-                <input type="file" id="entry-file-input" accept=".csv" class="file-input" data-type="entry" multiple/>
-                 <p class="text-xs text-gray-500 mt-2">서울/부산 출전 정보 파일을 선택하세요.</p>
-                 <div id="entry-status" class="text-xs mt-2 text-blue-600 hidden">✓ 업로드 완료</div>
-            </div>
-            <div class="file-input-grid bg-white">
-                <h3 class="font-bold text-lg mb-2 text-center">2. 과거 기록</h3>
-                <input type="file" id="history-file-input" accept=".csv" class="file-input" data-type="history" multiple/>
-                 <p class="text-xs text-gray-500 mt-2">서울/부산 과거 기록 파일을 선택하세요.</p>
-                 <div id="history-status" class="text-xs mt-2 text-blue-600 hidden">✓ 업로드 완료</div>
-            </div>
-             <div class="file-input-grid bg-white">
-                <h3 class="font-bold text-lg mb-2 text-center">3. 주행 스타일</h3>
-                <input type="file" id="style-file-input" accept=".csv" class="file-input" data-type="style" multiple/>
-                 <p class="text-xs text-gray-500 mt-2">서울/부산 주행스타일 파일을 선택하세요.</p>
-                 <div id="style-status" class="text-xs mt-2 text-blue-600 hidden">✓ 업로드 완료</div>
-            </div>
+        <!-- 깃허브 CSV 선택 드롭다운 및 불러오기 버튼 -->
+        <div class="mb-4">
+          <label for="csv-selector" class="font-bold mr-2">CSV 파일 선택:</label>
+          <select id="csv-selector">
+            <option value="20250706_서울경주_주행스타일.csv">20250706_서울경주_주행스타일.csv</option>
+            <option value="20250706_서울경주_출전정보.csv">20250706_서울경주_출전정보.csv</option>
+            <!-- 필요시 파일명 추가 -->
+          </select>
+          <button id="load-csv-btn" class="bg-blue-600 text-white px-4 py-2 rounded ml-2">불러오기</button>
         </div>
 
         <!-- 업로드 상태 표시 -->
@@ -1271,6 +1260,48 @@
                 renderRacePaceAnalysis(firstRaceEntries);
             }
         };
+
+        // 깃허브 API 경로 (아래 3개 값은 본인 환경에 맞게 수정!)
+        const GITHUB_USER = 'jinkok'; // 예: jin
+        const GITHUB_REPO = 'race_database'; // 예: race_database
+        const GITHUB_DATA_DIR = 'data'; // 예: data
+        const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${GITHUB_DATA_DIR}`;
+
+        // 모든 CSV 파일 불러오기 및 자동 분류
+        fetch(GITHUB_API_URL)
+          .then(res => res.json())
+          .then(files => {
+            let loadedCount = 0;
+            const csvFiles = files.filter(file => file.name.endsWith('.csv'));
+            csvFiles.forEach(file => {
+              fetch(file.download_url)
+                .then(res => res.text())
+                .then(csvText => {
+                  // 파일명에 따라 자동 분류 및 파싱
+                  if (file.name.includes('출전정보')) {
+                    const { rows, headers } = validateCSVFile(csvText, file.name);
+                    globalData.entry.header = createStandardizedHeaderMap(headers);
+                    globalData.entry.rows = rows.slice(1).map(r => r.split(','));
+                  } else if (file.name.includes('주행스타일')) {
+                    const { rows, headers } = validateCSVFile(csvText, file.name);
+                    globalData.style.header = createStandardizedHeaderMap(headers);
+                    globalData.style.rows = rows.slice(1).map(r => r.split(','));
+                  } else if (file.name.includes('과거기록')) {
+                    const { rows, headers } = validateCSVFile(csvText, file.name);
+                    globalData.history.header = createStandardizedHeaderMap(headers);
+                    globalData.history.rows = rows.slice(1).map(r => r.split(','));
+                  }
+                  loadedCount++;
+                  // 모든 파일이 다 불러와졌을 때 분석/렌더링 실행
+                  if (loadedCount === csvFiles.length) {
+                    // 기존 processAndMergeAllData 또는 분석/렌더링 함수 호출
+                    if (typeof processAndMergeAllData === 'function') {
+                      processAndMergeAllData();
+                    }
+                  }
+                });
+            });
+          });
     </script>
 </body>
 </html>
