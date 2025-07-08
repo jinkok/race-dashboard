@@ -140,7 +140,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     
     // 외부 JSON 파일을 불러옵니다. 파일명은 'race_data.json'으로 가정합니다.
-    fetch('race_data.json')
+    fetch('data/race_data.json')
         .then(response => {
             if (!response.ok) {
                 throw new Error('네트워크 응답이 올바르지 않습니다.');
