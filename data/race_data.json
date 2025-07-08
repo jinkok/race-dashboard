@@ -1,0 +1,99 @@
+{
+    "raceInfo": {
+      "location": "서울",
+      "raceNumber": 11,
+      "distance": "1600m",
+      "class": "1등급",
+      "totalEntries": 10,
+      "time": "18:00"
+    },
+    "files": {
+      "entryFile": "race_entry_seoul_20250706_1to12_all.csv",
+      "recordFile": "20250706_서울경주_매핑완료.csv",
+      "styleFile": "20250706_서울경주_주행스타일.csv"
+    },
+    "horses": [
+      {
+        "horseNumber": 1,
+        "horseName": "굿필승",
+        "class": "1등급",
+        "jockey": "김태희",
+        "trainer": "심승태",
+        "weight": 57,
+        "rating": 92,
+        "runningStyle": {
+          "frontRunner": { "raw": 45.9, "adjusted": "D" },
+          "stalker": { "raw": 45.3, "adjusted": "D" },
+          "closer": { "raw": 1.4, "adjusted": "B+" }
+        },
+        "records": {
+          "recentRace": "3-8- [4] -6- [3]",
+          "bestTime": "1:38.6",
+          "recentTime": "1:41.4"
+        },
+        "sectionals": {
+          "s1f": { "time": "13.9", "rank": 6 },
+          "g3f": { "time": "39.6", "rank": 3 },
+          "g1f": { "time": "14.0", "rank": 1 }
+        },
+        "pastRaces": [
+            { "raceDate": "2025/06/15", "raceId": "9R", "entryNumber": 5, "class": "1등급", "distance": 1800, "jockey": "김태희", "record": "1:55.2", "s1f": "0:14.1", "g3f": "0:39.8", "g1f": "0:13.9", "horseWeight": "488", "ratingChange": "+1" }
+        ]
+      },
+      {
+        "horseNumber": 2,
+        "horseName": "자이언트스텝",
+        "class": "1등급",
+        "jockey": "김용근",
+        "trainer": "송문길",
+        "weight": 52.5,
+        "rating": 83,
+        "runningStyle": {
+          "frontRunner": { "raw": 62.5, "adjusted": "B" },
+          "stalker": { "raw": 70.0, "adjusted": "B+" },
+          "closer": null
+        },
+        "records": {
+          "recentRace": "[7] - [1] - [2] -8.5",
+          "bestTime": "1:39.5",
+          "recentTime": "1:40.8"
+        },
+        "sectionals": {
+          "s1f": { "time": "13.8", "rank": 4 },
+          "g3f": { "time": "39.1", "rank": 1 },
+          "g1f": { "time": "14.0", "rank": 2 }
+        },
+        "pastRaces": [
+          { "raceDate": "2025/05/25", "raceId": "8R", "entryNumber": 7, "class": "1등급", "distance": 1600, "jockey": "김용근", "record": "1:40.8", "s1f": "0:14.0", "g3f": "0:40.2", "g1f": "0:14.6", "horseWeight": "525", "ratingChange": null },
+          { "raceDate": "2025/04/13", "raceId": "7R", "entryNumber": 1, "class": "국OPEN", "distance": 1600, "jockey": "김용근", "record": "1:39.5", "s1f": "0:13.3", "g3f": "0:40.1", "g1f": "0:14.5", "horseWeight": "521", "ratingChange": null },
+          { "raceDate": "2025/03/15", "raceId": "10R", "entryNumber": 2, "class": "2등급", "distance": 1800, "jockey": "김용근", "record": "1:39.6", "s1f": "0:13.7", "g3f": "0:38.1", "g1f": "0:13.7", "horseWeight": "521", "ratingChange": null }
+        ]
+      },
+      {
+        "horseNumber": 3,
+        "horseName": "포에버드림",
+        "class": "1등급",
+        "jockey": "임다빈",
+        "trainer": "이관호",
+        "weight": "57.5(+1.5)",
+        "rating": 93,
+        "runningStyle": {
+          "frontRunner": { "raw": 55.0, "adjusted": "C" },
+          "stalker": { "raw": 58.4, "adjusted": "C" },
+          "closer": { "raw": 10.0, "adjusted": "A" }
+        },
+        "records": {
+          "recentRace": "[6] -7.5- [2] -3",
+          "bestTime": "1:39.7",
+          "recentTime": "1:40.5"
+        },
+        "sectionals": {
+          "s1f": { "time": "13.7", "rank": 3 },
+          "g3f": { "time": "39.7", "rank": 8 },
+          "g1f": { "time": "14.4", "rank": 8 }
+        },
+        "pastRaces": []
+      }
+    ]
+  }
+  
