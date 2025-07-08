@@ -3,1307 +3,248 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>출마등록자료 통합 분석</title>
-    <!-- Tailwind CSS CDN -->
+    <title>경주마 상세 정보 조회 (JSON 파일 로드)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Google Fonts: Inter & Noto Sans KR -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: 'Noto Sans KR', 'Inter', sans-serif;
-            background-color: #f8fafc;
+            background-color: #f3f4f6;
+        }
+        .main-header {
+            background-color: #1e3a8a; /* A dark blue color similar to the screenshot */
         }
         .table-container {
-            max-height: 60vh;
-            overflow-y: auto;
+            width: 100%;
+            overflow-x: auto;
         }
-        thead th {
-            position: sticky;
-            top: 0;
-            background-color: #f3f4f6;
-            z-index: 10;
+        tr.selected-row {
+            background-color: #dbeafe; /* Light blue to highlight selected row */
         }
-        .race-nav-btn.active, .loc-btn.active {
-            background-color: #2563eb;
-            color: white;
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        .horse-name-clickable {
+            cursor: pointer;
+            color: #1d4ed8;
+            font-weight: 600;
         }
-        .loc-btn:not(.active) {
-            background-color: white;
-            color: #374151;
+        .horse-name-clickable:hover {
+            text-decoration: underline;
         }
-        .file-input-grid {
-            border: 1px solid #e5e7eb;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            margin-bottom: 1rem;
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
-<body class="bg-gray-100">
+<body class="text-gray-800">
 
-    <div class="container mx-auto p-4 md:p-8">
-        <!-- 페이지 상단 헤더 -->
-        <header class="flex justify-between items-center mb-4">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-800">출마등록자료</h1>
-                <p class="text-sm text-gray-500">Summary Form</p>
-            </div>
-            <div class="flex space-x-2">
-                <button id="seoul-btn" class="loc-btn font-semibold py-2 px-6 border border-gray-300 rounded-lg shadow-sm transition duration-200 active">서울</button>
-                <button id="busan-btn" class="loc-btn font-semibold py-2 px-6 border border-gray-300 rounded-lg shadow-sm transition duration-200">부산</button>
+    <div id="app" class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <!-- Header Section -->
+        <header class="main-header text-white p-6 rounded-lg shadow-lg mb-8">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 id="race-title" class="text-4xl font-bold"></h1>
+                    <p id="race-details" class="text-lg opacity-90"></p>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm">총두수</p>
+                    <p id="race-entries" class="text-3xl font-bold"></p>
+                </div>
+                <div id="race-time" class="text-6xl font-bold"></div>
             </div>
         </header>
 
-        <!-- 메인 정보 카드 -->
-        <div id="main-info-card" class="bg-indigo-900 text-white rounded-xl p-6 mb-4 flex flex-wrap justify-between items-center shadow-lg">
-            <div class="w-full md:w-auto mb-4 md:mb-0">
-                <h2 id="race-title" class="text-3xl font-bold">데이터 없음</h2>
-                <p id="race-date" class="text-indigo-300">파일을 업로드해주세요</p>
+        <!-- File Info Section -->
+        <section class="grid md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="font-bold text-lg mb-2">1. 출전 정보</h3>
+                <p id="file-entry" class="text-sm text-gray-600 truncate"></p>
+                <a href="#" class="text-sm text-blue-600 hover:underline">✓ 업로드 완료</a>
             </div>
-            <div class="text-center mx-2">
-                <p class="text-sm text-indigo-300">등급/거리</p>
-                <p id="race-grade-dist" class="font-semibold text-lg">-</p>
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="font-bold text-lg mb-2">2. 과거 기록</h3>
+                <p id="file-record" class="text-sm text-gray-600 truncate"></p>
+                <a href="#" class="text-sm text-blue-600 hover:underline">✓ 업로드 완료</a>
             </div>
-            <div class="text-center mx-2">
-                <p class="text-sm text-indigo-300">총상금</p>
-                <p id="race-prize" class="font-semibold text-lg">-</p>
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h3 class="font-bold text-lg mb-2">3. 주행 스타일</h3>
+                <p id="file-style" class="text-sm text-gray-600 truncate"></p>
+                <a href="#" class="text-sm text-blue-600 hover:underline">✓ 업로드 완료</a>
             </div>
-            <div class="text-center mx-2">
-                <p class="text-sm text-indigo-300">출전두수</p>
-                <p id="race-horse-count" class="font-semibold text-lg">-</p>
-            </div>
-            <div class="mt-4 md:mt-0">
-                <p id="race-time" class="text-5xl font-bold">--:--</p>
-            </div>
-        </div>
+        </section>
 
-        <!-- 경주 번호 네비게이션 -->
-        <div id="race-nav-container" class="flex flex-wrap space-x-1 mb-4 bg-gray-200 p-1 rounded-lg">
-             <!-- 경주 버튼이 동적으로 추가될 영역 -->
-        </div>
-
-        <!-- 깃허브 CSV 선택 드롭다운 및 불러오기 버튼 -->
-        <div class="mb-4">
-          <label for="csv-selector" class="font-bold mr-2">CSV 파일 선택:</label>
-          <select id="csv-selector">
-            <option value="20250706_서울경주_주행스타일.csv">20250706_서울경주_주행스타일.csv</option>
-            <option value="20250706_서울경주_출전정보.csv">20250706_서울경주_출전정보.csv</option>
-            <!-- 필요시 파일명 추가 -->
-          </select>
-          <button id="load-csv-btn" class="bg-blue-600 text-white px-4 py-2 rounded ml-2">불러오기</button>
-        </div>
-
-        <!-- 업로드 상태 표시 -->
-        <div id="upload-status" class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg hidden">
-            <div class="flex items-center">
-                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                <span class="text-blue-800">파일을 처리하고 있습니다...</span>
-            </div>
-        </div>
-
-        <!-- 데이터 테이블 -->
-        <div class="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 mt-4">
+        <!-- Main Horse List Table -->
+        <section class="bg-white rounded-lg shadow-lg overflow-hidden mb-8">
             <div class="table-container">
-                <table class="w-full text-sm text-left text-gray-600">
-                    <thead class="text-xs text-gray-700 uppercase bg-gray-200">
+                <table class="w-full text-sm text-center">
+                    <thead class="bg-gray-100 text-gray-600 uppercase text-xs">
                         <tr>
-                            <th scope="col" rowspan="2" class="px-2 py-3 text-center align-middle">마번</th>
-                            <th scope="col" rowspan="2" class="px-2 py-3 align-middle">마명</th>
-                            <th scope="col" rowspan="2" class="px-2 py-3 align-middle">등급</th>
-                            <th scope="col" rowspan="2" class="px-2 py-3 align-middle">기수</th>
-                            <th scope="col" rowspan="2" class="px-2 py-3 align-middle">조교사</th>
-                            <th scope="col" rowspan="2" class="px-2 py-3 align-middle">부중</th>
-                            <th scope="col" colspan="3" class="px-2 py-3 text-center">주행스타일</th>
-                            <th scope="col" rowspan="2" class="px-2 py-3 align-middle">마체중</th>
-                            <th scope="col" rowspan="2" class="px-2 py-3 align-middle">전적</th>
-                            <th scope="col" rowspan="2" class="px-2 py-3 align-middle">최근기록</th>
-                            <th scope="col" rowspan="2" class="px-2 py-3 align-middle">최근순위</th>
-                            <th scope="col" rowspan="2" class="px-2 py-3 align-middle">최고기록</th>
-                            <th scope="col" rowspan="2" class="px-2 py-3 align-middle">S1F</th>
-                            <th scope="col" rowspan="2" class="px-2 py-3 align-middle">G3F</th>
-                            <th scope="col" rowspan="2" class="px-2 py-3 align-middle">G-1F</th>
-                            <th scope="col" rowspan="2" class="px-2 py-3 align-middle">레이팅</th>
-                        </tr>
-                         <tr class="border-t">
-                            <th class="px-2 py-2 text-center font-medium">선행력</th>
-                            <th class="px-2 py-2 text-center font-medium">선입력</th>
-                            <th class="px-2 py-2 text-center font-medium">추입력</th>
+                            <th class="p-3">마번</th>
+                            <th class="p-3 text-left">마명</th>
+                            <th class="p-3">등급</th>
+                            <th class="p-3">기수</th>
+                            <th class="p-3">조교사</th>
+                            <th class="p-3">부중</th>
+                            <th class="p-3" colspan="3">주행스타일</th>
+                            <th class="p-3">최근경주</th>
+                            <th class="p-3">최고기록</th>
+                            <th class="p-3">S1F</th>
+                            <th class="p-3">G3F</th>
+                            <th class="p-3">G1F</th>
+                            <th class="p-3">레이팅</th>
                         </tr>
                     </thead>
-                    <tbody id="data-table-body">
-                        <tr id="no-data-message">
-                            <td colspan="18" class="text-center py-16 text-gray-500">
-                                <p>모든 종류의 파일을 업로드해주세요.</p>
-                            </td>
-                        </tr>
+                    <tbody id="horse-list-body" class="divide-y divide-gray-200">
+                        <!-- Horse data will be populated here -->
                     </tbody>
                 </table>
+                 <div id="main-loader" class="loader"></div>
             </div>
-        </div>
+        </section>
 
-        <!-- 과거기록 테이블 (클릭 시 표시) -->
-        <div id="history-table-container" class="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 mt-4 hidden">
-            <div class="bg-blue-50 px-4 py-3 border-b border-gray-200">
-                <h3 id="history-table-title" class="text-lg font-semibold text-gray-800">과거기록</h3>
+        <!-- Past Races Section (Initially Hidden) -->
+        <section id="past-races-section" class="hidden">
+            <h2 id="past-races-title" class="text-2xl font-bold mb-4"></h2>
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                <div class="table-container">
+                    <table class="w-full text-sm text-center">
+                        <thead class="bg-gray-100 text-gray-600 uppercase text-xs">
+                            <tr>
+                                <th class="p-3">경주일자</th>
+                                <th class="p-3">경주부호</th>
+                                <th class="p-3">등급</th>
+                                <th class="p-3">거리</th>
+                                <th class="p-3">기록</th>
+                                <th class="p-3">S1F</th>
+                                <th class="p-3">G3F</th>
+                                <th class="p-3">G1F</th>
+                                <th class="p-3">마체중</th>
+                            </tr>
+                        </thead>
+                        <tbody id="past-races-body" class="divide-y divide-gray-200">
+                            <!-- Past race data will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            <div class="table-container">
-                <table class="w-full text-sm text-left text-gray-600">
-                    <thead class="text-xs text-gray-700 uppercase bg-gray-100">
-                        <tr>
-                            <th class="px-2 py-3 text-center">마명</th>
-                            <th class="px-2 py-3 text-center">경주일자</th>
-                            <th class="px-2 py-3 text-center">출전번호</th>
-                            <th class="px-2 py-3 text-center">종류</th>
-                            <th class="px-2 py-3 text-center">등급</th>
-                            <th class="px-2 py-3 text-center">거리</th>
-                            <th class="px-2 py-3 text-center">함수율</th>
-                            <th class="px-2 py-3 text-center">빠르기</th>
-                            <th class="px-2 py-3 text-center">순위</th>
-                            <th class="px-2 py-3 text-center">기수</th>
-                            <th class="px-2 py-3 text-center">중량</th>
-                            <th class="px-2 py-3 text-center">S-1F</th>
-                            <th class="px-2 py-3 text-center">G-3F</th>
-                            <th class="px-2 py-3 text-center">G-1F</th>
-                            <th class="px-2 py-3 text-center">기록</th>
-                            <th class="px-2 py-3 text-center">마체중</th>
-                            <th class="px-2 py-3 text-center">레이팅</th>
-                        </tr>
-                    </thead>
-                    <tbody id="history-table-body">
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div id="race-analysis-section" class="mt-8">
-            <div class="bg-white rounded-lg shadow-sm border p-6 mb-4">
-                <h2 class="text-xl font-bold mb-2">경주 개요 및 페이스 예측</h2>
-                <div id="race-pace-summary" class="text-base text-gray-700 mb-2">자동 분석 결과가 여기에 표시됩니다.</div>
-                <div id="race-style-counts" class="text-sm text-gray-500"></div>
-            </div>
-        </div>
-        <div id="history-cards-container" class="mt-8"></div>
+        </section>
     </div>
 
-    <script>
-        // Data storage
-        const globalData = {
-            entry: { rows: [], header: {} },
-            history: { rows: [], header: {} },
-            style: { rows: [], header: {} }
-        };
-        const locationData = {
-            '서울': { merged: null },
-            '부산': { merged: null }
-        };
-        let currentLoc = '서울';
-
-        // DOM Elements
-        const tableBody = document.getElementById('data-table-body');
-        const raceNavContainer = document.getElementById('race-nav-container');
-        const seoulBtn = document.getElementById('seoul-btn');
-        const busanBtn = document.getElementById('busan-btn');
-        const historyTableContainer = document.getElementById('history-table-container');
-        const historyTableBody = document.getElementById('history-table-body');
-        const historyTableTitle = document.getElementById('history-table-title');
-
-        // --- Intelligent Header Mapping ---
-        const HEADER_MAPPING = {
-            horseNumber: ['마번', '번호', 'NO', '출전번호'],
-            horseName: ['마명'],
-            jockey: ['기수', '기수명'],
-            trainer: ['조교사'],
-            weight: ['부중', '부담중량'],
-            weightChange: ['증감'],
-            earlySpeed: ['선행력'],
-            midPackSpeed: ['선입력'],
-            closingSpeed: ['추입력'],
-            earlySpeedGrade: ['선행등급'],
-            midPackSpeedGrade: ['선입등급'],
-            closingSpeedGrade: ['추입등급'],
-            bodyWeight: ['마체중'],
-            totalRecord: ['전적', '통산전적'],
-            recentRanks: ['최근순위'],
-            bestRecord: ['최고기록'],
-            S1F: ['과거_S-1F'],
-            G3F: ['과거_G-3F'],
-            G1F: ['과거_G-1F'],
-            rating: ['레이팅'],
-            location: ['경주장'],
-            raceNumber: ['경주번호'],
-            raceGrade: ['경주등급', '등급'],
-            raceDistance: ['거리'],
-            totalPrize: ['총상금'],
-            startTime: ['경주시간', '출발시각'],
-            pastDate: ['과거_경주일자'],
-            pastHorseNumber: ['과거_출전번호'],
-            pastType: ['종류'],
-            pastGrade: ['과거_등급'],
-            pastDistance: ['과거_거리'],
-            functionRate: ['함수율'],
-            speed: ['빠르기'],
-            pastRank: ['과거_순위'],
-            pastJockey: ['과거_기수'],
-            pastWeight: ['과거_중량'],
-            S1F: ['과거_S-1F'],
-            G3F: ['과거_G-3F'],
-            G1F: ['과거_G-1F'],
-            pastRecord: ['과거_기록'],
-            pastBodyWeight: ['과거_마체중'],
-            pastRating: ['과거_레이팅'],
-            primaryStyle: ['주행스타일']
-        };
-
-        function createStandardizedHeaderMap(rawHeaders) {
-            console.log('=== 헤더 매핑 시작 ===');
-            console.log('원본 헤더:', rawHeaders);
-            
-            const standardizedMap = {};
-            const cleanedHeaders = rawHeaders.map(h => h.replace(/^\uFEFF/, '').trim().replace(/"/g, ''));
-            
-            console.log('정리된 헤더:', cleanedHeaders);
-
-            for (const standardKey in HEADER_MAPPING) {
-                const possibleNames = HEADER_MAPPING[standardKey];
-                for (const name of possibleNames) {
-                    const index = cleanedHeaders.indexOf(name);
-                    if (index !== -1) {
-                        standardizedMap[standardKey] = index;
-                        console.log(`매핑 성공: "${name}" -> ${standardKey} (인덱스: ${index})`);
-                        break; 
-                    }
-                }
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    
+    // 외부 JSON 파일을 불러옵니다. 파일명은 'race_data.json'으로 가정합니다.
+    fetch('race_data.json')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('네트워크 응답이 올바르지 않습니다.');
             }
+            return response.json();
+        })
+        .then(raceData => {
+            // 로딩이 성공하면 로더를 숨깁니다.
+            document.getElementById('main-loader').style.display = 'none';
             
-            console.log('최종 매핑 결과:', standardizedMap);
-            console.log('매핑되지 않은 헤더:', cleanedHeaders.filter((h, i) => !Object.values(standardizedMap).includes(i)));
-            console.log('=== 헤더 매핑 완료 ===');
-            
-            return standardizedMap;
-        }
-        
-        // --- Helper Functions ---
-        function timeStringToSeconds(timeStr) {
-            if (!timeStr || !timeStr.includes(':')) return null;
-            const parts = timeStr.split(':');
-            const minutes = parseInt(parts[0], 10);
-            const seconds = parseFloat(parts[1]);
-            if (isNaN(minutes) || isNaN(seconds)) return null;
-            return minutes * 60 + seconds;
-        }
-
-        function secondsToTimeString(totalSeconds) {
-            if (totalSeconds === null || typeof totalSeconds === 'undefined' || isNaN(totalSeconds)) return '-';
-            const minutes = Math.floor(totalSeconds / 60);
-            const seconds = (totalSeconds % 60).toFixed(1);
-            return `${minutes}:${seconds.padStart(4, '0')}`;
-        }
-
-        function normalizeLocation(loc) {
-            if (!loc) return '';
-            if (loc.includes('부산') || loc.includes('부경')) return '부산';
-            if (loc.includes('서울')) return '서울';
-            return loc;
-        }
-
-        // --- Core Functions ---
-        function updateUploadStatus(type, status) {
-            const statusElement = document.getElementById(`${type}-status`);
-            if (statusElement) {
-                if (status === 'success') {
-                    statusElement.textContent = '✓ 업로드 완료';
-                    statusElement.className = 'text-xs mt-2 text-green-600';
-                    statusElement.classList.remove('hidden');
-                } else if (status === 'error') {
-                    statusElement.textContent = '✗ 업로드 실패';
-                    statusElement.className = 'text-xs mt-2 text-red-600';
-                    statusElement.classList.remove('hidden');
-                } else {
-                    statusElement.classList.add('hidden');
-                }
-            }
-        }
-
-        function showProcessingStatus(show) {
-            const statusElement = document.getElementById('upload-status');
-            if (statusElement) {
-                if (show) {
-                    statusElement.classList.remove('hidden');
-                } else {
-                    statusElement.classList.add('hidden');
-                }
-            }
-        }
-
-        function validateCSVFile(text, fileName) {
-            // 파일이 비어있는지 확인
-            if (!text || text.trim().length === 0) {
-                throw new Error('파일이 비어있습니다');
-            }
-            
-            // 줄바꿈으로 행 분리
-            const rows = text.trim().split(/\r?\n/);
-            
-            // 최소 2행(헤더 + 데이터)이 있는지 확인
-            if (rows.length < 2) {
-                throw new Error('파일이 비어있거나 헤더만 있습니다');
-            }
-            
-            // 첫 번째 행(헤더)을 쉼표로 분리
-            const headers = rows[0].split(',');
-            
-            // 헤더가 비어있는지 확인
-            if (headers.length === 0 || headers[0].trim() === '') {
-                throw new Error('헤더가 비어있거나 잘못된 형식입니다');
-            }
-            
-            // 데이터 행들이 올바른 형식인지 확인
-            for (let i = 1; i < Math.min(rows.length, 5); i++) { // 처음 5행만 확인
-                const row = rows[i].split(',');
-                if (row.length !== headers.length) {
-                    console.warn(`행 ${i+1}의 컬럼 수가 헤더와 다릅니다: 헤더 ${headers.length}개, 행 ${row.length}개`);
-                }
-            }
-            
-            return { rows, headers };
-        }
-
-        function handleFileUpload(event) {
-            const files = event.target.files;
-            const type = event.target.dataset.type;
-            if (!files.length || !type) return;
-
-            console.log(`파일 업로드 시작: ${type} 타입, ${files.length}개 파일`);
-            
-            // 상태 초기화
-            updateUploadStatus(type, '');
-            showProcessingStatus(true);
-            
-            let filesProcessed = 0;
-            globalData[type].rows = []; // Reset data for this type
-
-            Array.from(files).forEach(file => {
-                console.log(`파일 처리 중: ${file.name}, 크기: ${file.size} bytes`);
-                
-                // 파일 크기 확인
-                if (file.size === 0) {
-                    alert(`파일이 비어있습니다: ${file.name}`);
-                    updateUploadStatus(type, 'error');
-                    showProcessingStatus(false);
-                    return;
-                }
-                
-                const reader = new FileReader();
-                
-                reader.onload = function(e) {
-                    try {
-                        const text = e.target.result;
-                        console.log(`파일 읽기 성공: ${file.name}, 크기: ${text.length} 문자`);
-                        
-                        // CSV 파일 검증
-                        const { rows, headers } = validateCSVFile(text, file.name);
-                        
-                        console.log(`헤더: ${headers.length}개, 데이터: ${rows.length - 1}행`);
-                        console.log('헤더 샘플:', headers.slice(0, 5));
-                        
-                        // 데이터 행 추출 (헤더 제외)
-                        const data = rows.slice(1).map(r => r.split(','));
-                        
-                        if (Object.keys(globalData[type].header).length === 0) {
-                            globalData[type].header = createStandardizedHeaderMap(headers);
-                            console.log(`${type} 헤더 매핑:`, globalData[type].header);
-                        }
-                       
-                        globalData[type].rows.push(...data);
-                        console.log(`${type} 데이터 추가됨: 총 ${globalData[type].rows.length}행`);
-                        
-                        filesProcessed++;
-                        if (filesProcessed === files.length) {
-                            console.log(`모든 파일 처리 완료. 데이터 상태:`, {
-                                entry: globalData.entry.rows.length,
-                                history: globalData.history.rows.length,
-                                style: globalData.style.rows.length
-                            });
-                            
-                            updateUploadStatus(type, 'success');
-                            
-                            if (globalData.entry.rows.length > 0 && globalData.history.rows.length > 0 && globalData.style.rows.length > 0) {
-                                console.log('모든 데이터가 준비되었습니다. 병합 시작...');
-                                processAndMergeAllData();
-                            } else {
-                                console.log('일부 데이터가 누락되었습니다.');
-                                const missing = [];
-                                if (globalData.entry.rows.length === 0) missing.push('출전정보');
-                                if (globalData.history.rows.length === 0) missing.push('과거기록');
-                                if (globalData.style.rows.length === 0) missing.push('주행스타일');
-                                alert(`다음 파일들을 업로드해주세요: ${missing.join(', ')}`);
-                            }
-                            showProcessingStatus(false);
-                        }
-                    } catch (error) {
-                        console.error(`파일 처리 오류 (${file.name}):`, error);
-                        alert(`파일 처리 중 오류가 발생했습니다: ${file.name}\n${error.message}`);
-                        updateUploadStatus(type, 'error');
-                        showProcessingStatus(false);
-                    }
-                };
-                
-                reader.onerror = (error) => {
-                    console.error(`파일 읽기 오류 (${file.name}):`, error);
-                    alert(`파일 읽기 오류: ${file.name}`);
-                    updateUploadStatus(type, 'error');
-                    showProcessingStatus(false);
-                };
-                
-                // 기본적으로 UTF-8로 읽기 시도
-                reader.readAsText(file, 'UTF-8');
-            });
-        }
-        
-        function processAndMergeAllData() {
-            console.log('=== 데이터 병합 시작 ===');
-            console.log('전역 데이터 상태:', {
-                entry: { rows: globalData.entry.rows.length, header: globalData.entry.header },
-                history: { rows: globalData.history.rows.length, header: globalData.history.header },
-                style: { rows: globalData.style.rows.length, header: globalData.style.header }
-            });
-            
-            ['서울', '부산'].forEach(loc => {
-                console.log(`\n--- ${loc} 지역 데이터 처리 ---`);
-                
-                const entryHeader = globalData.entry.header;
-                const historyHeader = globalData.history.header;
-                const styleHeader = globalData.style.header;
-
-                console.log('헤더 정보:', {
-                    entry: entryHeader,
-                    history: historyHeader,
-                    style: styleHeader
-                });
-
-                const filteredEntryData = globalData.entry.rows.filter(row => {
-                    const location = row[entryHeader.location];
-                    const normalized = normalizeLocation(location);
-                    console.log(`출전정보 위치: "${location}" -> "${normalized}"`);
-                    return normalized === loc;
-                });
-                
-                const filteredHistoryData = globalData.history.rows.filter(row => {
-                    const location = row[historyHeader.location];
-                    const normalized = normalizeLocation(location);
-                    return normalized === loc;
-                });
-                
-                // 주행스타일 데이터는 지역별 필터링 없이 모든 데이터 사용 (말 이름으로 매칭)
-                const filteredStyleData = globalData.style.rows;
-                console.log('주행스타일 데이터는 모든 지역 데이터를 사용합니다 (말 이름으로 매칭)');
-
-                console.log(`${loc} 필터링 결과:`, {
-                    entry: filteredEntryData.length,
-                    history: filteredHistoryData.length,
-                    style: filteredStyleData.length
-                });
-
-                if (filteredEntryData.length > 0 && filteredHistoryData.length > 0 && filteredStyleData.length > 0) {
-                    console.log(`${loc} 데이터 병합 시작...`);
-                    mergeDataForLocation(loc, filteredEntryData, filteredHistoryData, filteredStyleData, entryHeader, historyHeader, styleHeader);
-                } else {
-                    console.log(`${loc} 데이터가 부족하여 병합을 건너뜁니다.`);
-                }
-            });
-            
-            console.log('=== 데이터 병합 완료 ===');
-            console.log('최종 locationData:', locationData);
-            switchLocation(currentLoc);
-            renderRacePaceAnalysis();
-        }
-
-
-        function mergeDataForLocation(loc, entryData, historyData, styleData, entryHeader, historyHeader, styleHeader) {
-            console.log(`\n--- ${loc} 데이터 병합 상세 ---`);
-            console.log('입력 데이터:', {
-                entry: entryData.length,
-                history: historyData.length,
-                style: styleData.length
-            });
-            
-            const locData = locationData[loc];
-            locData.merged = {};
-            
-            // 과거 기록 데이터를 말 이름별로 그룹화
-            const historyByHorse = historyData.reduce((acc, histRow) => {
-                const horseName = histRow[historyHeader.horseName];
-                if (horseName) {
-                    if (!acc[horseName]) acc[horseName] = [];
-                    acc[horseName].push(histRow);
-                }
-                return acc;
-            }, {});
-            
-            console.log('과거 기록 그룹화 결과:', Object.keys(historyByHorse).length, '마');
-
-            // 주행 스타일 데이터를 말 이름별로 그룹화
-            const styleByHorse = styleData.reduce((acc, styleRow) => {
-                const horseName = styleRow[styleHeader.horseName];
-                if(horseName) acc[horseName] = styleRow;
-                return acc;
-            }, {});
-            
-            console.log('주행 스타일 그룹화 결과:', Object.keys(styleByHorse).length, '마');
-
-            // 출전 정보를 기반으로 데이터 병합
-            let processedHorses = 0;
-            entryData.forEach(entryRow => {
-                const raceNum = entryRow[entryHeader.raceNumber];
-                const horseName = entryRow[entryHeader.horseName];
-                
-                console.log(`처리 중: 경주${raceNum}, 말${horseName}`);
-                
-                if (raceNum && horseName) {
-                    if (!locData.merged[raceNum]) {
-                        locData.merged[raceNum] = { horses: {}, details: {} };
-                        locData.merged[raceNum].details = {
-                            date: entryRow[entryHeader.raceDate],
-                            grade: entryRow[entryHeader.raceGrade],
-                            distance: entryRow[entryHeader.raceDistance],
-                            prize: entryRow[entryHeader.totalPrize],
-                            time: entryRow[entryHeader.startTime]
-                        };
-                        console.log(`새 경주 생성: ${raceNum}`, locData.merged[raceNum].details);
-                    }
-
-                    locData.merged[raceNum].horses[horseName] = {
-                        entry: entryRow,
-                        history: historyByHorse[horseName] || [],
-                        style: styleByHorse[horseName] || []
-                    };
-                    
-                    processedHorses++;
-                    console.log(`말 ${horseName} 병합 완료: 과거기록 ${historyByHorse[horseName]?.length || 0}개, 스타일 ${styleByHorse[horseName] ? '있음' : '없음'}`);
-                } else {
-                    console.warn(`경주번호 또는 말명이 없음: 경주${raceNum}, 말${horseName}`);
-                }
-            });
-            
-            console.log(`${loc} 병합 완료: ${Object.keys(locData.merged).length}개 경주, ${processedHorses}마 처리됨`);
-            console.log('병합된 경주 목록:', Object.keys(locData.merged));
-        }
-
-        function switchLocation(loc) {
-            currentLoc = loc;
-            seoulBtn.classList.toggle('active', loc === '서울');
-            busanBtn.classList.toggle('active', loc === '부산');
-            
-            const locData = locationData[loc];
-            console.log(`${loc} 지역 전환, 데이터 상태:`, locData);
-            
-            if (!locData.merged || Object.keys(locData.merged).length === 0) {
-                console.log(`${loc} 지역에 병합된 데이터가 없습니다.`);
-                raceNavContainer.innerHTML = '';
-                tableBody.innerHTML = `<tr><td colspan="18" class="text-center py-16 text-gray-500"><p>${loc} 지역의 출전 정보, 과거 기록, 주행스타일 파일을 모두 업로드해주세요.</p></td></tr>`;
-                document.getElementById('race-title').textContent = '데이터 없음';
-                document.getElementById('race-date').textContent = '파일을 업로드해주세요';
-                document.getElementById('race-grade-dist').textContent = '-';
-                document.getElementById('race-prize').textContent = '-';
-                document.getElementById('race-horse-count').textContent = '-';
-                document.getElementById('race-time').textContent = '--:--';
-                return;
-            }
-
-            console.log(`${loc} 지역 경주 목록:`, Object.keys(locData.merged));
-            
-            const raceNumbers = Object.keys(locData.merged).sort((a, b) => {
-                 const matchA = String(a).match(/\d+/);
-                 const matchB = String(b).match(/\d+/);
-                 const numA = matchA ? parseInt(matchA[0], 10) : 0;
-                 const numB = matchB ? parseInt(matchB[0], 10) : 0;
-                 return numA - numB;
-            });
-            
-            console.log(`정렬된 경주 번호:`, raceNumbers);
-            setupRaceNavigation(raceNumbers);
-
-            if (raceNumbers.length > 0) {
-                console.log(`첫 번째 경주 표시: ${raceNumbers[0]}`);
-                displayRaceData(raceNumbers[0]);
-            } else {
-                 raceNavContainer.innerHTML = '';
-                 tableBody.innerHTML = '<tr><td colspan="18" class="text-center py-16 text-gray-500">해당 지역의 경주 데이터가 없습니다.</td></tr>';
-            }
-        }
-
-        function setupRaceNavigation(raceNumbers) {
-            raceNavContainer.innerHTML = '';
-            raceNumbers.forEach((raceNum, index) => {
-                const button = document.createElement('button');
-                button.textContent = raceNum.replace('제', '').replace('경주', 'R');
-                button.className = 'race-nav-btn flex-1 text-center py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-white transition-colors';
-                if (index === 0) button.classList.add('active');
-                
-                button.addEventListener('click', (e) => {
-                    document.querySelectorAll('.race-nav-btn').forEach(btn => btn.classList.remove('active'));
-                    e.currentTarget.classList.add('active');
-                    displayRaceData(raceNum);
-                });
-                raceNavContainer.appendChild(button);
-            });
-        }
-        
-        function displayRaceData(raceNum) {
-            const race = locationData[currentLoc]?.merged?.[raceNum];
-            if (!race) return;
-            
-            updateMainInfoCard(race, raceNum);
-            updateDataTable(race.horses, race.details);
-        }
-
-        function updateMainInfoCard(race, raceNum) {
-            const details = race.details;
-            const horseCount = Object.keys(race.horses).length;
-            
-            document.getElementById('race-title').textContent = `${currentLoc} ${raceNum}`;
-            document.getElementById('race-date').textContent = details.date?.replace(/년|월/g, '.').replace('일', '') || '-';
-            document.getElementById('race-grade-dist').textContent = `${details.grade}, ${details.distance}M`;
-            document.getElementById('race-prize').textContent = details.prize ? `${parseInt(details.prize).toLocaleString()}원` : '-';
-            document.getElementById('race-horse-count').textContent = `${horseCount}두`;
-            document.getElementById('race-time').textContent = details.time || '--:--';
-        }
-
-        function updateDataTable(horses, raceDetails) {
-            tableBody.innerHTML = '';
-            if (Object.keys(horses).length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="18" class="text-center py-16 text-gray-500"><p>표시할 데이터가 없습니다.</p></td></tr>`;
-                return;
-            }
-            
-            const currentRaceDistNum = parseInt(raceDetails.distance, 10);
-            const entryHeader = globalData.entry.header;
-            const historyHeader = globalData.history.header;
-            const styleHeader = globalData.style.header;
-
-            const sortedHorses = Object.values(horses).sort((a, b) => 
-                parseInt(a.entry[entryHeader.horseNumber]) - parseInt(b.entry[entryHeader.horseNumber])
-            );
-
-            // 전체 말들의 기록을 수집하여 순위 계산
-            const allRecords = {
-                latest: [],
-                best: [],
-                s1f: [],
-                g3f: [],
-                g1f: []
-            };
-
-            // 먼저 모든 말의 기록을 수집
-            sortedHorses.forEach(horse => {
-                const { history } = horse;
-                
-                const relevantHistory = history.filter(h => {
-                    const histDist = h[historyHeader.pastDistance];
-                    return histDist && (parseInt(histDist, 10) === currentRaceDistNum);
-                });
-
-                const dateSort = (a, b) => {
-                    const dateAStr = a[historyHeader.pastDate];
-                    const dateBStr = b[historyHeader.pastDate];
-                    if (!dateAStr || !dateBStr) return 0;
-                    const dateA = new Date(dateAStr.split('-')[0].replace(/\//g, '-'));
-                    const dateB = new Date(dateBStr.split('-')[0].replace(/\//g, '-'));
-                    return dateB - dateA;
-                };
-
-                relevantHistory.sort(dateSort);
-
-                // 최근 기록
-                if (relevantHistory.length > 0) {
-                    const latestRecord = relevantHistory[0][historyHeader.pastRecord];
-                    const latestSeconds = timeStringToSeconds(latestRecord);
-                    if (latestSeconds !== null) {
-                        allRecords.latest.push({ horse: horse, value: latestSeconds, record: latestRecord });
-                    }
-                }
-
-                // 최고 기록
-                const timesInSeconds = relevantHistory.map(h => timeStringToSeconds(h[historyHeader.pastRecord])).filter(t => t !== null);
-                if (timesInSeconds.length > 0) {
-                    const bestTime = Math.min(...timesInSeconds);
-                    const bestRecord = relevantHistory.find(h => timeStringToSeconds(h[historyHeader.pastRecord]) === bestTime);
-                    allRecords.best.push({ horse: horse, value: bestTime, record: bestRecord[historyHeader.pastRecord] });
-                }
-
-                // S1F, G3F, G1F 평균 계산
-                const s1fValues = relevantHistory
-                    .map(h => timeStringToSeconds(h[historyHeader.S1F]))
-                    .filter(val => val !== null);
-                if (s1fValues.length > 0) {
-                    const avgS1F = s1fValues.reduce((a, b) => a + b, 0) / s1fValues.length;
-                    allRecords.s1f.push({ horse: horse, value: avgS1F, record: avgS1F.toFixed(1) });
-                }
-
-                const g3fValues = relevantHistory
-                    .map(h => timeStringToSeconds(h[historyHeader.G3F]))
-                    .filter(val => val !== null);
-                if (g3fValues.length > 0) {
-                    const avgG3F = g3fValues.reduce((a, b) => a + b, 0) / g3fValues.length;
-                    allRecords.g3f.push({ horse: horse, value: avgG3F, record: avgG3F.toFixed(1) });
-                }
-
-                const g1fValues = relevantHistory
-                    .map(h => timeStringToSeconds(h[historyHeader.G1F]))
-                    .filter(val => val !== null);
-                if (g1fValues.length > 0) {
-                    const avgG1F = g1fValues.reduce((a, b) => a + b, 0) / g1fValues.length;
-                    allRecords.g1f.push({ horse: horse, value: avgG1F, record: avgG1F.toFixed(1) });
-                }
-            });
-
-            // 각 기록별로 순위 계산
-            const calculateRank = (records, isLowerBetter = true) => {
-                const sorted = [...records].sort((a, b) => isLowerBetter ? a.value - b.value : b.value - a.value);
-                const rankMap = new Map();
-                sorted.forEach((item, index) => {
-                    rankMap.set(item.horse, index + 1);
-                });
-                return rankMap;
-            };
-
-            const latestRanks = calculateRank(allRecords.latest, true);
-            const bestRanks = calculateRank(allRecords.best, true);
-            const s1fRanks = calculateRank(allRecords.s1f, true);
-            const g3fRanks = calculateRank(allRecords.g3f, true);
-            const g1fRanks = calculateRank(allRecords.g1f, true);
-
-            sortedHorses.forEach(horse => {
-                const { entry, history, style } = horse;
-                
-                const relevantHistory = history.filter(h => {
-                    const histDist = h[historyHeader.pastDistance];
-                    return histDist && (parseInt(histDist, 10) === currentRaceDistNum);
-                });
-
-                const dateSort = (a, b) => {
-                    const dateAStr = a[historyHeader.pastDate];
-                    const dateBStr = b[historyHeader.pastDate];
-                    if (!dateAStr || !dateBStr) return 0;
-                    const dateA = new Date(dateAStr.split('-')[0].replace(/\//g, '-'));
-                    const dateB = new Date(dateBStr.split('-')[0].replace(/\//g, '-'));
-                    return dateB - dateA;
-                };
-
-                relevantHistory.sort(dateSort);
-
-                let bestTime = null;
-                const timesInSeconds = relevantHistory.map(h => timeStringToSeconds(h[historyHeader.pastRecord])).filter(t => t !== null);
-                if (timesInSeconds.length > 0) {
-                    bestTime = Math.min(...timesInSeconds);
-                }
-
-                const overallHistory = [...history].sort(dateSort);
-                
-                // 해당 거리 전적 계산
-                const calculateDistanceRecord = (historyData, distance) => {
-                    const distanceHistory = historyData.filter(h => {
-                        const histDist = h[historyHeader.pastDistance];
-                        return histDist && (parseInt(histDist, 10) === distance);
-                    });
-                    
-                    if (distanceHistory.length === 0) return '-';
-                    
-                    let wins = 0;      // 1위
-                    let places = 0;    // 2위
-                    let shows = 0;     // 3위
-                    
-                    distanceHistory.forEach(h => {
-                        const rank = parseInt(h[historyHeader.pastRank], 10);
-                        if (rank === 1) wins++;
-                        else if (rank === 2) places++;
-                        else if (rank === 3) shows++;
-                    });
-                    
-                    const totalRaces = distanceHistory.length;
-                    return `${totalRaces}(${wins}-${places}-${shows})`;
-                };
-                
-                // 해당 거리 평균 S1F, G3F, G1F 계산
-                const calculateAverageTimes = (historyData, distance) => {
-                    const distanceHistory = historyData.filter(h => {
-                        const histDist = h[historyHeader.pastDistance];
-                        return histDist && (parseInt(histDist, 10) === distance);
-                    });
-                    
-                    if (distanceHistory.length === 0) return { s1f: '-', g3f: '-', g1f: '-' };
-                    
-                    // S1F 평균 계산 (시간 형식을 초로 변환)
-                    const s1fValues = distanceHistory
-                        .map(h => timeStringToSeconds(h[historyHeader.S1F]))
-                        .filter(val => val !== null);
-                    const avgS1F = s1fValues.length > 0 ? (s1fValues.reduce((a, b) => a + b, 0) / s1fValues.length).toFixed(1) : '-';
-                    
-                    // G3F 평균 계산 (시간 형식을 초로 변환)
-                    const g3fValues = distanceHistory
-                        .map(h => timeStringToSeconds(h[historyHeader.G3F]))
-                        .filter(val => val !== null);
-                    const avgG3F = g3fValues.length > 0 ? (g3fValues.reduce((a, b) => a + b, 0) / g3fValues.length).toFixed(1) : '-';
-                    
-                    // G1F 평균 계산 (시간 형식을 초로 변환)
-                    const g1fValues = distanceHistory
-                        .map(h => timeStringToSeconds(h[historyHeader.G1F]))
-                        .filter(val => val !== null);
-                    const avgG1F = g1fValues.length > 0 ? (g1fValues.reduce((a, b) => a + b, 0) / g1fValues.length).toFixed(1) : '-';
-                    
-                    return { s1f: avgS1F, g3f: avgG3F, g1f: avgG1F };
-                };
-                
-                // 과거 기록에서 가장 최근 등급 가져오기
-                const getLatestGrade = (historyData) => {
-                    if (historyData.length === 0) return '-';
-                    
-                    // 날짜순으로 정렬하여 가장 최근 경주부터 확인
-                    const sortedHistory = [...historyData].sort((a, b) => {
-                        const dateAStr = a[historyHeader.pastDate];
-                        const dateBStr = b[historyHeader.pastDate];
-                        if (!dateAStr || !dateBStr) return 0;
-                        const dateA = new Date(dateAStr.split('-')[0].replace(/\//g, '-'));
-                        const dateB = new Date(dateBStr.split('-')[0].replace(/\//g, '-'));
-                        return dateB - dateA;
-                    });
-                    
-                    // 최근 경주부터 순서대로 등급이 있는지 확인
-                    for (let i = 0; i < sortedHistory.length; i++) {
-                        const grade = sortedHistory[i][historyHeader.pastGrade];
-                        if (grade && grade.trim() !== '' && grade !== 'undefined' && grade !== 'null') {
-                            return grade;
-                        }
-                    }
-                    
-                    return '-';
-                };
-
-                const latestGrade = getLatestGrade(history);
-
-                // 해당 거리 최근 기록 가져오기
-                const getLatestRecord = (historyData, distance) => {
-                    const distanceHistory = historyData.filter(h => {
-                        const histDist = h[historyHeader.pastDistance];
-                        return histDist && (parseInt(histDist, 10) === distance);
-                    });
-                    
-                    if (distanceHistory.length === 0) return '-';
-                    
-                    // 날짜순으로 정렬하여 가장 최근 기록 찾기
-                    const sortedHistory = [...distanceHistory].sort((a, b) => {
-                        const dateAStr = a[historyHeader.pastDate];
-                        const dateBStr = b[historyHeader.pastDate];
-                        if (!dateAStr || !dateBStr) return 0;
-                        const dateA = new Date(dateAStr.split('-')[0].replace(/\//g, '-'));
-                        const dateB = new Date(dateBStr.split('-')[0].replace(/\//g, '-'));
-                        return dateB - dateA;
-                    });
-                    
-                    const latestRecord = sortedHistory[0][historyHeader.pastRecord];
-                    return latestRecord || '-';
-                };
-
-                const latestRecord = getLatestRecord(history, currentRaceDistNum);
-                const averageTimes = calculateAverageTimes(history, currentRaceDistNum);
-                const distanceRecord = calculateDistanceRecord(history, currentRaceDistNum);
-
-                // 기록에 순위 병기
-                const formatRecordWithRank = (record, rank) => {
-                    if (record === '-' || !rank) return record;
-                    
-                    // 원문자로 순위 변환
-                    const circleNumbers = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩', '⑪', '⑫', '⑬', '⑭', '⑮', '⑯', '⑰', '⑱', '⑲', '⑳'];
-                    const circleRank = rank <= 20 ? circleNumbers[rank - 1] : rank;
-                    
-                    return `${record} ${circleRank}`;
-                };
-
-                // 최근순위에서 출전거리와 같은 경기 순위를 특수문자로 강조
-                const formatRecentRanks = (historyData, currentDistance) => {
-                    if (historyData.length === 0) return '-';
-                    
-                    const recentRanks = historyData.slice(0, 5).map(r => {
-                        const rank = r[historyHeader.pastRank];
-                        const distance = r[historyHeader.pastDistance];
-                        
-                        // 출전거리와 같은 경기인지 확인
-                        if (distance && parseInt(distance, 10) === currentDistance) {
-                            return `【${rank}】`;
-                        }
-                        return rank;
-                    });
-                    
-                    return recentRanks.join('-');
-                };
-
-                const tr = document.createElement('tr');
-                tr.className = 'bg-white border-b hover:bg-gray-50';
-                
-                const weight = entry[entryHeader.weight];
-                const weightChange = entry[entryHeader.weightChange];
-                let weightDisplay = weight || '-';
-                if (weightChange && parseFloat(weightChange) !== 0) {
-                    const sign = parseFloat(weightChange) > 0 ? '+' : '';
-                    weightDisplay += `(${sign}${weightChange})`;
-                }
-
-                // 주행스타일 데이터를 "점수(등급)" 형태로 포맷팅
-                const formatStyleData = (score, grade) => {
-                    if (!score && !grade) return '-';
-                    if (score && grade) return `${score}(${grade})`;
-                    if (score) return score;
-                    if (grade) return `(${grade})`;
-                    return '-';
-                };
-
-                const earlySpeedDisplay = formatStyleData(
-                    style[styleHeader.earlySpeed], 
-                    style[styleHeader.earlySpeedGrade]
-                );
-                const midPackSpeedDisplay = formatStyleData(
-                    style[styleHeader.midPackSpeed], 
-                    style[styleHeader.midPackSpeedGrade]
-                );
-                const closingSpeedDisplay = formatStyleData(
-                    style[styleHeader.closingSpeed], 
-                    style[styleHeader.closingSpeedGrade]
-                );
-
-                const cells = [
-                    entry[entryHeader.horseNumber],
-                    entry[entryHeader.horseName],
-                    latestGrade,  // 과거 기록에서 가장 최근 등급
-                    entry[entryHeader.jockey],
-                    entry[entryHeader.trainer],
-                    weightDisplay,
-                    earlySpeedDisplay,
-                    midPackSpeedDisplay,
-                    closingSpeedDisplay,
-                    entry[entryHeader.bodyWeight],
-                    distanceRecord,  // 과거기록에서 계산한 전적
-                    formatRecordWithRank(latestRecord, latestRanks.get(horse)),  // 최근기록 + 순위
-                    formatRecentRanks(overallHistory, currentRaceDistNum),  // 최근순위에서 출전거리와 같은 경기 순위를 볼드체로 표시
-                    formatRecordWithRank(secondsToTimeString(bestTime), bestRanks.get(horse)),  // 최고기록 + 순위
-                    formatRecordWithRank(averageTimes.s1f, s1fRanks.get(horse)),  // S1F + 순위
-                    formatRecordWithRank(averageTimes.g3f, g3fRanks.get(horse)),  // G3F + 순위
-                    formatRecordWithRank(averageTimes.g1f, g1fRanks.get(horse)),  // G1F + 순위
-                    entry[entryHeader.rating]
-                ];
-
-                cells.forEach((cellData, index) => {
-                    const td = document.createElement('td');
-                    td.className = 'px-2 py-3 whitespace-nowrap text-center';
-                    
-                    // HTML이 포함된 경우 innerHTML 사용
-                    if (typeof cellData === 'string' && cellData.includes('<span>')) {
-                        td.innerHTML = cellData;
-                    } else {
-                        td.textContent = cellData || '-';
-                    }
-                    
-                    // 마명 컬럼에 클릭 이벤트 추가
-                    if (index === 1) { // 마명 컬럼 (두 번째 컬럼)
-                        td.style.cursor = 'pointer';
-                        td.classList.add('hover:bg-blue-50', 'transition-colors');
-                        td.addEventListener('click', () => {
-                            showHorseHistory(horse);
-                        });
-                    }
-                    
-                    tr.appendChild(td);
-                });
-                tableBody.appendChild(tr);
-            });
-        }
-        
-        // 말의 과거기록을 카드 형태로 하단에 누적 출력
-        function showHorseHistory(horse) {
-            const horseName = horse.entry[globalData.entry.header.horseName];
-            const cardId = `history-card-${horseName}`;
-            // 이미 카드가 있으면 중복 추가 방지
-            if (document.getElementById(cardId)) return;
-
-            const card = document.createElement('div');
-            card.id = cardId;
-            card.className = 'bg-white rounded-lg shadow-sm border p-4 mb-4';
-
-            // 카드 헤더
-            const header = document.createElement('div');
-            header.className = 'flex justify-between items-center mb-2';
-            header.innerHTML = `<span class="font-bold text-lg">${horseName} - 과거 경주 기록</span>
-                <button class="bg-red-500 text-white px-3 py-1 rounded" onclick="this.closest('.bg-white').remove()">이 말 기록 삭제</button>`;
-            card.appendChild(header);
-
-            // 테이블 생성
-            const table = document.createElement('table');
-            table.className = 'w-full text-sm text-left text-gray-600';
-            table.innerHTML = `
-                <thead class="text-xs text-gray-700 uppercase bg-gray-100">
-                    <tr>
-                        <th class="px-2 py-3 text-center">경주시간</th>
-                        <th class="px-2 py-3 text-center">마명</th>
-                        <th class="px-2 py-3 text-center">경주일자</th>
-                        <th class="px-2 py-3 text-center">출전번호</th>
-                        <th class="px-2 py-3 text-center">종류</th>
-                        <th class="px-2 py-3 text-center">등급</th>
-                        <th class="px-2 py-3 text-center">거리</th>
-                        <th class="px-2 py-3 text-center">함수율</th>
-                        <th class="px-2 py-3 text-center">빠르기</th>
-                        <th class="px-2 py-3 text-center">순위</th>
-                        <th class="px-2 py-3 text-center">기수</th>
-                        <th class="px-2 py-3 text-center">중량</th>
-                        <th class="px-2 py-3 text-center">S-1F</th>
-                        <th class="px-2 py-3 text-center">G-3F</th>
-                        <th class="px-2 py-3 text-center">G-1F</th>
-                        <th class="px-2 py-3 text-center">기록</th>
-                        <th class="px-2 py-3 text-center">마체중</th>
-                        <th class="px-2 py-3 text-center">레이팅</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            `;
-            const tbody = table.querySelector('tbody');
-            const history = horse.history;
-            const entry = horse.entry;
-            const entryHeader = globalData.entry.header;
-            const historyHeader = globalData.history.header;
-            const startTime = entry[entryHeader.startTime] || '-';
-
-            if (history.length === 0) {
-                const tr = document.createElement('tr');
-                const td = document.createElement('td');
-                td.colSpan = 18;
-                td.className = 'text-center py-8 text-gray-500';
-                td.textContent = '과거기록이 없습니다.';
-                tr.appendChild(td);
-                tbody.appendChild(tr);
-            } else {
-                // 날짜순 정렬 (최신순)
-                const sortedHistory = [...history].sort((a, b) => {
-                    const dateAStr = a[historyHeader.pastDate];
-                    const dateBStr = b[historyHeader.pastDate];
-                    if (!dateAStr || !dateBStr) return 0;
-                    const dateA = new Date(dateAStr.split('-')[0].replace(/\//g, '-'));
-                    const dateB = new Date(dateBStr.split('-')[0].replace(/\//g, '-'));
-                    return dateB - dateA;
-                });
-                sortedHistory.forEach(record => {
-                    const tr = document.createElement('tr');
-                    const cells = [
-                        startTime,
-                        horseName,
-                        record[historyHeader.pastDate] || '-',
-                        record[historyHeader.pastHorseNumber] || '-',
-                        record[historyHeader.pastType] || '-',
-                        record[historyHeader.pastGrade] || '-',
-                        record[historyHeader.pastDistance] || '-',
-                        record[historyHeader.functionRate] || '-',
-                        record[historyHeader.pastRank] || '-',
-                        record[historyHeader.pastJockey] || '-',
-                        record[historyHeader.pastWeight] || '-',
-                        record[historyHeader.S1F] || '-',
-                        record[historyHeader.G3F] || '-',
-                        record[historyHeader.G1F] || '-',
-                        record[historyHeader.pastRecord] || '-',
-                        record[historyHeader.pastBodyWeight] || '-',
-                        record[historyHeader.pastRating] || '-'
-                    ];
-                    cells.forEach(cellData => {
-                        const td = document.createElement('td');
-                        td.className = 'px-2 py-3 whitespace-nowrap text-center';
-                        td.textContent = cellData;
-                        tr.appendChild(td);
-                    });
-                    tbody.appendChild(tr);
-                });
-            }
-            card.appendChild(table);
-            document.getElementById('history-cards-container').appendChild(card);
-        }
-        
-        // --- Initial Setup ---
-        document.querySelectorAll('.file-input').forEach(input => {
-            input.className = `block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100`;
-            
-            // 파일 선택 시 즉시 상태 업데이트
-            input.addEventListener('change', function(event) {
-                const files = event.target.files;
-                const type = this.dataset.type;
-                
-                if (files.length > 0) {
-                    // 파일 선택됨 상태 표시
-                    const statusElement = document.getElementById(`${type}-status`);
-                    if (statusElement) {
-                        statusElement.textContent = `📁 ${files.length}개 파일 선택됨`;
-                        statusElement.className = 'text-xs mt-2 text-blue-600';
-                        statusElement.classList.remove('hidden');
-                    }
-                    
-                    // 파일 정보 표시
-                    const fileNames = Array.from(files).map(f => f.name).join(', ');
-                    console.log(`${type} 파일 선택됨: ${fileNames}`);
-                } else {
-                    // 파일 선택 취소됨
-                    const statusElement = document.getElementById(`${type}-status`);
-                    if (statusElement) {
-                        statusElement.classList.add('hidden');
-                    }
-                }
-                
-                // 기존 파일 업로드 처리
-                handleFileUpload(event);
-            });
+            // JSON 데이터로 페이지를 렌더링하는 함수를 호출합니다.
+            renderPage(raceData);
+        })
+        .catch(error => {
+            console.error('JSON 파일 로딩 또는 파싱에 실패했습니다:', error);
+            document.getElementById('horse-list-body').innerHTML = `<tr><td colspan="15" class="p-4 text-center text-red-500">데이터를 불러오는 데 실패했습니다. race_data.json 파일이 올바른 위치에 있는지 확인하세요.</td></tr>`;
+            document.getElementById('main-loader').style.display = 'none';
         });
-        
-        // 지역 버튼 클릭 이벤트 리스너 추가
-        seoulBtn.addEventListener('click', () => switchLocation('서울'));
-        busanBtn.addEventListener('click', () => switchLocation('부산'));
+});
 
-        // 각 말의 대표 주행스타일 산출 함수
-        function getPrimaryStyle(styleRow, styleHeader) {
-            const early = parseFloat(styleRow[styleHeader.earlySpeed]) || 0;
-            const mid = parseFloat(styleRow[styleHeader.midPackSpeed]) || 0;
-            const close = parseFloat(styleRow[styleHeader.closingSpeed]) || 0;
-            // 최고 점수 스타일 우선
-            if (early > mid && early > close) return '선행';
-            if (mid > early && mid > close) return '선입';
-            if (close > early && close > mid) return '추입';
-            // 동점이면 등급 비교 (A < B < C ...)
-            const earlyGrade = (styleRow[styleHeader.earlySpeedGrade] || 'Z').charCodeAt(0);
-            const midGrade = (styleRow[styleHeader.midPackSpeedGrade] || 'Z').charCodeAt(0);
-            const closeGrade = (styleRow[styleHeader.closingSpeedGrade] || 'Z').charCodeAt(0);
-            const minGrade = Math.min(earlyGrade, midGrade, closeGrade);
-            if (earlyGrade === minGrade) return '선행';
-            if (midGrade === minGrade) return '선입';
-            if (closeGrade === minGrade) return '추입';
-            return '미분류';
-        }
+function renderPage(raceData) {
+    // 1. Render static race info
+    const { raceInfo, files, horses } = raceData;
+    document.getElementById('race-title').textContent = `${raceInfo.location} ${raceInfo.raceNumber}`;
+    document.getElementById('race-details').textContent = `${raceInfo.class}, ${raceInfo.distance}`;
+    document.getElementById('race-entries').textContent = `${raceInfo.totalEntries}두`;
+    document.getElementById('race-time').textContent = raceInfo.time;
+    
+    document.getElementById('file-entry').textContent = files.entryFile;
+    document.getElementById('file-record').textContent = files.recordFile;
+    document.getElementById('file-style').textContent = files.styleFile;
 
-        // 경주 페이스 및 주행스타일 분석 함수 (대표 스타일 기반)
-        function analyzeRacePace(entryRows, styleRows, entryHeader, styleHeader) {
-            const styleCount = { 선행: 0, 선입: 0, 추입: 0, 미분류: 0 };
-            entryRows.forEach(entry => {
-                const horseName = entry[entryHeader.horseName];
-                const styleRow = styleRows.find(row => row[styleHeader.horseName] === horseName);
-                let style = '미분류';
-                if (styleRow) {
-                    style = getPrimaryStyle(styleRow, styleHeader);
-                }
-                styleCount[style] = (styleCount[style] || 0) + 1;
-            });
-            // 페이스 예측 로직
-            let pace = '보통 페이스';
-            let summary = '';
-            if (styleCount['선행'] >= 2 && styleCount['선행'] > styleCount['선입'] && styleCount['선행'] > styleCount['추입']) {
-                pace = '빠른 페이스';
-                summary = '선행마가 많아 초반 페이스가 빠를 것으로 예상됩니다.';
-            } else if (styleCount['추입'] >= 2 && styleCount['추입'] > styleCount['선행'] && styleCount['추입'] > styleCount['선입']) {
-                pace = '느린 페이스';
-                summary = '추입마가 많아 초반은 느리지만 후반에 승부가 날 가능성이 높습니다.';
-            } else if (styleCount['선입'] >= 2 && styleCount['선입'] > styleCount['선행'] && styleCount['선입'] > styleCount['추입']) {
-                pace = '중간 페이스';
-                summary = '선입마가 많아 중후반 승부가 될 가능성이 높습니다.';
-            } else {
-                summary = '선입, 선행, 추입마가 고르게 분포되어 보통 페이스가 예상됩니다.';
-            }
-            return {
-                styleCount,
-                pace,
-                summary
-            };
-        }
+    // 2. Render main horse list
+    const horseListBody = document.getElementById('horse-list-body');
+    horseListBody.innerHTML = ''; // Clear loader or error message
+    horses.forEach((horse, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="p-3">${horse.horseNumber}</td>
+            <td class="p-3 text-left horse-name-clickable" data-index="${index}">${horse.horseName}</td>
+            <td class="p-3">${horse.class}</td>
+            <td class="p-3">${horse.jockey}</td>
+            <td class="p-3">${horse.trainer}</td>
+            <td class="p-3">${horse.weight}</td>
+            <td class="p-3 text-xs">${horse.runningStyle.frontRunner?.raw || '-'}</td>
+            <td class="p-3 text-xs">${horse.runningStyle.stalker?.raw || '-'}</td>
+            <td class="p-3 text-xs">${horse.runningStyle.closer?.raw || '-'}</td>
+            <td class="p-3 text-xs">${horse.records.recentRace}</td>
+            <td class="p-3">${horse.records.bestTime}</td>
+            <td class="p-3">${horse.sectionals.s1f.time}</td>
+            <td class="p-3">${horse.sectionals.g3f.time}</td>
+            <td class="p-3">${horse.sectionals.g1f.time}</td>
+            <td class="p-3">${horse.rating}</td>
+        `;
+        horseListBody.appendChild(row);
+    });
 
-        // renderRacePaceAnalysis: entryRows(출전표에 표시된 출전마 배열)만 인자로 받음
-        function renderRacePaceAnalysis(currentRaceEntries) {
-            const styleRows = globalData.style.rows;
-            const entryHeader = globalData.entry.header;
-            const styleHeader = globalData.style.header;
-            if (!currentRaceEntries.length || !styleRows.length) return;
-            const result = analyzeRacePace(currentRaceEntries, styleRows, entryHeader, styleHeader);
-            document.getElementById('race-pace-summary').textContent = `${result.pace} - ${result.summary}`;
-            document.getElementById('race-style-counts').innerHTML =
-                `<b>주행스타일 분포:</b> ` +
-                `선행: <b>${result.styleCount['선행']}</b> / ` +
-                `선입: <b>${result.styleCount['선입']}</b> / ` +
-                `추입: <b>${result.styleCount['추입']}</b> / ` +
-                `미분류: <b>${result.styleCount['미분류']}</b>`;
-        }
+    // 3. Add click event listeners to horse names
+    document.querySelectorAll('.horse-name-clickable').forEach(nameCell => {
+        nameCell.addEventListener('click', (event) => {
+            const index = event.target.dataset.index;
+            const selectedHorse = horses[index];
+            
+            // Highlight selected row
+            document.querySelectorAll('#horse-list-body tr').forEach(tr => tr.classList.remove('selected-row'));
+            event.target.closest('tr').classList.add('selected-row');
 
-        // 출전표가 갱신될 때마다 분석 결과도 갱신하도록 showRace 등에서 호출
-        // 예시: showRace 함수 마지막에 renderRacePaceAnalysis(현재 출전마 리스트) 추가
-        const origShowRace = window.showRace;
-        window.showRace = function(raceNumber) {
-            if (typeof origShowRace === 'function') origShowRace(raceNumber);
-            // 현재 출전표에 표시된 출전마 리스트 추출
-            const entryRows = globalData.entry.rows;
-            const entryHeader = globalData.entry.header;
-            const currentRaceEntries = entryRows.filter(entry => entry[entryHeader.raceNumber] == raceNumber);
-            renderRacePaceAnalysis(currentRaceEntries);
-        };
+            renderPastRaces(selectedHorse);
+        });
+    });
+}
 
-        // 데이터 병합 후 첫 경주 출전마로 분석 초기화
-        const origProcessAndMergeAllData = window.processAndMergeAllData;
-        window.processAndMergeAllData = function() {
-            if (typeof origProcessAndMergeAllData === 'function') origProcessAndMergeAllData();
-            // 첫 경주 출전마 리스트로 분석
-            const entryRows = globalData.entry.rows;
-            const entryHeader = globalData.entry.header;
-            const raceNumbers = [...new Set(entryRows.map(row => row[entryHeader.raceNumber]))].filter(Boolean);
-            if (raceNumbers.length > 0) {
-                const firstRaceEntries = entryRows.filter(entry => entry[entryHeader.raceNumber] == raceNumbers[0]);
-                renderRacePaceAnalysis(firstRaceEntries);
-            }
-        };
+function renderPastRaces(horse) {
+    const section = document.getElementById('past-races-section');
+    const title = document.getElementById('past-races-title');
+    const body = document.getElementById('past-races-body');
 
-        // 깃허브 API 경로 (jinkok/race-dashboard/data로 고정)
-        const GITHUB_API_URL = 'https://api.github.com/repos/jinkok/race-dashboard/contents/data';
+    title.textContent = `${horse.horseName} 과거기록`;
+    body.innerHTML = ''; // Clear previous data
 
-        // 모든 CSV 파일 불러오기 및 자동 분류
-        fetch(GITHUB_API_URL)
-          .then(res => res.json())
-          .then(files => {
-            let loadedCount = 0;
-            const csvFiles = files.filter(file => file.name.endsWith('.csv'));
-            csvFiles.forEach(file => {
-              fetch(file.download_url)
-                .then(res => res.text())
-                .then(csvText => {
-                  // 파일명에 따라 자동 분류 및 파싱 (주행스타일 → 주행스타일, 매핑완료 → 과거기록, entry → 출전정보)
-                  if (file.name.includes('주행스타일')) {
-                    // 주행스타일
-                    const { rows, headers } = validateCSVFile(csvText, file.name);
-                    globalData.style.header = createStandardizedHeaderMap(headers);
-                    globalData.style.rows = rows.slice(1).map(r => r.split(','));
-                    console.log('주행스타일 rows:', globalData.style.rows.length);
-                  } else if (file.name.includes('매핑완료')) {
-                    // 과거기록
-                    const { rows, headers } = validateCSVFile(csvText, file.name);
-                    globalData.history.header = createStandardizedHeaderMap(headers);
-                    globalData.history.rows = rows.slice(1).map(r => r.split(','));
-                    console.log('과거기록 rows:', globalData.history.rows.length);
-                  } else if (file.name.includes('entry')) {
-                    // 출전정보
-                    const { rows, headers } = validateCSVFile(csvText, file.name);
-                    globalData.entry.header = createStandardizedHeaderMap(headers);
-                    globalData.entry.rows = rows.slice(1).map(r => r.split(','));
-                    console.log('출전정보 rows:', globalData.entry.rows.length);
-                  }
-                  loadedCount++;
-                  // 모든 파일이 다 불러와졌을 때 분석/렌더링 실행
-                  if (loadedCount === csvFiles.length) {
-                    if (typeof processAndMergeAllData === 'function') {
-                      processAndMergeAllData();
-                    }
-                  }
-                });
-            });
-          });
-    </script>
+    if (horse.pastRaces && horse.pastRaces.length > 0) {
+        horse.pastRaces.forEach(race => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="p-3">${race.raceDate}</td>
+                <td class="p-3">${race.raceId}</td>
+                <td class="p-3">${race.class}</td>
+                <td class="p-3">${race.distance}m</td>
+                <td class="p-3">${race.record}</td>
+                <td class="p-3">${race.s1f}</td>
+                <td class="p-3">${race.g3f}</td>
+                <td class="p-3">${race.g1f}</td>
+                <td class="p-3">${race.horseWeight}</td>
+            `;
+            body.appendChild(row);
+        });
+    } else {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td colspan="9" class="p-4 text-center text-gray-500">과거 경기 기록 데이터가 없습니다.</td>`;
+        body.appendChild(row);
+    }
+    
+    section.classList.remove('hidden');
+}
+</script>
 </body>
 </html>
