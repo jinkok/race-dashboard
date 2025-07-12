@@ -3,800 +3,374 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2025년 7월 12일 서울 경마 인포그래픽 분석</title>
+    <title>서울-부산 통합 경마 인터랙티브 분석</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Professional Trackside (Blue/Gold) -->
+    <!-- Application Structure Plan: A unified SPA dashboard. A primary top-level navigation switches between 'Seoul' and 'Busan'. This selection dynamically rewrites the secondary navigation (race numbers) and the main content area. This architecture allows two distinct but related datasets to coexist within a single, seamless user experience, preventing the need for separate pages and leveraging a consistent UI framework. Each location retains its unique visualization style (Radar for Seoul, Bubble for Busan) to best represent its specific data structure. -->
+    <!-- Visualization & Content Choices:
+        - Location Navigation: HTML Buttons -> Goal: Navigate between datasets -> Interaction: Click -> Justification: The most intuitive way to perform the primary task of switching between Seoul and Busan content.
+        - Seoul Horse Style: Radar Chart (Chart.js) -> Goal: Compare attributes -> Justification: Ideal for showing multivariate data (선행/선입/추입) for a single horse.
+        - Busan Horse Comparison: Bubble Chart (Chart.js) -> Goal: Compare relationships -> Justification: Best for showing the relationship between three variables (선행, 추입, 부중) across all horses in a race.
+        - Dynamic Content Rendering: JS functions -> Goal: Organize/Inform -> Justification: A single 'main' element is dynamically populated based on user selections (location and race), creating a true single-page application feel and reducing DOM complexity.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
-        body {
-            font-family: 'Noto Sans KR', sans-serif;
-            background-color: #f0f2f5;
+        :root {
+            --bg-main: #f0f4f8;
+            --text-dark: #1e3a8a; /* blue-900 */
+            --text-light: #3b82f6; /* blue-500 */
+            --accent-gold: #f59e0b; /* amber-500 */
+            --accent-green: #10b981; /* emerald-500 */
+            --accent-blue: #3b82f6; /* blue-500 */
+            --card-bg: #ffffff;
         }
-        .chart-container {
-            position: relative;
-            width: 100%;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-            height: 350px;
-            max-height: 400px;
-        }
-        @media (max-width: 768px) {
-            .chart-container {
-                height: 300px;
-            }
-        }
-        .gradient-text {
-            background: linear-gradient(90deg, #FF4E50, #FC913A);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            text-fill-color: transparent;
-        }
-        .card {
-            background-color: white;
-            border-radius: 12px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            padding: 24px;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-        }
-        .horse-tag {
-            display: inline-flex;
-            align-items: center;
-            padding: 4px 12px;
-            border-radius: 9999px;
-            font-weight: 700;
-            font-size: 0.875rem;
-        }
-        .contender-tag {
-            background-color: #E1F5C4;
-            color: #333;
-            border: 1px solid #FC913A;
-        }
-        .darkhorse-tag {
-            background-color: #FF4E50;
-            color: white;
-        }
-        .pace-indicator {
-            padding: 16px;
-            border-radius: 8px;
-            text-align: center;
-            font-size: 1.125rem;
-            font-weight: 900;
-        }
-        .pace-very-fast { background-color: #FF4E50; color: white; }
-        .pace-fast { background-color: #FC913A; color: white; }
-        .pace-moderate { background-color: #F9D423; color: #333; }
-        .pace-slow { background-color: #EDE574; color: #333; }
-        .flowchart {
-            display: flex;
-            justify-content: space-around;
-            padding: 1rem 0;
-            border-radius: 8px;
-            background: #fafafa;
-            border: 1px solid #e0e0e0;
-        }
-        .flowchart-group {
-            text-align: center;
-            padding: 0.5rem;
-        }
-        .flowchart-group h4 {
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-            color: #555;
-            border-bottom: 2px solid;
-        }
-        .flowchart-group.lead h4 { border-color: #FF4E50; }
-        .flowchart-group.stalking h4 { border-color: #FC913A; }
-        .flowchart-group.closing h4 { border-color: #F9D423; }
-        .flowchart-horse {
-            font-size: 0.9rem;
-            background: white;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            margin-top: 0.25rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .sticky-nav {
-            position: sticky;
-            top: 0;
-            z-index: 50;
-            background-color: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(10px);
-            padding: 1rem 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
+        html { scroll-behavior: smooth; }
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: var(--bg-main); color: var(--text-dark); }
+        .header-gradient { background: linear-gradient(90deg, var(--text-dark), var(--text-light)); }
+        .card { background-color: var(--card-bg); border-radius: 0.75rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1); transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
+        .card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.1); }
+        .location-btn, .nav-btn { transition: all 0.2s ease-in-out; }
+        .location-btn.active, .nav-btn.active { background-color: var(--text-dark); color: white; }
+        .location-btn:not(.active):hover, .nav-btn:not(.active):hover { background-color: #dbeafe; }
+        .longshot-card { border-left: 4px solid var(--accent-gold); }
+        .longshot-badge { background-color: var(--accent-gold); color: white; font-weight: 700; }
+        .chart-container { position: relative; width: 100%; max-width: 800px; margin-left: auto; margin-right: auto; height: 50vh; max-height: 500px; }
+        .radar-chart-container { position: relative; width: 100%; height: 200px; margin: 1rem auto; }
     </style>
 </head>
-<body>
-    <header class="bg-white py-8 text-center">
-        <h1 class="text-4xl md:text-6xl font-black gradient-text">서울 경마 빅데이터 분석</h1>
-        <p class="text-xl md:text-2xl text-gray-600 mt-2">2025년 7월 12일 (토) 1-9경주 완전 정복</p>
+<body class="antialiased">
+
+    <header id="app-header" class="header-gradient text-white p-6 text-center shadow-lg">
+        <h1 class="text-3xl md:text-4xl font-black tracking-tight"></h1>
+        <h2 class="text-xl md:text-2xl font-bold mt-1">인터랙티브 분석 대시보드</h2>
     </header>
 
-    <nav class="sticky-nav hidden md:block">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-center space-x-6">
-                <a href="#summary" class="text-gray-700 hover:text-[#FF4E50] font-bold">핵심 요약</a>
-                <a href="#race1" class="text-gray-700 hover:text-[#FF4E50] font-bold">1경주</a>
-                <a href="#race2" class="text-gray-700 hover:text-[#FF4E50] font-bold">2경주</a>
-                <a href="#race3" class="text-gray-700 hover:text-[#FF4E50] font-bold">3경주</a>
-                <a href="#race4" class="text-gray-700 hover:text-[#FF4E50] font-bold">4경주</a>
-                <a href="#race5" class="text-gray-700 hover:text-[#FF4E50] font-bold">5경주</a>
-                <a href="#race6" class="text-gray-700 hover:text-[#FF4E50] font-bold">6경주</a>
-                <a href="#race7" class="text-gray-700 hover:text-[#FF4E50] font-bold">7경주</a>
-                <a href="#race8" class="text-gray-700 hover:text-[#FF4E50] font-bold">8경주</a>
-                <a href="#race9" class="text-gray-700 hover:text-[#FF4E50] font-bold">9경주</a>
-            </div>
+    <div class="bg-white/80 backdrop-blur-sm shadow-md sticky top-0 z-20">
+        <div id="location-nav" class="container mx-auto flex justify-center items-center p-2 border-b border-gray-200 space-x-2">
+            <button data-location="seoul" class="location-btn font-bold py-2 px-6 rounded-full text-base">서울 경마</button>
+            <button data-location="busan" class="location-btn font-bold py-2 px-6 rounded-full text-base">부산 경마</button>
         </div>
-    </nav>
+        <nav id="race-nav" class="p-2 overflow-x-auto whitespace-nowrap">
+            <div class="container mx-auto flex justify-center items-center space-x-1"></div>
+        </nav>
+    </div>
 
-    <main class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-        
-        <section id="summary" class="mb-12">
-            <h2 class="text-3xl font-bold text-center mb-8">오늘의 경마, 핵심 요약</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <div class="card">
-                    <h3 class="text-xl font-bold mb-4 text-center">오늘의 축마 🐎</h3>
-                    <div class="text-center">
-                        <p class="text-gray-600">제7경주</p>
-                        <p class="text-4xl font-black text-[#FF4E50]">5번 와일드위즈</p>
-                        <p class="mt-2 font-bold">압도적인 2연승, 문세영 기수와 완벽 호흡!</p>
-                        <p class="text-sm text-gray-500 mt-1">절대적인 능력과 최상의 조건, 3연승이 유력한 명실상부한 오늘의 주인공입니다.</p>
-                    </div>
-                </div>
-                <div class="card">
-                    <h3 class="text-xl font-bold mb-4 text-center">오늘의 고배당마 💰</h3>
-                    <div class="text-center">
-                        <p class="text-gray-600">제8경주</p>
-                        <p class="text-4xl font-black text-[#FC913A]">9번 팰로앨토</p>
-                        <p class="mt-2 font-bold">단독 선행 찬스! 배당 가치 폭발!</p>
-                         <p class="text-sm text-gray-500 mt-1">검증된 능력에 유리한 경주 흐름까지, 능력과 배당을 모두 잡을 수 있는 최고의 가치마입니다.</p>
-                    </div>
-                </div>
-                <div class="card">
-                    <h3 class="text-xl font-bold mb-4 text-center">경주 페이스 분포</h3>
-                     <div class="chart-container h-64">
-                        <canvas id="paceDistributionChart"></canvas>
-                    </div>
-                    <p class="text-sm text-center text-gray-500 mt-2">빠른 페이스 경주가 많아 추입마의 활약이 기대됩니다.</p>
-                </div>
-            </div>
-        </section>
-
-        <div class="space-y-12">
-        
-        <section id="race1" class="card">
-            <div class="md:flex md:items-center md:justify-between mb-4">
-                <h2 class="text-3xl font-extrabold text-gray-800">제1경주 <span class="text-xl font-normal text-gray-500">국6 1000M 10:35</span></h2>
-                <div class="pace-indicator pace-very-fast mt-2 md:mt-0">페이스 예측: 매우 빠름</div>
-            </div>
-            <p class="text-gray-600 mb-6">신마들의 대결로 초반 스피드 경쟁이 극심할 전망입니다. 선두권이 무너질 가능성이 높아 후방에서 힘을 안배한 선입, 추입마에게 절대적으로 유리합니다.</p>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-                <div>
-                    <h3 class="text-xl font-bold mb-2">예상 전개도</h3>
-                    <div class="flowchart">
-                        <div class="flowchart-group lead">
-                            <h4>선두 그룹</h4>
-                            <div class="flowchart-horse">4 일급비술</div>
-                            <div class="flowchart-horse">5 환상의나라</div>
-                        </div>
-                        <div class="flowchart-group stalking">
-                            <h4>선입 그룹</h4>
-                            <div class="flowchart-horse">1 파워풀파트너</div>
-                        </div>
-                        <div class="flowchart-group closing">
-                            <h4>추입 그룹</h4>
-                             <div class="flowchart-horse">8 나올패스</div>
-                        </div>
-                    </div>
-                     <h3 class="text-xl font-bold mt-6 mb-2">추천 마권</h3>
-                    <div class="space-y-2">
-                        <div class="horse-tag contender-tag">유력: 1 파워풀파트너 (안정적 선입)</div>
-                        <div class="horse-tag contender-tag">유력: 8 나올패스 (최강의 막판 스퍼트)</div>
-                        <div class="horse-tag contender-tag">유력: 5 환상의나라 (절대 스피드)</div>
-                        <div class="horse-tag darkhorse-tag">복병: 6 드림다이아 (체중 증가, 잠재력)</div>
-                    </div>
-                </div>
-                <div>
-                    <h3 class="text-xl font-bold mb-2 text-center">종반 200m(G-1F) 기록 비교</h3>
-                    <div class="chart-container">
-                        <canvas id="race1Chart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="race2" class="card">
-            <div class="md:flex md:items-center md:justify-between mb-4">
-                <h2 class="text-3xl font-extrabold text-gray-800">제2경주 <span class="text-xl font-normal text-gray-500">국6 1200M 11:30</span></h2>
-                <div class="pace-indicator pace-fast mt-2 md:mt-0">페이스 예측: 빠름</div>
-            </div>
-            <p class="text-gray-600 mb-6">1200m로 거리가 늘어나며 스피드와 지구력을 겸비한 마필의 우세가 점쳐집니다. 선두권과 선입권 모두에게 기회가 열린 경주입니다.</p>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-                <div>
-                    <h3 class="text-xl font-bold mb-2">예상 전개도</h3>
-                    <div class="flowchart">
-                        <div class="flowchart-group lead">
-                            <h4>선두 그룹</h4>
-                            <div class="flowchart-horse">2 원더풀다르샨</div>
-                            <div class="flowchart-horse">3 크리솔피스</div>
-                        </div>
-                        <div class="flowchart-group stalking">
-                            <h4>선입 그룹</h4>
-                            <div class="flowchart-horse">10 에어포스원</div>
-                            <div class="flowchart-horse">6 버건디</div>
-                        </div>
-                        <div class="flowchart-group closing">
-                            <h4>추입 그룹</h4>
-                             <div class="flowchart-horse">9 누리으뜸</div>
-                        </div>
-                    </div>
-                     <h3 class="text-xl font-bold mt-6 mb-2">추천 마권</h3>
-                    <div class="space-y-2">
-                        <div class="horse-tag contender-tag">유력: 10 에어포스원 (최강의 스피드)</div>
-                        <div class="horse-tag contender-tag">유력: 3 크리솔피스 (컨디션 회복)</div>
-                        <div class="horse-tag contender-tag">유력: 9 누리으뜸 (인상적인 추입력)</div>
-                        <div class="horse-tag darkhorse-tag">복병: 11 더킹타임 (숨겨진 추입 잠재력)</div>
-                    </div>
-                </div>
-                <div>
-                    <h3 class="text-xl font-bold mb-2 text-center">1000m 최고 기록 비교</h3>
-                    <div class="chart-container">
-                        <canvas id="race2Chart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="race3" class="card">
-            <div class="md:flex md:items-center md:justify-between mb-4">
-                <h2 class="text-3xl font-extrabold text-gray-800">제3경주 <span class="text-xl font-normal text-gray-500">국6 1400M 12:50</span></h2>
-                <div class="pace-indicator pace-moderate mt-2 md:mt-0">페이스 예측: 보통</div>
-            </div>
-            <p class="text-gray-600 mb-6">뚜렷한 선행마가 없어 페이스가 느릴 전망입니다. 지구력을 바탕으로 선두권에서 버티는 힘이 좋거나 영리한 선입 전개가 가능한 마필이 유리합니다.</p>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-                <div>
-                     <h3 class="text-xl font-bold mb-2">예상 전개도</h3>
-                     <div class="flowchart">
-                        <div class="flowchart-group lead">
-                            <h4>선두 그룹</h4>
-                            <div class="flowchart-horse">2 스트리트루비</div>
-                            <div class="flowchart-horse">7 이클립스탱고</div>
-                        </div>
-                        <div class="flowchart-group stalking">
-                            <h4>선입 그룹</h4>
-                            <div class="flowchart-horse">8 관악산원더풀</div>
-                        </div>
-                        <div class="flowchart-group closing">
-                            <h4>추입 그룹</h4>
-                             <div class="flowchart-horse">6 붉은태양</div>
-                        </div>
-                    </div>
-                     <h3 class="text-xl font-bold mt-6 mb-2">추천 마권</h3>
-                    <div class="space-y-2">
-                        <div class="horse-tag contender-tag">유력: 7 이클립스탱고 (문세영 기수, 최적의 조건)</div>
-                        <div class="horse-tag contender-tag">유력: 2 스트리트루비 (검증된 지구력)</div>
-                        <div class="horse-tag contender-tag">유력: 8 관악산원더풀 (필드 최강의 잠재력)</div>
-                        <div class="horse-tag darkhorse-tag">복병: 6 붉은태양 (A+ 등급의 파괴력)</div>
-                    </div>
-                </div>
-                <div>
-                    <h3 class="text-xl font-bold mb-2 text-center">추입 등급 비교</h3>
-                    <div class="chart-container">
-                        <canvas id="race3Chart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="race4" class="card">
-            <div class="md:flex md:items-center md:justify-between mb-4">
-                <h2 class="text-3xl font-extrabold text-gray-800">제4경주 <span class="text-xl font-normal text-gray-500">국5 1300M 13:45</span></h2>
-                <div class="pace-indicator pace-fast mt-2 md:mt-0">페이스 예측: 빠름</div>
-            </div>
-            <p class="text-gray-600 mb-6">5등급 승급마와 기존 강자들이 맞붙는 혼전 경주입니다. 빠른 페이스가 예상되어 종반 한 발을 쓸 추입마의 활약이 기대됩니다.</p>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-                <div>
-                     <h3 class="text-xl font-bold mb-2">예상 전개도</h3>
-                     <div class="flowchart">
-                        <div class="flowchart-group lead">
-                            <h4>선두 그룹</h4>
-                            <div class="flowchart-horse">1 남산미남</div>
-                            <div class="flowchart-horse">3 서부스카이</div>
-                        </div>
-                        <div class="flowchart-group stalking">
-                            <h4>선입 그룹</h4>
-                            <div class="flowchart-horse">4 카스</div>
-                        </div>
-                        <div class="flowchart-group closing">
-                            <h4>추입 그룹</h4>
-                            <div class="flowchart-horse">8 스터닝플래터</div>
-                             <div class="flowchart-horse">7 라온더캐비아</div>
-                        </div>
-                    </div>
-                     <h3 class="text-xl font-bold mt-6 mb-2">추천 마권</h3>
-                    <div class="space-y-2">
-                        <div class="horse-tag contender-tag">유력: 3 서부스카이 (압도적 상승세)</div>
-                        <div class="horse-tag contender-tag">유력: 8 스터닝플래터 (검증된 추입력)</div>
-                        <div class="horse-tag contender-tag">유력: 7 라온더캐비아 (감량 이점, A등급 추입)</div>
-                        <div class="horse-tag darkhorse-tag">복병: 5 세명스트롱 (숨겨진 기록 보유)</div>
-                    </div>
-                </div>
-                <div>
-                    <h3 class="text-xl font-bold mb-2 text-center">추입 등급 비교</h3>
-                    <div class="chart-container">
-                        <canvas id="race4Chart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="race5" class="card">
-            <div class="md:flex md:items-center md:justify-between mb-4">
-                <h2 class="text-3xl font-extrabold text-gray-800">제5경주 <span class="text-xl font-normal text-gray-500">국5 1200M 14:40</span></h2>
-                <div class="pace-indicator pace-very-fast mt-2 md:mt-0">페이스 예측: 매우 빠름</div>
-            </div>
-            <p class="text-gray-600 mb-6">스피드형 마필들의 대거 출전으로 극심한 속도 경쟁이 불가피합니다. 선두권이 무너질 가능성이 높아 선입, 추입마에게 기회가 올 것입니다.</p>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-                <div>
-                     <h3 class="text-xl font-bold mb-2">예상 전개도</h3>
-                     <div class="flowchart">
-                        <div class="flowchart-group lead">
-                            <h4>선두 그룹</h4>
-                            <div class="flowchart-horse">10 메니윈</div>
-                            <div class="flowchart-horse">8 로열플러스</div>
-                             <div class="flowchart-horse">6 유니버설</div>
-                        </div>
-                        <div class="flowchart-group stalking">
-                            <h4>선입 그룹</h4>
-                            <div class="flowchart-horse">4 브리도트로피</div>
-                        </div>
-                        <div class="flowchart-group closing">
-                            <h4>추입 그룹</h4>
-                             <div class="flowchart-horse">2 엘리트피스</div>
-                        </div>
-                    </div>
-                     <h3 class="text-xl font-bold mt-6 mb-2">추천 마권</h3>
-                    <div class="space-y-2">
-                        <div class="horse-tag contender-tag">유력: 8 로열플러스 (뚜렷한 상승세)</div>
-                        <div class="horse-tag contender-tag">유력: 6 유니버설 (스피드 잠재력)</div>
-                        <div class="horse-tag contender-tag">유력: 4 브리도트로피 (기록+감량 이점)</div>
-                        <div class="horse-tag darkhorse-tag">복병: 10 메니윈 (선행 성공 시 버티기 가능)</div>
-                    </div>
-                </div>
-                <div>
-                    <h3 class="text-xl font-bold mb-2 text-center">1200m 최고 기록 비교</h3>
-                    <div class="chart-container">
-                        <canvas id="race5Chart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </section>
-        
-        <section id="race6" class="card">
-            <div class="md:flex md:items-center md:justify-between mb-4">
-                <h2 class="text-3xl font-extrabold text-gray-800">제6경주 <span class="text-xl font-normal text-gray-500">국4 1200M 15:35</span></h2>
-                <div class="pace-indicator pace-very-fast mt-2 md:mt-0">페이스 예측: 매우 빠름</div>
-            </div>
-            <p class="text-gray-600 mb-6">4등급 실력자들의 격돌! 압도적인 스피드를 가진 선행마들의 경합으로 극단적인 페이스가 예상됩니다. 강력한 추입마의 역전극이 기대되는 경주입니다.</p>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-                <div>
-                     <h3 class="text-xl font-bold mb-2">예상 전개도</h3>
-                     <div class="flowchart">
-                        <div class="flowchart-group lead">
-                            <h4>선두 그룹</h4>
-                            <div class="flowchart-horse">6 스타트렉</div>
-                            <div class="flowchart-horse">9 런와일드</div>
-                        </div>
-                        <div class="flowchart-group stalking">
-                            <h4>선입 그룹</h4>
-                            <div class="flowchart-horse">10 스파르탄</div>
-                        </div>
-                        <div class="flowchart-group closing">
-                            <h4>추입 그룹</h4>
-                            <div class="flowchart-horse">7 레이디태풍</div>
-                            <div class="flowchart-horse">8 스케일킹</div>
-                        </div>
-                    </div>
-                     <h3 class="text-xl font-bold mt-6 mb-2">추천 마권</h3>
-                    <div class="space-y-2">
-                        <div class="horse-tag contender-tag">유력: 7 레이디태풍 (페이스 최대 수혜마)</div>
-                        <div class="horse-tag contender-tag">유력: 6 스타트렉 (절대 능력)</div>
-                        <div class="horse-tag contender-tag">유력: 10 스파르탄 (유연한 전개 능력)</div>
-                        <div class="horse-tag darkhorse-tag">복병: 8 스케일킹 (숨은 강자, 감량 이점)</div>
-                    </div>
-                </div>
-                <div>
-                    <h3 class="text-xl font-bold mb-2 text-center">1200m 최고 기록 비교</h3>
-                    <div class="chart-container">
-                        <canvas id="race6Chart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="race7" class="card">
-            <div class="md:flex md:items-center md:justify-between mb-4">
-                <h2 class="text-3xl font-extrabold text-gray-800">제7경주 <span class="text-xl font-normal text-gray-500">혼4 1400M 16:30</span></h2>
-                <div class="pace-indicator pace-fast mt-2 md:mt-0">페이스 예측: 빠름</div>
-            </div>
-            <p class="text-gray-600 mb-6">국산마와 외산마의 대결. 빠른 페이스 속에서 버티는 힘이 좋은 선행마 또는 강력한 선입마가 유리한 흐름입니다. 오늘의 축마 '와일드위즈'가 출전합니다.</p>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-                <div>
-                     <h3 class="text-xl font-bold mb-2">예상 전개도</h3>
-                     <div class="flowchart">
-                        <div class="flowchart-group lead">
-                            <h4>선두 그룹</h4>
-                            <div class="flowchart-horse">11 스터닝퀸</div>
-                            <div class="flowchart-horse">8 알사이먼</div>
-                        </div>
-                        <div class="flowchart-group stalking">
-                            <h4>선입 그룹</h4>
-                            <div class="flowchart-horse">5 와일드위즈</div>
-                            <div class="flowchart-horse">6 스마트별</div>
-                        </div>
-                        <div class="flowchart-group closing">
-                            <h4>추입 그룹</h4>
-                            <div class="flowchart-horse">1 미스콩코드</div>
-                        </div>
-                    </div>
-                     <h3 class="text-xl font-bold mt-6 mb-2">추천 마권</h3>
-                    <div class="space-y-2">
-                        <div class="horse-tag contender-tag">유력: 5 와일드위즈 (절대 축마)</div>
-                        <div class="horse-tag contender-tag">유력: 6 스마트별 (능력 검증)</div>
-                        <div class="horse-tag contender-tag">유력: 11 스터닝퀸 (선행 저력)</div>
-                        <div class="horse-tag darkhorse-tag">복병: 1 미스콩코드 (꾸준한 뒷심)</div>
-                    </div>
-                </div>
-                <div>
-                    <h3 class="text-xl font-bold mb-2 text-center">1400m 최고 기록 비교</h3>
-                    <div class="chart-container">
-                        <canvas id="race7Chart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="race8" class="card">
-            <div class="md:flex md:items-center md:justify-between mb-4">
-                <h2 class="text-3xl font-extrabold text-gray-800">제8경주 <span class="text-xl font-normal text-gray-500">혼4 1400M 17:30</span></h2>
-                <div class="pace-indicator pace-moderate mt-2 md:mt-0">페이스 예측: 보통</div>
-            </div>
-            <p class="text-gray-600 mb-6">전력이 엇비슷한 혼전 경주. 뚜렷한 선행마가 없어 '팰로앨토'의 단독 선행이 유력합니다. 선행마와 그 뒤를 따르는 선입마의 싸움이 될 것입니다.</p>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-                <div>
-                     <h3 class="text-xl font-bold mb-2">예상 전개도</h3>
-                     <div class="flowchart">
-                        <div class="flowchart-group lead">
-                            <h4>선두 그룹</h4>
-                            <div class="flowchart-horse">9 팰로앨토</div>
-                        </div>
-                        <div class="flowchart-group stalking">
-                            <h4>선입 그룹</h4>
-                            <div class="flowchart-horse">4 미스터스톰</div>
-                            <div class="flowchart-horse">7 대박스타</div>
-                        </div>
-                        <div class="flowchart-group closing">
-                            <h4>추입 그룹</h4>
-                            <div class="flowchart-horse">5 챌린지삭스</div>
-                        </div>
-                    </div>
-                     <h3 class="text-xl font-bold mt-6 mb-2">추천 마권</h3>
-                    <div class="space-y-2">
-                        <div class="horse-tag contender-tag">유력: 9 팰로앨토 (상승세 + 단독 선행)</div>
-                        <div class="horse-tag contender-tag">유력: 4 미스터스톰 (스피드 잠재력)</div>
-                        <div class="horse-tag contender-tag">유력: 7 대박스타 (꾸준한 전력)</div>
-                        <div class="horse-tag darkhorse-tag">복병: 5 챌린지삭스 (A+ 등급의 추입력)</div>
-                    </div>
-                </div>
-                <div>
-                    <h3 class="text-xl font-bold mb-2 text-center">1400m 최고 기록 비교</h3>
-                    <div class="chart-container">
-                        <canvas id="race8Chart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="race9" class="card">
-            <div class="md:flex md:items-center md:justify-between mb-4">
-                <h2 class="text-3xl font-extrabold text-gray-800">제9경주 <span class="text-xl font-normal text-gray-500">혼3 1800M 18:00</span></h2>
-                <div class="pace-indicator pace-slow mt-2 md:mt-0">페이스 예측: 보통 또는 느림</div>
-            </div>
-            <p class="text-gray-600 mb-6">지구력 싸움이 될 1800m 장거리 경주. 극단적인 페이스는 없어 후방에서 힘을 안배한 강력한 추입마들에게 절대적으로 유리한 환경입니다.</p>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-                <div>
-                     <h3 class="text-xl font-bold mb-2">예상 전개도</h3>
-                     <div class="flowchart">
-                        <div class="flowchart-group lead">
-                            <h4>선두 그룹</h4>
-                            <div class="flowchart-horse">8 프리더원</div>
-                        </div>
-                        <div class="flowchart-group stalking">
-                            <h4>선입 그룹</h4>
-                            <div class="flowchart-horse">2 걸작원</div>
-                        </div>
-                        <div class="flowchart-group closing">
-                            <h4>추입 그룹</h4>
-                            <div class="flowchart-horse">9 태평히어로</div>
-                            <div class="flowchart-horse">10 콩코드스퍼트</div>
-                            <div class="flowchart-horse">11 하이그랜드</div>
-                        </div>
-                    </div>
-                     <h3 class="text-xl font-bold mt-6 mb-2">추천 마권</h3>
-                    <div class="space-y-2">
-                        <div class="horse-tag contender-tag">유력: 9 태평히어로 (검증된 장거리 강자)</div>
-                        <div class="horse-tag contender-tag">유력: 10 콩코드스퍼트 (파괴적인 추입력)</div>
-                        <div class="horse-tag contender-tag">유력: 11 하이그랜드 (꾸준한 성적)</div>
-                        <div class="horse-tag darkhorse-tag">복병: 8 프리더원 (단독 선행 시 이변 가능)</div>
-                    </div>
-                </div>
-                <div>
-                    <h3 class="text-xl font-bold mb-2 text-center">추입 등급 비교</h3>
-                    <div class="chart-container">
-                        <canvas id="race9Chart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        </div>
+    <main id="main-content" class="container mx-auto p-4 md:p-6">
     </main>
-    <footer class="text-center py-8 bg-gray-800 text-white mt-12">
-        <p>본 정보는 제공된 데이터를 기반으로 한 분석 자료이며, 베팅 결과에 대한 책임을 지지 않습니다.</p>
-        <p class="text-sm text-gray-400 mt-2">© 2025 Horse Racing Data Analytics. All Rights Reserved.</p>
-        <!--
-        Narrative Plan: The infographic follows the provided report, starting with a high-level summary (Best Bets, Pace Distro), then a detailed race-by-race breakdown. Each race section includes pace analysis, recommendations, and a key visualization to support the analysis.
-        Color Palette: "Energetic & Playful" (#FF4E50, #FC913A, #F9D423, #EDE574, #E1F5C4)
-        Visualization Plan:
-        - Pace Distribution: Donut Chart (Goal: Compare) - Implemented with Chart.js to show overall race day character.
-        - Race 1 G-1F: Bar Chart (Goal: Compare) - Implemented with Chart.js to highlight closing speed in a fast-paced race.
-        - Race 2 1000m Record: Bar Chart (Goal: Compare) - Implemented with Chart.js to show raw speed.
-        - Race 3 Closing Grade: Radar Chart (Goal: Compare) - Implemented with Chart.js to compare multiple qualitative attributes.
-        - Race 4 Closing Grade: Bar Chart (Goal: Compare) - Implemented with Chart.js to focus on the key factor for this race.
-        - Race 5 1200m Record: Bar Chart (Goal: Compare) - Implemented with Chart.js.
-        - Race 6 1200m Record: Bar Chart (Goal: Compare) - Implemented with Chart.js to highlight the duel between the fastest horses.
-        - Race 7 1400m Record: Bar Chart (Goal: Compare) - Implemented with Chart.js.
-        - Race 8 1400m Record: Bar Chart (Goal: Compare) - Implemented with Chart.js.
-        - Race 9 Closing Grade: Radar Chart (Goal: Compare) - Implemented with Chart.js for a multi-faceted view of closers.
-        - Race Flow Diagram: HTML/CSS Flowchart (Goal: Organize) - Implemented with styled divs to show expected race positions, avoiding SVG/Mermaid.
-        Confirmation: NEITHER Mermaid JS NOR SVG were used in this output. All charts are rendered on Canvas via Chart.js. Diagrams are built with styled HTML.
-        -->
+    
+    <footer class="mt-8 text-center p-6 bg-gray-800 text-white">
+        <p>본 정보는 제공된 데이터를 기반으로 한 분석이며, 실제 경주 결과와 다를 수 있습니다.</p>
+        <p class="text-sm text-gray-400 mt-2">© 2025 Interactive Racing Analytics. All Rights Reserved.</p>
     </footer>
 
     <script>
-        const chartColors = {
-            primary: '#FF4E50',
-            secondary: '#FC913A',
-            tertiary: '#F9D423',
-            background: 'rgba(252, 145, 58, 0.2)',
-            background2: 'rgba(255, 78, 80, 0.2)',
-            border: '#FC913A',
-            border2: '#FF4E50',
+        const seoulRaceData = {
+            summary: {
+                title: '종합 분석 및 베팅 전략',
+                content: `<section class="mb-8"><h3 class="text-2xl md:text-3xl font-bold mb-4 text-center">경주별 페이스 예측</h3><p class="text-center text-gray-600 mb-6 max-w-3xl mx-auto">오늘 경주의 전반적인 흐름을 파악하는 것은 성공적인 베팅의 첫걸음입니다. '매우 빠름'으로 예측된 경주는 선두권 경합이 치열해져 후미에서 기회를 엿보는 추입마에게, '보통' 페이스는 안정적으로 레이스를 운영하는 선행/선입마에게 유리할 수 있습니다.</p><div class="card"><div class="chart-container h-[40vh] md:h-96"><canvas id="paceChart"></canvas></div></div></section><section><h3 class="text-2xl md:text-3xl font-bold mb-4 text-center">최종 베팅 전략</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div class="card border-l-4 border-[var(--text-light)]"><h4 class="text-xl font-bold mb-3">🎯 고신뢰도 축마 활용</h4><p class="text-gray-700">능력과 조건 면에서 가장 신뢰도가 높은 축마를 중심으로 조합하여 안정적인 수익을 추구합니다.</p><ul class="mt-4 space-y-2 list-disc list-inside text-gray-800"><li><b>제6경주: 8번 블랙사탕</b> (검증된 장거리 능력)</li><li><b>제10경주: 1번 금세다</b> (현존 최강의 안정성)</li></ul></div><div class="card border-l-4 border-[var(--accent-gold)]"><h4 class="text-xl font-bold mb-3">💰 고배당 복병마 공략</h4><p class="text-gray-700">빠른 페이스로 인해 이변의 가능성이 높은 경주에서 복병마를 활용해 중/고배당을 노리는 공격적인 전략입니다.</p><ul class="mt-4 space-y-2 list-disc list-inside text-gray-800"><li><b>추입 우세 경주:</b> 제5, 8, 11경주</li><li><b>주요 복병마:</b> 5경주 6번 카일리, 8경주 7번 러브오마인</li></ul></div></div></section>`
+            },
+            'race-5': { title: '제5경주: 국5등급 1400M', pace: '빠름', introduction: '선행마들의 치열한 주도권 다툼으로 초반부터 페이스가 빠르게 흐를 전망입니다. 이는 경주 후반 힘을 비축한 추입형 마필들에게 절대적으로 유리한 환경을 조성합니다.', picks: [ { num: 3, name: '문학축제', type: 'Top', styles: { '선행': 1, '선입': 1, '추입': 4.5 }, reason: '현 등급 최강의 추입력 보유. 부담중량 증가가 변수지만, 월등한 능력으로 극복 기대.' }, { num: 4, name: '원더풀테크노', type: 'Top', styles: { '선행': 1, '선입': 1, '추입': 3.5 }, reason: '기복 없는 꾸준한 성적과 안정적인 레이스 운영 능력이 최대 강점.' }, { num: 11, name: '붉은폭풍', type: 'Top', styles: { '선행': 1, '선입': 1, '추입': 4.5 }, reason: '추입 등급 \'A+\'의 잠재력과 뚜렷한 성장세. 빠른 페이스의 최대 수혜마.' }, { num: 6, name: '카일리', type: 'Longshot', styles: { '선행': 3, '선입': 3, '추입': 2 }, reason: '52kg의 가벼운 부담중량과 검증된 종반 스피드. 선두권 경합 시 역전 기회 포착 가능.' } ] },
+            'race-6': { title: '제6경주: 국5등급 1800M', pace: '보통', introduction: '1800M 장거리 특성상, 무리한 경합보다는 안정적인 페이스 조절이 예상됩니다. 이는 선두권에서 레이스를 풀어가는 마필들에게 유리합니다.', picks: [ { num: 8, name: '블랙사탕', type: 'Top', styles: { '선행': 3.5, '선입': 3.5, '추입': 1 }, reason: '검증된 장거리 능력과 유리한 선행 전개. 승급전이지만 능력상 한 수 위로 평가.' }, { num: 1, name: '월드조이', type: 'Top', styles: { '선행': 1, '선입': 1, '추입': 3.5 }, reason: '기복 없는 꾸준한 성적을 바탕으로 한 가장 안정적인 입상 후보.' }, { num: 2, name: '고스트크리솔', type: 'Top', styles: { '선행': 1, '선입': 1, '추입': 3 }, reason: '장거리 가능성을 꾸준히 보여주고 있으며, 기수 교체를 통해 승부수를 띄운 점이 주목.' }, { num: 7, name: '그래티튜드', type: 'Longshot', styles: { '선행': 2, '선입': 2, '추입': 1 }, reason: '뚜렷한 컨디션 상승세와 52kg의 절대적인 부중 이점이 최대 무기.' } ] },
+            'race-7': { title: '제7경주: 혼4등급 1800M', pace: '약간 빠름', introduction: '선행마와 추입마의 대결 구도가 뚜렷합니다. 9번 탄성의반석이 페이스를 주도하겠지만, 다른 마필들의 견제 강도에 따라 페이스가 유동적으로 변할 수 있습니다.', picks: [ { num: 8, name: '창조의아침', type: 'Top', styles: { '선행': 1, '선입': 1, '추입': 3.5 }, reason: '최근 기세, 검증된 능력, 그리고 문세영 기수 기승까지 모든 면에서 가장 앞서는 우승 후보.' }, { num: 7, name: '스플렌디드', type: 'Top', styles: { '선행': 2, '선입': 2, '추입': 4 }, reason: '2연승의 무서운 상승세와 폭발적인 추입력을 바탕으로 연승 도전에 나서는 강력한 경쟁자.' }, { num: 9, name: '탄성의반석', type: 'Top', styles: { '선행': 4, '선입': 3.5, '추입': 1 }, reason: '강력한 선행력을 바탕으로 경주를 주도할 마필. 단독 선행 시 버티는 힘이 매우 좋다.' }, { num: 3, name: '이클립스블랙', type: 'Longshot', styles: { '선행': 2, '선입': 2, '추입': 3.5 }, reason: '잠재력 높은 3세 신예마. 유리한 부담중량과 기수 교체로 이변을 노리는 다크호스.' } ] },
+            'race-8': { title: '제8경주: 국4등급 1200M', pace: '매우 빠름', introduction: '다수의 선행마들이 포진하여 출발부터 불꽃 튀는 스피드 경쟁이 예상됩니다. 선두권의 공멸 가능성이 높아, 후미에서 힘을 비축한 추입마들의 막판 역전극이 유력한 경주입니다.', picks: [ { num: 3, name: '그레이스루트', type: 'Top', styles: { '선행': 4, '선입': 4, '추입': 3 }, reason: '검증된 스피드와 상승세의 기량. 선행 경합이 변수지만 절대 능력은 최상위권.' }, { num: 4, name: '천궁스톰', type: 'Top', styles: { '선행': 3.5, '선입': 3, '추입': 1 }, reason: '1200M 최고 기록 보유마. 줄어든 부담중량을 앞세워 선행 후 버티기에 나서는 강력한 도전자.' }, { num: 1, name: '우주전쟁', type: 'Top', styles: { '선행': 1, '선입': 1, '추입': 4.5 }, reason: '경주 페이스의 최대 수혜마. 유리한 부담중량과 막강한 추입력으로 막판 역전을 노린다.' }, { num: 7, name: '러브오마인', type: 'Longshot', styles: { '선행': 2, '선입': 1, '추입': 4.5 }, reason: '또 다른 \'A+\' 추입마. 선두권이 완전히 무너지는 난타전에서 어부지리 입상이 가능한 복병.' } ] },
+            'race-9': { title: '제9경주: 1등급 1200M', pace: '빠름', introduction: '최상위 스프린터들의 격돌로, 한 치의 양보도 없는 스피드 경쟁이 예상됩니다. 선행 그룹의 경쟁과 후미 그룹의 추입력 대결이라는 흥미로운 구도가 펼쳐질 것입니다.', picks: [ { num: 2, name: '글로벌파워', type: 'Top', styles: { '선행': 3, '선입': 3, '추입': 4.5 }, reason: '어떤 전개에서도 능력을 발휘할 수 있는 다재다능하고 안정적인 축마.' }, { num: 3, name: '파사킹', type: 'Top', styles: { '선행': 2, '선입': 1, '추입': 4.5 }, reason: '3연승의 무서운 상승세와 유리한 경주 조건. 4연승까지 노리는 강력한 우승 후보.' }, { num: 6, name: '별나라비마', type: 'Top', styles: { '선행': 3, '선입': 3, '추입': 3 }, reason: '유리한 부담중량을 바탕으로 선두권에서 끈질기게 버티기에 나설 다크호스.' }, { num: 5, name: '엔딩파이어', type: 'Longshot', styles: { '선행': 1, '선입': 2, '추입': 3.5 }, reason: '빠른 페이스의 수혜를 입을 수 있는 잠재력 있는 추입마.' } ] },
+            'race-10': { title: '제10경주: 1등급 1800M', pace: '빠름', introduction: '서울 경마의 하이라이트. 1등급 최강자들이 격돌하며 스피드, 지구력, 전략이 모두 요구됩니다. 선행 세력과 추입 세력의 정면 대결이 예상됩니다.', picks: [ { num: 1, name: '금세다', type: 'Top', styles: { '선행': 4, '선입': 4, '추입': 1 }, reason: '현존 최강의 능력과 안정성. 이변이 없는 한 가장 확실한 축마.' }, { num: 5, name: '케이엔라이트', type: 'Top', styles: { '선행': 2, '선입': 3, '추입': 4 }, reason: '빠른 페이스의 최대 수혜마. 강력한 추입력으로 직선주로에서 역전을 노린다.' }, { num: 9, name: '바이킹하트', type: 'Top', styles: { '선행': 3, '선입': 3.5, '추입': 3.5 }, reason: '기복 없는 안정적인 전력. 어떤 경주 상황에서도 꾸준히 입상 경쟁이 가능.' }, { num: 10, name: '그레이트스톰', type: 'Longshot', styles: { '선행': 1, '선입': 1, '추입': 4.5 }, reason: '절대적으로 유리한 경주 조건과 부담중량. 고배당을 노린다면 반드시 주목.' } ] },
+            'race-11': { title: '제11경주: 2등급 1400M', pace: '매우 빠름', introduction: '1등급 승급을 노리는 강자들이 모여 출발부터 치열한 선두 다툼이 예상됩니다. 극단적으로 빠른 페이스는 선행마들의 공멸을 유발, 추입마들에게 최상의 기회를 제공할 것입니다.', picks: [ { num: 5, name: '새내타운', type: 'Top', styles: { '선행': 1, '선입': 1, '추입': 4 }, reason: '경주 페이스의 최대 수혜마. 2등급 최상위권의 강력한 추입력으로 우승을 노린다.' }, { num: 1, name: '에이스군주', type: 'Top', styles: { '선행': 3, '선입': 3, '추입': 4 }, reason: '안정적인 전개 능력과 최상위권의 기량. 1번 게이트의 이점을 살릴 가장 확실한 입상 후보.' }, { num: 9, name: '금전사', type: 'Top', styles: { '선행': 1, '선입': 1, '추입': 3.5 }, reason: '빠른 페이스에서 위력을 발휘할 수 있는 추입마. 유리한 부담중량이 최대 강점.' }, { num: 8, name: '거센반격', type: 'Longshot', styles: { '선행': 1, '선입': 2, '추입': 3 }, reason: '선두권이 무너지는 난타전에서 어부지리로 이변을 일으킬 수 있는 저력의 다크호스.' } ] }
         };
 
-        const defaultChartOptions = {
-            responsive: true,
-            maintainAspectRatio: false,
+        const busanRaceData = {
+            1: { title: "제1경주 - 1600M 혼합 4등급", paceAnalysis: "강력한 선행마(8, 3, 5번)들이 다수 포진하여 초반부터 매우 빠른 페이스가 예상됩니다. 이러한 전개는 후반에 강력한 추입력을 발휘하는 말들(2, 6번)에게 절대적으로 유리한 환경을 조성합니다.", recommendations: { likely: [2, 5, 1], darkHorse: 8 }, horses: [ { num: 1, name: "플라잉메니스", style: { front: 'C', closer: 'B+' }, weight: 52.0, details: "5주 공백에도 충분한 조교를 소화했고, 3.5kg의 대폭적인 감량 이점이 매우 큽니다. 빠른 페이스 속 중위권에서 힘을 비축한다면 직선주로에서 위력적인 모습을 보일 수 있습니다." }, { num: 2, name: "원더풀큐티", style: { front: 'D', closer: 'A+' }, weight: 55.0, details: "A+ 등급의 압도적인 추입력이 최대 무기입니다. 예상되는 빠른 페이스는 이 말의 추입력을 극대화할 최적의 조건이며, 경주 전개가 모든 것을 상쇄할 만큼 유리합니다." }, { num: 3, name: "유니언챔프", style: { front: 'B', closer: 'B' }, weight: 52.0, details: "선행 스피드를 갖췄으나, 1600M 첫 도전, 훈련량 부족, 8번과의 경쟁 등 약점이 뚜렷하여 종반 버티기 힘든 전개가 예상됩니다." }, { num: 4, name: "투큐트걸", style: { front: 'D', closer: 'B' }, weight: 51.0, details: "레이팅이 가장 낮고 전반적인 능력에서 열세를 보여 입상권 진입은 어려워 보입니다." }, { num: 5, name: "여수슈퍼스타", style: { front: 'B', closer: 'B' }, weight: 52.0, details: "최근 5전 3승의 압도적인 성적과 최상위 기수인 서승운 기수 기승이 돋보입니다. 무리한 경쟁만 피하고 선입 전개를 펼친다면 우승까지 가능한 전력입니다." }, { num: 6, name: "라임트리", style: { front: 'C', closer: 'B+' }, weight: 52.5, details: "1600M 경험과 추입력을 갖췄으나, 7회에 불과한 조교 횟수는 정상 컨디션으로 보기 어려워 위험성이 매우 높은 마필입니다." }, { num: 7, name: "함안봉화산", style: { front: 'D', closer: 'B+' }, weight: 52.0, details: "7세 노장마로 최근 기량 하락세가 뚜렷하여 상위권 경쟁은 어려울 전망입니다." }, { num: 8, name: "에이스하이", style: { front: 'A', closer: 'B' }, weight: 52.0, details: "A등급의 스피드로 경주를 주도할 키(Key)를 쥔 말입니다. 다른 선행마들을 압도하고 단독 선행에 성공한다면, 가벼운 부중을 앞세워 버틸 저력이 있는 복병마입니다." } ] },
+            2: { title: "제2경주 - 1300M 국산 6등급", paceAnalysis: "데이터가 부족한 신예마 경주입니다. 과거 기록상 9, 7, 2번 등이 앞설 가능성이 있으며, 보통 이상의 페이스가 예상됩니다. 안정적인 위치 선점이 중요합니다.", recommendations: { likely: [9, 7, 2], darkHorse: 8 }, horses: [ { num: 1, name: "파이널히트", style: {}, weight: 54.0, details: "뚜렷한 능력 발휘를 하지 못해 경쟁력에서 밀리는 모습입니다." }, { num: 2, name: "빅토리스토리", style: {}, weight: 56.0, details: "직전 부진은 악성 주로 때문으로, 건조 주로로 돌아온다면 이전의 안정적인 4위권 경기력을 회복할 가능성이 충분합니다." }, { num: 3, name: "노스몰레이디", style: {}, weight: 54.0, details: "최근 성적이 부진하고 마체중 관리에도 어려움을 보여 긍정적 요소를 찾기 어렵습니다." }, { num: 4, name: "석세스파워", style: {}, weight: 56.0, details: "531kg 거구로 순발력보다 지구력이 강점일 수 있어 1300M보다는 장거리가 유리해 보입니다." }, { num: 5, name: "스타트맨", style: {}, weight: 56.0, details: "긴 휴양과 훈련 부족으로 인해 정상 컨디션을 기대하기 어렵습니다." }, { num: 6, name: "빅스윙루비", style: {}, weight: 54.0, details: "데뷔전 내용이 강렬하지 않아 좀 더 지켜볼 필요가 있습니다." }, { num: 7, name: "파워스톤", style: {}, weight: 56.0, details: "주행심사 우승과 성공적인 데뷔전(3위)을 통해 잠재력을 입증했습니다. 스피드와 근성을 갖춰 입상권 경쟁이 유력합니다." }, { num: 8, name: "글로리선샤인", style: {}, weight: 54.0, details: "직전 경주에서 마체중이 23kg 증가했음에도 4위로 성적이 급상승했습니다. 말이 힘이 붙고 있다는 신호일 수 있어 최대 복병으로 주목해야 합니다." }, { num: 9, name: "저스트샤이니", style: {}, weight: 54.0, details: "직전 경주 2위 시 보여준 경기력이 압도적이었습니다. 현재 6등급에서는 한 수 위의 기량으로 안정적인 축마로 가장 유력합니다." }, { num: 10, name: "밀크스타", style: {}, weight: 54.0, details: "실전에서 기복을 보여 안정감이 떨어집니다." }, { num: 11, name: "승리예약", style: {}, weight: 54.0, details: "극심한 기복을 보여 신뢰하기 어렵습니다." } ] },
+            3: { title: "제3경주 - 1200M 국산 5등급", paceAnalysis: "1번 하늘폭풍과 2번 레이스맨의 주도권 다툼으로 매우 빠른 페이스가 확실시됩니다. 선두권 경쟁의 과열은 그 뒤를 쫓는 선입마들에게 최적의 기회를 제공할 것입니다.", recommendations: { likely: [5, 2, 3], darkHorse: 1 }, horses: [ { num: 1, name: "하늘폭풍", style: { front: 'B+', closer: 'D' }, weight: 55.5, details: "2번과의 정면 대결을 피하고 편안한 선행에 나선다면 버텨낼 저력이 있는 복병마입니다." }, { num: 2, name: "레이스맨", style: { front: 'B', closer: 'C' }, weight: 54.5, details: "선두 다툼이 부담스럽지만, 직전 경주에서 보여준 1분 12초대 기록은 이번 편성에서도 충분히 통할 스피드입니다." }, { num: 3, name: "블랙웨이브", style: { front: 'D', closer: 'D' }, weight: 51.0, details: "직전 경주 3위로 컨디션 회복을 알렸습니다. 빠른 페이스 속 직선주로에서 다른 말들이 지칠 때 역습을 노릴 수 있는 전력입니다." }, { num: 4, name: "파워풀런", style: { front: 'C', closer: 'A+' }, weight: 52.0, details: "데뷔전 우승은 인상적이나, 거리 연장과 강해진 상대를 맞아 스피드 경쟁에서 우위를 점하기는 어려워 보입니다." }, { num: 5, name: "밴지", style: { front: 'C', closer: 'B+' }, weight: 57.0, details: "예상되는 빠른 페이스의 최대 수혜자입니다. 선두권 바로 뒤에서 힘을 안배하다 직선에서 한 발을 쓸 최적의 조건을 맞이했습니다. 가장 유력한 우승 후보입니다." }, { num: 9, name: "화랑에이스", style: { front: 'D', closer: 'A' }, weight: 53.5, details: "최근 성적이 부진하여 경쟁력이 떨어집니다." } ] },
+            4: { title: "제4경주 - 1400M 국산 5등급 (암)", paceAnalysis: "8번 마더축제가 선두를 이끌고 4번, 9번이 가세하는 보통 수준의 페이스가 예상됩니다. 이러한 흐름에서는 선두권이나 선입 그룹에서 경주를 풀어가는 말들이 유리합니다.", recommendations: { likely: [8, 5, 10], darkHorse: 4 }, horses: [ { num: 1, name: "투혼파이터", style: {}, weight: 53.0, details: "기복이 심해 안정감이 떨어집니다." }, { num: 3, name: "팀서프라이즈", style: {}, weight: 53.0, details: "꾸준히 입상하며 안정감을 보였지만, 이번 편성에서는 더 돋보이는 말들이 많습니다." }, { num: 4, name: "원더풀팀", style: {}, weight: 52.0, details: "5등급 승급전이지만, 3kg의 대폭적인 감량은 강력한 무기입니다. 가벼운 발걸음으로 선두권에서 버티기에 성공한다면 높은 배당을 안겨줄 수 있는 복병입니다." }, { num: 5, name: "앨리스마린", style: {}, weight: 53.5, details: "기복 없는 안정적인 경기 운영 능력이 돋보입니다. 보통 페이스에서 선입 전개를 통해 꾸준히 순위를 끌어올릴 수 있는 유력한 입상 후보입니다." }, { num: 8, name: "마더축제", style: {}, weight: 55.5, details: "직전 우승 시 보여준 압도적인 기량이 돋보입니다. 3kg의 부담중량 증가가 변수지만, 현재의 컨디션이라면 극복하고 연승을 이어갈 가능성이 가장 높습니다." }, { num: 10, name: "토함산태양", style: {}, weight: 54.0, details: "1400m 거리 단축이 변수지만, 최근 보여준 기량의 절대치는 5등급 내에서 최상위권입니다. 힘으로 상대를 압도하며 직선에서 뻗어 나올 저력이 충분합니다." } ] },
+            5: { title: "제5경주 - 1200M 국산 3등급", paceAnalysis: "4번 벌마의엔젤과 10번 유림세상이 초반 주도권 다툼을 벌이며 빠른 페이스가 예상됩니다. 힘과 스피드를 겸비한 진정한 강자만이 살아남을 수 있는 경주입니다.", recommendations: { likely: [10, 5, 3], darkHorse: 4 }, horses: [ { num: 2, name: "넘버원픽", style: { front: 'C', closer: 'B' }, weight: 57.5, details: "4.5kg의 부중 증가와 급격한 거리 단축 등 여러모로 불리한 조건의 경주입니다." }, { num: 3, name: "사막의꽃", style: { front: 'B', closer: 'B' }, weight: 52.0, details: "가장 자신 있는 1200M 거리로 돌아왔고, 52kg의 가벼운 부중을 활용해 스피드를 극대화할 수 있습니다. 직선에서 날카로운 한 방을 기대할 수 있습니다." }, { num: 4, name: "벌마의엔젤", style: { front: 'B', closer: 'C' }, weight: 57.0, details: "57kg의 높은 부담중량이 큰 약점이지만, 이 말의 기본적인 클래스는 출전마 중 최상위권입니다. 힘으로 중량을 극복하고 입상권에 진입할 저력이 있는 복병입니다." }, { num: 5, name: "라온바이브맨", style: { front: 'C', closer: 'B' }, weight: 53.5, details: "3등급에서 검증된 안정적인 선입마입니다. 빠른 페이스를 활용해 직선에서 힘을 발휘하기에 최적의 조건을 갖췄으며, 가장 믿을 수 있는 입상 후보 중 하나입니다." }, { num: 10, name: "유림세상", style: { front: 'B', closer: 'C' }, weight: 52.5, details: "3등급 승급전이지만, 4kg이라는 파격적인 감량 이점이 모든 것을 압도합니다. 가벼워진 발걸음으로 선두권을 장악할 가능성이 매우 높습니다." } ] },
+            6: { title: "제6경주 - 1800M 1등급", paceAnalysis: "1등급 경주에 걸맞게 10번, 5번, 8번 등이 주도하는 빠르고 치열한 페이스가 예상됩니다. 1800M에서 이러한 흐름은 후방에서 힘을 비축한 추입마에게 매우 유리합니다.", recommendations: { likely: [4, 6, 9], darkHorse: 1 }, horses: [ { num: 1, name: "헌터드래곤", style: { front: 'D', closer: 'B+' }, weight: 52.0, details: "최근 부진하지만, 무려 6.5kg을 감량한 초경량 부중은 절대 간과할 수 없는 변수입니다. 가벼워진 몸으로 과거의 기량을 되찾는다면 이변을 연출할 최대 복병입니다." }, { num: 3, name: "스타마타", style: { front: 'C', closer: 'A' }, weight: 59.0, details: "거리 연장과 59kg이라는 최고 부담중량의 이중고를 넘기 어려워 보입니다." }, { num: 4, name: "벌마의몬스터", style: { front: 'B', closer: 'A' }, weight: 58.5, details: "최근 1등급 무대에서 보여준 압도적인 경기력은 이 말이 현시점 최강자 중 하나임을 증명합니다. 힘과 스피드, 지구력을 모두 갖춘 완성형 경주마입니다." }, { num: 5, name: "그레이트위너", style: { front: 'B', closer: 'B' }, weight: 54.0, details: "선행으로 경주를 주도하겠지만, 1등급의 강자들 속에서 1800M를 버텨내기에는 힘이 부칠 가능성이 높습니다." }, { num: 6, name: "영광의퍼스트", style: { front: 'D', closer: 'A+' }, weight: 54.5, details: "최상급 추입력을 보유한 마필로, 예상되는 빠른 페이스는 추입력을 극대화할 최고의 무대입니다. 3.5kg 감량은 날개를 달아준 격으로 강력한 우승 후보입니다." }, { num: 9, name: "정문코빗", style: { front: 'C', closer: 'A' }, weight: 56.5, details: "기복 없는 안정적인 경기력이 최대 강점입니다. 어떤 상황에서도 입상권 한 자리를 차지할 능력을 갖춘 가장 믿음직한 마필입니다." } ] }
+        };
+
+        let currentChart = null;
+
+        const tooltipCallback = {
             plugins: {
-                legend: {
-                    display: false
-                },
                 tooltip: {
                     callbacks: {
                         title: function(tooltipItems) {
                             const item = tooltipItems[0];
                             let label = item.chart.data.labels[item.dataIndex];
-                            if (Array.isArray(label)) {
-                              return label.join(' ');
+                            return Array.isArray(label) ? label.join(' ') : label;
+                        },
+                        label: function(context) {
+                            if (context.chart.config.type === 'bubble') {
+                                const horse = context.raw.horse;
+                                return `${horse.num}번 ${horse.name} (부중: ${horse.weight}kg)`;
                             }
-                            return label;
+                            return context.formattedValue;
                         }
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: {
-                        color: '#e0e0e0'
-                    },
-                    ticks: {
-                        color: '#333'
-                    }
-                },
-                x: {
-                    grid: {
-                        display: false
-                    },
-                    ticks: {
-                        color: '#333',
-                        maxRotation: 0,
-                        minRotation: 0
                     }
                 }
             }
         };
 
-        function processLabel(label) {
-            if (label.length > 16) {
-                const words = label.split(' ');
-                let currentLine = '';
-                const lines = [];
-                words.forEach(word => {
-                    if ((currentLine + word).length > 16) {
-                        lines.push(currentLine.trim());
-                        currentLine = '';
-                    }
-                    currentLine += word + ' ';
-                });
-                lines.push(currentLine.trim());
-                return lines;
+        function destroyCurrentChart() {
+            if (currentChart) {
+                currentChart.destroy();
+                currentChart = null;
             }
-            return label;
         }
 
-        new Chart(document.getElementById('paceDistributionChart'), {
-            type: 'doughnut',
-            data: {
-                labels: ['매우 빠름', '빠름', '보통', '보통/느림'],
-                datasets: [{
-                    label: '경주 수',
-                    data: [3, 3, 2, 1],
-                    backgroundColor: ['#FF4E50', '#FC913A', '#F9D423', '#EDE574'],
-                    borderColor: '#fff',
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            color: '#333'
+        function renderSeoulContent(targetId) {
+            const mainContent = document.getElementById('main-content');
+            const data = seoulRaceData[targetId];
+            if (!data) { mainContent.innerHTML = ''; return; }
+
+            let contentHtml = '';
+            if (targetId === 'summary') {
+                contentHtml = data.content;
+            } else {
+                let picksHtml = '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">';
+                data.picks.forEach(pick => {
+                    const cardClass = pick.type === 'Longshot' ? 'longshot-card card' : 'card';
+                    picksHtml += `<div class="${cardClass} relative">
+                        ${pick.type === 'Longshot' ? '<div class="longshot-badge px-3 py-1 text-xs rounded-full absolute -top-3 right-2">★ 복병마</div>' : ''}
+                        <div class="flex items-center mb-2">
+                           <span class="text-4xl font-black text-[var(--text-light)] mr-3">${pick.num}</span>
+                           <h5 class="text-xl font-bold">${pick.name}</h5>
+                        </div>
+                        <div class="radar-chart-container"><canvas id="radar-${targetId}-${pick.num}"></canvas></div>
+                        <p class="text-sm text-gray-600 mt-2 h-20 overflow-auto">${pick.reason}</p>
+                    </div>`;
+                });
+                picksHtml += '</div>';
+                
+                const paceColor = { '보통': 'var(--pace-1)', '약간 빠름': 'var(--pace-2)', '빠름': 'var(--pace-3)', '매우 빠름': 'var(--pace-4)' }[data.pace];
+                contentHtml = `<section id="${targetId}">
+                    <div class="text-center mb-6">
+                        <h3 class="text-3xl font-bold">${data.title}</h3>
+                        <div class="inline-flex items-center mt-2 bg-white px-4 py-2 rounded-full shadow-sm">
+                            <span class="inline-block w-4 h-4 rounded-full mr-2" style="background-color: ${paceColor};"></span>
+                            <span class="font-bold">예상 페이스: ${data.pace}</span>
+                        </div>
+                        <p class="text-gray-600 mt-4 max-w-2xl mx-auto">${data.introduction}</p>
+                    </div>
+                    ${picksHtml}
+                </section>`;
+            }
+            mainContent.innerHTML = contentHtml;
+            
+            if (targetId === 'summary') {
+                renderSeoulPaceChart();
+            } else {
+                data.picks.forEach(pick => {
+                    renderSeoulRadarChart(`radar-${targetId}-${pick.num}`, pick.styles, pick.type);
+                });
+            }
+        }
+
+        function renderSeoulPaceChart() {
+            destroyCurrentChart();
+            const paceData = Object.entries(seoulRaceData).filter(([key]) => key.startsWith('race-')).map(([key, value]) => ({ label: `제 ${key.split('-')[1]}경주`, pace: value.pace }));
+            const paceMapping = { '보통': 1, '약간 빠름': 2, '빠름': 3, '매우 빠름': 4 };
+            const paceColorMapping = { 1: '#34d399', 2: '#fbbf24', 3: '#f87171', 4: '#ef4444' };
+            const ctx = document.getElementById('paceChart').getContext('2d');
+            currentChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: paceData.map(d => d.label),
+                    datasets: [{ label: '예상 페이스 강도', data: paceData.map(d => paceMapping[d.pace]), backgroundColor: paceData.map(d => paceColorMapping[paceMapping[d.pace]]), borderWidth: 0, borderRadius: 4, barPercentage: 0.6 }]
+                },
+                options: { indexAxis: 'y', maintainAspectRatio: false, responsive: true, scales: { x: { grid: { display: false }, ticks: { callback: (value) => ({1: '보통', 2: '약간 빠름', 3: '빠름', 4: '매우 빠름'}[value] || ''), font: { weight: 'bold', size: 12 } } }, y: { grid: { display: false }, ticks: { font: { weight: 'bold' } } } }, plugins: { legend: { display: false }, ...tooltipCallback.plugins } }
+            });
+        }
+
+        function renderSeoulRadarChart(canvasId, data, type) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            const isLongshot = type === 'Longshot';
+            new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['선행력', '선입력', '추입력'],
+                    datasets: [{ data: Object.values(data), backgroundColor: isLongshot ? 'rgba(245, 158, 11, 0.3)' : 'rgba(59, 130, 246, 0.3)', borderColor: isLongshot ? 'var(--accent-gold)' : 'var(--text-light)', borderWidth: 2, pointBackgroundColor: isLongshot ? 'var(--accent-gold)' : 'var(--text-light)' }]
+                },
+                options: { maintainAspectRatio: false, responsive: true, scales: { r: { angleLines: { color: '#e5e7eb' }, grid: { color: '#e5e7eb' }, pointLabels: { font: { size: 12, weight: 'bold' }, color: 'var(--text-dark)' }, ticks: { display: false, stepSize: 1 }, suggestedMin: 0, suggestedMax: 5 } }, plugins: { legend: { display: false }, ...tooltipCallback.plugins } }
+            });
+        }
+
+        function renderBusanContent(raceNum) {
+            destroyCurrentChart();
+            const mainContent = document.getElementById('main-content');
+            const data = busanRaceData[raceNum];
+            if (!data) { mainContent.innerHTML = ''; return; }
+
+            let horseCardsHtml = '';
+            const recommended = [...data.recommendations.likely, data.recommendations.darkHorse];
+            const topPicks = data.recommendations.likely.map(num => data.horses.find(h => h.num === num)).filter(Boolean);
+            const darkHorse = data.horses.find(h => h.num === data.recommendations.darkHorse);
+
+            topPicks.forEach(horse => {
+                horseCardsHtml += createBusanHorseCard(horse, 'Top');
+            });
+            if (darkHorse) {
+                horseCardsHtml += createBusanHorseCard(darkHorse, 'Longshot');
+            }
+
+            const hasStyleData = data.horses.some(h => h.style && h.style.front);
+            const chartAreaHtml = hasStyleData
+                ? `<div class="chart-container"><canvas id="busanRaceChart"></canvas></div><div class="text-xs text-center text-gray-500 mt-2"><p>X축: 선행력 | Y축: 추입력 | 원 크기: 부담중량</p></div>`
+                : `<div class="card text-center text-gray-600 p-8">데이터 부족: 해당 경주는 주행 스타일 데이터가 없어 비교 차트를 표시할 수 없습니다.</div>`;
+
+            mainContent.innerHTML = `
+                <section id="busan-race-${raceNum}">
+                    <div class="text-center mb-6">
+                        <h3 class="text-3xl font-bold">${data.title}</h3>
+                        <p class="text-gray-600 mt-4 max-w-2xl mx-auto">${data.paceAnalysis}</p>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                        <div class="lg:col-span-2">${chartAreaHtml}</div>
+                        <div class="lg:col-span-1 space-y-4">
+                            <h4 class="text-xl font-bold text-center">경주 추천마</h4>
+                            ${horseCardsHtml}
+                        </div>
+                    </div>
+                    <div id="busan-details-section" class="mt-8"></div>
+                </section>
+            `;
+            
+            if (hasStyleData) {
+                renderBusanBubbleChart('busanRaceChart', data, recommended);
+            }
+        }
+
+        function createBusanHorseCard(horse, type) {
+            const isLongshot = type === 'Longshot';
+            const cardClass = isLongshot ? 'longshot-card card' : 'card';
+            return `<div class="${cardClass} cursor-pointer" onclick='displayBusanHorseDetails(${JSON.stringify(horse)})'>
+                        ${isLongshot ? '<div class="longshot-badge px-3 py-1 text-xs rounded-full absolute -top-3 right-2">★ 복병마</div>' : ''}
+                        <div class="flex items-center">
+                           <span class="text-3xl font-black ${isLongshot ? 'text-[var(--accent-gold)]' : 'text-[var(--text-light)]'} mr-3">${horse.num}</span>
+                           <h5 class="text-lg font-bold">${horse.name}</h5>
+                        </div>
+                    </div>`;
+        }
+
+        window.displayBusanHorseDetails = function(horse) {
+            const detailsSection = document.getElementById('busan-details-section');
+            detailsSection.innerHTML = `<div class="card bg-blue-50 border-l-4 border-blue-400 mt-6">
+                <h4 class="text-xl font-bold text-blue-800 mb-2">[${horse.num}] ${horse.name} 상세 분석</h4>
+                <p class="text-gray-700">${horse.details}</p>
+            </div>`;
+            detailsSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function renderBusanBubbleChart(canvasId, raceData, recommendedHorseNums) {
+            const styleToScore = (style) => {
+                if (!style) return 1;
+                const grade = style.toUpperCase().replace('+', '');
+                return ({ 'A': 4, 'B': 3, 'C': 2, 'D': 1 }[grade] || 1);
+            };
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            const datasets = [
+                {
+                    label: '추천마',
+                    data: raceData.horses.filter(h => recommendedHorseNums.includes(h.num)).map(h => ({ x: styleToScore(h.style?.front), y: styleToScore(h.style?.closer), r: h.weight ? (h.weight - 45) * 1.5 : 10, horse: h })),
+                    backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                    borderColor: 'rgba(30, 64, 175, 1)',
+                },
+                {
+                    label: '기타 출전마',
+                    data: raceData.horses.filter(h => !recommendedHorseNums.includes(h.num)).map(h => ({ x: styleToScore(h.style?.front), y: styleToScore(h.style?.closer), r: h.weight ? (h.weight - 45) * 1.5 : 10, horse: h })),
+                    backgroundColor: 'rgba(107, 114, 128, 0.5)',
+                    borderColor: 'rgba(55, 65, 81, 1)',
+                }
+            ];
+            currentChart = new Chart(ctx, {
+                type: 'bubble',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    onClick: (evt, elements) => {
+                        if (elements.length > 0) {
+                            const horseData = elements[0].element.$context.raw.horse;
+                            displayBusanHorseDetails(horseData);
                         }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: '선행력' }, min: 0.5, max: 4.5, ticks: { stepSize: 1, callback: (value) => ['','D급','C급','B급','A급'][value] } },
+                        y: { title: { display: true, text: '추입력' }, min: 0.5, max: 4.5, ticks: { stepSize: 1, callback: (value) => ['','D급','C급','B급','A급'][value] } }
+                    },
+                    plugins: { legend: { position: 'bottom' }, ...tooltipCallback.plugins }
+                }
+            });
+        }
+
+        function setupUI(location) {
+            const headerTitle = document.querySelector('#app-header h1');
+            const raceNavContainer = document.querySelector('#race-nav > div');
+            
+            document.querySelectorAll('.location-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`.location-btn[data-location="${location}"]`).classList.add('active');
+
+            raceNavContainer.innerHTML = '';
+            
+            if (location === 'seoul') {
+                headerTitle.textContent = '2025년 7월 13일 서울 경마';
+                const seoulRaces = Object.keys(seoulRaceData);
+                seoulRaces.forEach(raceId => {
+                    const btn = document.createElement('button');
+                    btn.dataset.target = raceId;
+                    btn.className = 'nav-btn font-bold py-2 px-4 rounded-full text-sm md:text-base';
+                    btn.textContent = raceId === 'summary' ? '종합' : `${raceId.split('-')[1]}경주`;
+                    if (raceId === 'summary') btn.classList.add('active');
+                    raceNavContainer.appendChild(btn);
+                });
+                renderSeoulContent('summary');
+            } else { // busan
+                headerTitle.textContent = '2025년 7월 13일 부산 경마';
+                const busanRaces = Object.keys(busanRaceData);
+                busanRaces.forEach(raceNum => {
+                    const btn = document.createElement('button');
+                    btn.dataset.target = raceNum;
+                    btn.className = 'nav-btn font-bold py-2 px-4 rounded-full text-sm md:text-base';
+                    btn.textContent = `제${raceNum}경주`;
+                    if (raceNum === '1') btn.classList.add('active');
+                    raceNavContainer.appendChild(btn);
+                });
+                renderBusanContent('1');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const locationNav = document.getElementById('location-nav');
+            const raceNav = document.getElementById('race-nav');
+            let currentLocation = 'seoul';
+
+            locationNav.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    const location = e.target.dataset.location;
+                    if (location !== currentLocation) {
+                        currentLocation = location;
+                        setupUI(currentLocation);
                     }
                 }
-            }
-        });
-        
-        const gradeMap = {'A+': 5, 'A': 4, 'B+': 3, 'B': 2, 'C': 1, 'D': 0};
-
-        new Chart(document.getElementById('race1Chart'), {
-            type: 'bar',
-            data: {
-                labels: ['8 나올패스', '1 파워풀파트너', '5 환상의나라', '6 드림다이아 (복)'].map(processLabel),
-                datasets: [{
-                    label: 'G-1F (초)',
-                    data: [12.8, 13.1, 13.1, 13.8],
-                    backgroundColor: [chartColors.primary, chartColors.secondary, chartColors.secondary, chartColors.tertiary],
-                }]
-            },
-            options: { ...defaultChartOptions, indexAxis: 'y', scales: { x: { reverse: true, title: { display: true, text: '기록이 낮을수록 우수' } } } }
-        });
-        
-        new Chart(document.getElementById('race2Chart'), {
-            type: 'bar',
-            data: {
-                labels: ['10 에어포스원', '3 크리솔피스 (주행심사)', '9 누리으뜸 (G-3F 37.3초)', '11 더킹타임 (복)'].map(processLabel),
-                datasets: [{
-                    label: '1000m 기록 (초)',
-                    data: [61.2, 63.4, 64.0, 63.6],
-                    backgroundColor: [chartColors.primary, chartColors.secondary, chartColors.tertiary, chartColors.tertiary],
-                }]
-            },
-            options: { ...defaultChartOptions, indexAxis: 'y', scales: { x: { reverse: true, title: { display: true, text: '기록이 낮을수록 우수' } } } }
-        });
-        
-        new Chart(document.getElementById('race3Chart'), {
-            type: 'radar',
-            data: {
-                labels: ['추입력', '지구력', '기수', '안정성'],
-                datasets: [
-                    { label: '7 이클립스탱고', data: [3, 4, 5, 4], backgroundColor: chartColors.background2, borderColor: chartColors.border2, borderWidth: 2},
-                    { label: '2 스트리트루비', data: [2, 5, 3, 5], backgroundColor: chartColors.background, borderColor: chartColors.border, borderWidth: 2},
-                    { label: '6 붉은태양 (복)', data: [5, 2, 4, 2], backgroundColor: 'rgba(249, 212, 35, 0.2)', borderColor: '#F9D423', borderWidth: 2},
-                ]
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, scales: { r: { beginAtZero: true, max: 5 } } }
-        });
-
-        new Chart(document.getElementById('race4Chart'), {
-            type: 'bar',
-            data: {
-                labels: ['8 스터닝플래터', '7 라온더캐비아', '3 서부스카이', '5 세명스트롱 (복)'].map(processLabel),
-                datasets: [{
-                    label: '추입 등급',
-                    data: [gradeMap['A'], gradeMap['A'], gradeMap['D'], gradeMap['B+']],
-                    backgroundColor: [chartColors.primary, chartColors.primary, chartColors.tertiary, chartColors.secondary],
-                }]
-            },
-            options: { ...defaultChartOptions, scales: { y: { ticks: { callback: (v) => Object.keys(gradeMap).find(k => gradeMap[k] === v) } } } }
-        });
-        
-        new Chart(document.getElementById('race5Chart'), {
-            type: 'bar',
-            data: {
-                labels: ['4 브리도트로피', '8 로열플러스', '6 유니버설', '10 메니윈 (복)'].map(processLabel),
-                datasets: [{
-                    label: '1200m 기록',
-                    data: [74.2, 75.2, 76, 74.6],
-                    backgroundColor: [chartColors.primary, chartColors.secondary, chartColors.tertiary, chartColors.tertiary],
-                }]
-            },
-            options: { ...defaultChartOptions, indexAxis: 'y', scales: { x: { reverse: true, title: { display: true, text: '기록이 낮을수록 우수' } } } }
-        });
-
-        new Chart(document.getElementById('race6Chart'), {
-            type: 'bar',
-            data: {
-                labels: ['6 스타트렉', '7 레이디태풍', '8 스케일킹 (복)', '10 스파르탄'].map(processLabel),
-                datasets: [{
-                    label: '1200m 기록',
-                    data: [73.2, 73.5, 73.6, 74.2],
-                    backgroundColor: [chartColors.primary, chartColors.secondary, chartColors.tertiary, chartColors.secondary],
-                }]
-            },
-            options: { ...defaultChartOptions, indexAxis: 'y', scales: { x: { reverse: true, title: { display: true, text: '기록이 낮을수록 우수' } } } }
-        });
-        
-        new Chart(document.getElementById('race7Chart'), {
-            type: 'bar',
-            data: {
-                labels: ['5 와일드위즈 (1300m)', '11 스터닝퀸', '6 스마트별', '1 미스콩코드 (복)'].map(processLabel),
-                datasets: [{
-                    label: '1400m 환산 기록',
-                    data: [86.5, 87.2, 87.6, 87.9],
-                    backgroundColor: [chartColors.primary, chartColors.secondary, chartColors.secondary, chartColors.tertiary],
-                }]
-            },
-            options: { ...defaultChartOptions, indexAxis: 'y', scales: { x: { reverse: true, title: { display: true, text: '기록이 낮을수록 우수' } } } }
-        });
-
-        new Chart(document.getElementById('race8Chart'), {
-            type: 'bar',
-            data: {
-                labels: ['9 팰로앨토', '4 미스터스톰 (1300m)', '7 대박스타', '5 챌린지삭스 (복)'].map(processLabel),
-                datasets: [{
-                    label: '1400m 환산 기록',
-                    data: [87.1, 87.2, 87.9, 87.9],
-                    backgroundColor: [chartColors.primary, chartColors.secondary, chartColors.secondary, chartColors.tertiary],
-                }]
-            },
-            options: { ...defaultChartOptions, indexAxis: 'y', scales: { x: { reverse: true, title: { display: true, text: '기록이 낮을수록 우수' } } } }
-        });
-        
-        new Chart(document.getElementById('race9Chart'), {
-            type: 'radar',
-            data: {
-                labels: ['추입력', '장거리경험', '기록', '기수'],
-                datasets: [
-                    { label: '9 태평히어로', data: [gradeMap['A'], 5, 5, 4], backgroundColor: chartColors.background2, borderColor: chartColors.border2, borderWidth: 2},
-                    { label: '10 콩코드스퍼트', data: [gradeMap['A+'], 4, 4, 4], backgroundColor: chartColors.background, borderColor: chartColors.border, borderWidth: 2},
-                    { label: '11 하이그랜드', data: [gradeMap['A'], 4, 4, 3], backgroundColor: 'rgba(249, 212, 35, 0.2)', borderColor: '#F9D423', borderWidth: 2},
-                ]
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, scales: { r: { beginAtZero: true, max: 5 } } }
-        });
-
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                document.querySelector(this.getAttribute('href')).scrollIntoView({
-                    behavior: 'smooth'
-                });
             });
-        });
 
+            raceNav.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    const targetId = e.target.dataset.target;
+                    raceNav.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+                    e.target.classList.add('active');
+
+                    if (currentLocation === 'seoul') {
+                        renderSeoulContent(targetId);
+                    } else {
+                        renderBusanContent(targetId);
+                    }
+                }
+            });
+
+            setupUI(currentLocation);
+        });
     </script>
 </body>
 </html>
