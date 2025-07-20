@@ -157,11 +157,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     showLoader(true);
     
-    // 외부 CSV 파일 URL (이 부분을 수정)
-    // const externalCsvUrl = "https://jinkok.github.io/race-dashboard/data/서울race_0719data_final_merged.csv";
+    // GitHub Pages용 경로 (저장소 이름 포함)
+    const localCsvFile = "/race_database/서울race_0719data_final_merged.csv";
 
-    // 로컬 파일 경로로 변경
-    const localCsvFile = "./서울race_0719data_final_merged.csv";
+    // 또는 상대 경로 (현재 페이지 기준)
+    // const localCsvFile = "./서울race_0719data_final_merged.csv";
 
     // 디버깅용 로그 추가
     console.log("Attempting to load file:", localCsvFile);
