@@ -161,7 +161,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // const externalCsvUrl = "https://jinkok.github.io/race-dashboard/data/서울race_0719data_final_merged.csv";
 
     // 로컬 파일 경로로 변경
-    const localCsvFile = "서울race_0719data_final_merged.csv";
+    const localCsvFile = "./서울race_0719data_final_merged.csv";
+
+    // 디버깅용 로그 추가
+    console.log("Attempting to load file:", localCsvFile);
 
     // 외부 CSV 파일 로드 시도 (이 부분을 수정)
     Papa.parse(localCsvFile, {
@@ -169,6 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
         header: true,
         skipEmptyLines: true,
         complete: function(results) {
+            console.log("Parse results:", results);
             if (results.data && results.data.length > 0) {
                 processData(results.data);
                 console.log("Local data loaded successfully.");
@@ -180,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showLoader(false);
         },
         error: function(err) {
-            console.error("Error loading local CSV:", err);
+            console.error("Detailed error:", err);
             welcomeMessage.innerHTML = `<h2 class="text-2xl font-semibold text-red-700">파일을 찾을 수 없습니다.</h2><p class="text-slate-500 mt-2">'서울race_0719data_final_merged.csv' 파일이 HTML 파일과 같은 폴더에 있는지 확인해주세요.</p>`;
             showLoader(false);
         }
