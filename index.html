@@ -157,28 +157,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
     showLoader(true);
     
-    // 외부 CSV 파일 URL
-    const externalCsvUrl = "https://jinkok.github.io/race-dashboard/data/서울race_0719data_final_merged.csv";
+    // 외부 CSV 파일 URL (이 부분을 수정)
+    // const externalCsvUrl = "https://jinkok.github.io/race-dashboard/data/서울race_0719data_final_merged.csv";
 
-    // 외부 CSV 파일 로드 시도
-    Papa.parse(externalCsvUrl, {
+    // 로컬 파일 경로로 변경
+    const localCsvFile = "./data/서울race_0719data_final_merged.csv";
+
+    // 외부 CSV 파일 로드 시도 (이 부분을 수정)
+    Papa.parse(localCsvFile, {
         download: true,
         header: true,
         skipEmptyLines: true,
         complete: function(results) {
             if (results.data && results.data.length > 0) {
                 processData(results.data);
-                console.log("External data loaded successfully.");
+                console.log("Local data loaded successfully.");
                 welcomeMessage.innerHTML = `<h2 class="text-2xl font-semibold text-green-700">데이터가 성공적으로 로드되었습니다.</h2><p class="text-slate-500 mt-2">상단의 경주 번호를 선택하여 분석 리포트를 확인하세요.</p>`;
             } else {
-                console.warn("External CSV is empty or invalid.");
-                welcomeMessage.innerHTML = `<h2 class="text-2xl font-semibold text-red-700">데이터 로딩 실패.</h2><p class="text-slate-500 mt-2">외부 CSV 파일이 비어있거나 유효하지 않습니다. 데이터 소스를 확인해주세요.</p>`;
+                console.warn("Local CSV is empty or invalid.");
+                welcomeMessage.innerHTML = `<h2 class="text-2xl font-semibold text-red-700">데이터 로딩 실패.</h2><p class="text-slate-500 mt-2">로컬 CSV 파일이 비어있거나 유효하지 않습니다.</p>`;
             }
             showLoader(false);
         },
         error: function(err) {
-            console.error("Error accessing external CSV from URL:", err);
-            welcomeMessage.innerHTML = `<h2 class="text-2xl font-semibold text-red-700">데이터 접근 실패.</h2><p class="text-slate-500 mt-2">외부 CSV 파일을 불러올 수 없습니다 (네트워크 또는 CORS 문제일 수 있습니다). 웹 서버에 파일을 올린 후 동일한 도메인에서 접근하거나, CORS 설정을 확인해주세요.</p>`;
+            console.error("Error loading local CSV:", err);
+            welcomeMessage.innerHTML = `<h2 class="text-2xl font-semibold text-red-700">파일을 찾을 수 없습니다.</h2><p class="text-slate-500 mt-2">'서울race_0719data_final_merged.csv' 파일이 HTML 파일과 같은 폴더에 있는지 확인해주세요.</p>`;
             showLoader(false);
         }
     });
