@@ -3,508 +3,680 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>서울 경마 상세 분석 리포트</title>
+    <title>서울 경마 스마트 분석 (2025-08-03)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Chosen Palette: Cool & Professional Slate -->
-    <!-- Application Structure Plan: The application is designed as an interactive dashboard. The primary navigation consists of buttons for each race. Selecting a race updates the entire view, presenting a top-down analysis flow. It starts with a high-level overview (Race Info, Weather, Track Condition), moves to actionable insights (Pace Forecast, Top Picks), and then provides a detailed, interactive table for deep-diving into each horse. This structure was chosen to cater to two user types: those who want quick, expert picks and those who want to perform their own detailed analysis. The flow is logical, starting broad and allowing for progressive disclosure of details, which enhances usability and prevents information overload. -->
-    <!-- Visualization & Content Choices: 
-        - Race Info -> Goal: Inform -> Method: HTML Cards -> Interaction: None -> Justification: Clear, concise display of fundamental race data.
-        - Weather/Track Analysis -> Goal: Inform/Analyze -> Method: HTML Card with dynamic text -> Interaction: None -> Justification: Provides crucial context (track condition) that affects all subsequent analyses.
-        - Race Pace Forecast -> Goal: Predict/Analyze -> Method: Custom HTML/CSS Gauge + Text -> Interaction: None -> Justifies: Translates complex data (aggregate 선행력) into an easily digestible visual forecast (빠름/보통/느림) that informs betting strategy.
-        - Top Picks & Recommendations -> Goal: Recommend/Summarize -> Method: HTML Cards with scoring and reasoning -> Interaction: None -> Justification: Presents the core output of the analysis in a scannable format for quick decision-making. The scoring adds a quantitative layer to the qualitative reasoning.
-        - Full Horse Lineup -> Goal: Organize/Compare/Analyze -> Method: Interactive HTML Table -> Interaction: Click row to see details -> Justification: Allows users to compare all horses at a glance and select specific ones for in-depth study, supporting deep analysis without cluttering the main view.
-        - Individual Horse Analysis (Detail View) -> Goal: Detailed Analysis -> Method: Chart.js Line/Bar Charts + Text -> Interaction: Hover on charts -> Justification: Uses visualizations to show performance trends (Line Chart for past ranks) and running style (Bar Chart for sectional times), making complex historical data easy to interpret. Chart.js on Canvas is used.
-        - Betting Combinations -> Goal: Recommend -> Method: HTML Cards -> Interaction: None -> Justification: Provides clear, actionable betting slips based on the analysis.
-    -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Neutrals with Blue Accent -->
+    <!-- Application Structure Plan: A dashboard-style SPA. A header with buttons allows users to select a race (8-14). The main content area dynamically updates to show data for the selected race. This structure is divided into four logical sections: 1) Race Overview & Pace Visualizer, 2) Interactive Horse Data Table, 3) In-depth Analysis Text, and 4) Top Picks & Betting Recommendations. This task-oriented, non-linear structure is superior to a static report as it allows users to quickly navigate between races and interactively explore/sort data, facilitating easier comparison and deeper personal analysis. -->
+    <!-- Visualization & Content Choices: Report Info: Race conditions, horse stats, pace analysis, expert picks. -> Goal: Provide a comprehensive, interactive tool for race analysis. -> Viz/Presentation Method: Key stats are shown in info cards. Pace is visualized with a simple bar diagram (HTML/CSS). Horse data is in a sortable HTML table. Expert analysis and picks are in styled text blocks and cards. A bar chart (Chart.js) visualizes horse ability comparisons. -> Interaction: Race selection via header buttons, table sorting via column header clicks, chart data toggling. -> Justification: This combination of interactive tables, dynamic charts, and clear visual hierarchy makes complex data digestible and empowers users to explore beyond the static text. -> Library/Method: Vanilla JS, Tailwind CSS, Chart.js. -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
-        body { font-family: 'Pretendard', sans-serif; }
-        .chart-container { position: relative; width: 100%; max-width: 600px; margin-left: auto; margin-right: auto; height: 300px; max-height: 40vh; }
-        .tab-button { transition: all 0.3s ease; }
-        .tab-button.active { background-color: #2563eb; color: white; }
-        .tab-button:not(.active) { background-color: #e5e7eb; color: #374151; }
-        .loader { border: 8px solid #f3f3f3; border-radius: 50%; border-top: 8px solid #3498db; width: 60px; height: 60px; -webkit-animation: spin 2s linear infinite; animation: spin 2s linear infinite; }
-        @-webkit-keyframes spin { 0% { -webkit-transform: rotate(0deg); } 100% { -webkit-transform: rotate(360deg); } }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .fade-in { animation: fadeIn 0.5s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 40vh;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .nav-btn {
+            transition: all 0.3s ease;
+        }
+        .nav-btn.active {
+            background-color: #1d4ed8; /* blue-700 */
+            color: white;
+            font-weight: 700;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .table-sortable th {
+            cursor: pointer;
+        }
+        .table-sortable th:hover {
+            background-color: #eef2ff; /* indigo-50 */
+        }
+        .table-sortable th .sort-indicator {
+            display: inline-block;
+            width: 1em;
+            text-align: center;
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
 
-    <div id="loader-container" class="fixed inset-0 bg-white bg-opacity-80 flex justify-center items-center z-50">
-        <div class="loader"></div>
-    </div>
-
-    <div id="app-container" class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 opacity-0 transition-opacity duration-500">
+    <div class="container mx-auto p-4 md:p-8">
         
         <header class="text-center mb-8">
-            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">경마 전문가 시스템</h1>
-            <p class="text-lg text-slate-600 mt-2">서울 경마 상세 분석 리포트 (2025년 7월 19일)</p>
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">서울 경마 스마트 분석</h1>
+            <p class="text-lg text-slate-600 mt-2">2025년 8월 3일 (일요일)</p>
         </header>
 
-        <nav id="race-navigation" class="mb-6 flex flex-wrap justify-center gap-2">
+        <nav class="bg-white rounded-xl shadow-md p-2 mb-8 sticky top-2 z-10">
+            <div id="race-navigation" class="flex flex-wrap justify-center gap-2">
+            </div>
         </nav>
 
-        <main id="main-content" class="space-y-8">
-            <div id="race-content" class="hidden">
+        <main id="app-content" class="space-y-8">
+            
+            <section id="race-overview" class="bg-white p-6 rounded-xl shadow-lg transition-all duration-500">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h2 id="race-title" class="text-2xl font-bold text-blue-700"></h2>
+                        <p id="race-details" class="text-slate-500"></p>
+                    </div>
+                    <div id="race-time" class="text-lg font-semibold text-slate-700 bg-slate-100 px-4 py-2 rounded-lg"></div>
+                </div>
                 
-                <section id="race-overview-section" class="grid grid-cols-1 md:grid-cols-2 gap-6 fade-in">
-                    <div class="bg-white p-6 rounded-lg shadow-md border border-slate-200">
-                        <h2 class="text-xl font-bold mb-4 text-slate-800">경주 정보</h2>
-                        <div id="race-info" class="space-y-2 text-slate-700"></div>
-                    </div>
-                    <div class="bg-white p-6 rounded-lg shadow-md border border-slate-200">
-                        <h2 class="text-xl font-bold mb-4 text-slate-800">날씨 및 주로 상태 분석</h2>
-                        <div id="weather-info" class="space-y-2 text-slate-700">
-                            <p><strong>서울 날씨:</strong> 맑음, 기온 28°C, 습도 65%</p>
-                            <p><strong>주로 상태:</strong> 정상 (함수율 12~14% 예상)</p>
-                            <p><strong>분석:</strong> 맑은 날씨로 인해 주로가 최적의 상태를 유지할 것으로 보입니다. 이는 각질에 상관없이 모든 말들이 자신의 기량을 최대한 발휘할 수 있는 환경입니다. 특히 스피드가 좋은 선행마들에게 유리할 수 있습니다.</p>
-                        </div>
-                    </div>
-                </section>
+                <div>
+                    <h3 class="text-lg font-semibold mb-3 text-slate-800">경주 페이스 예상</h3>
+                    <div id="pace-visualizer" class="flex items-center gap-4 bg-slate-50 p-4 rounded-lg"></div>
+                </div>
+            </section>
 
-                <section id="predictions-section" class="grid grid-cols-1 md:grid-cols-2 gap-6 fade-in">
-                    <div class="bg-white p-6 rounded-lg shadow-md border border-slate-200">
-                        <h2 class="text-xl font-bold mb-4 text-slate-800">경주 흐름 및 추천 각질</h2>
-                        <div id="pace-prediction" class="space-y-3"></div>
-                    </div>
-                    <div class="bg-white p-6 rounded-lg shadow-md border border-slate-200">
-                        <h2 class="text-xl font-bold mb-4 text-slate-800">추천마 (상위 4두 + 복병 1두)</h2>
-                        <div id="top-picks" class="space-y-3"></div>
-                    </div>
-                </section>
+            <section id="horse-analysis" class="bg-white p-6 rounded-xl shadow-lg transition-all duration-500">
+                <h2 class="text-2xl font-bold text-slate-900 mb-4">출전마 능력 비교</h2>
+                <div class="flex justify-center flex-wrap gap-2 mb-4">
+                    <button data-metric="선행등급" class="chart-toggle-btn bg-blue-500 text-white px-4 py-2 rounded-md shadow-sm hover:bg-blue-600 transition">선행력</button>
+                    <button data-metric="선입등급" class="chart-toggle-btn bg-gray-300 text-gray-800 px-4 py-2 rounded-md shadow-sm hover:bg-gray-400 transition">선입력</button>
+                    <button data-metric="추입등급" class="chart-toggle-btn bg-gray-300 text-gray-800 px-4 py-2 rounded-md shadow-sm hover:bg-gray-400 transition">추입력</button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="horse-ability-chart"></canvas>
+                </div>
+            </section>
+            
+            <section id="horse-data" class="bg-white p-6 rounded-xl shadow-lg transition-all duration-500">
+                <h2 class="text-2xl font-bold text-slate-900 mb-4">출전마 상세 정보</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-slate-500 table-sortable">
+                        <thead class="text-xs text-slate-700 uppercase bg-slate-100">
+                            <tr>
+                                <th scope="col" class="px-4 py-3" data-sort="번호">번호 <span class="sort-indicator"></span></th>
+                                <th scope="col" class="px-4 py-3" data-sort="마명">마명 <span class="sort-indicator"></span></th>
+                                <th scope="col" class="px-4 py-3" data-sort="기수">기수 <span class="sort-indicator"></span></th>
+                                <th scope="col" class="px-4 py-3" data-sort="부담중량">부담중량 <span class="sort-indicator"></span></th>
+                                <th scope="col" class="px-4 py-3" data-sort="증감">증감 <span class="sort-indicator"></span></th>
+                                <th scope="col" class="px-4 py-3" data-sort="출전주기">출전주기 <span class="sort-indicator"></span></th>
+                                <th scope="col" class="px-4 py-3" data-sort="주요스타일">주요스타일 <span class="sort-indicator"></span></th>
+                                <th scope="col" class="px-4 py-3" data-sort="선행등급">선행 <span class="sort-indicator"></span></th>
+                                <th scope="col" class="px-4 py-3" data-sort="선입등급">선입 <span class="sort-indicator"></span></th>
+                                <th scope="col" class="px-4 py-3" data-sort="추입등급">추입 <span class="sort-indicator"></span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="horse-table-body">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
 
-                <section id="horse-lineup-section" class="bg-white p-6 rounded-lg shadow-md border border-slate-200 fade-in">
-                    <h2 class="text-xl font-bold mb-4 text-slate-800">출전마 상세 분석</h2>
-                    <p class="text-slate-600 mb-4">각 출전마의 상세 정보를 보려면 해당 행을 클릭하세요. 표의 헤더를 클릭하여 정렬할 수 있습니다.</p>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm text-left text-slate-500">
-                            <thead class="text-xs text-slate-700 uppercase bg-slate-100">
-                                <tr id="horse-table-header">
-                                </tr>
-                            </thead>
-                            <tbody id="horse-table-body">
-                            </tbody>
-                        </table>
+            <section id="strategy-analysis" class="bg-white p-6 rounded-xl shadow-lg transition-all duration-500">
+                <h2 class="text-2xl font-bold text-slate-900 mb-4">경주 흐름 및 전략 분석</h2>
+                <div id="analysis-content" class="space-y-4 text-slate-700 leading-relaxed">
+                </div>
+            </section>
+
+            <section id="recommendations" class="bg-gradient-to-br from-blue-600 to-indigo-700 text-white p-6 rounded-xl shadow-lg transition-all duration-500">
+                <h2 class="text-2xl font-bold mb-6 text-center">최종 추천 조합</h2>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-xl font-semibold mb-3 border-b-2 border-blue-300 pb-2">⭐ 축마 및 후착마</h3>
+                        <div id="top-picks-content" class="space-y-4"></div>
                     </div>
-                </section>
-                
-                <div id="horse-detail-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex justify-center items-center z-40 p-4">
-                    <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 relative">
-                        <button id="close-modal-btn" class="absolute top-4 right-4 text-slate-500 hover:text-slate-800 text-2xl">&times;</button>
-                        <div id="modal-content"></div>
+                    <div>
+                        <h3 class="text-xl font-semibold mb-3 border-b-2 border-blue-300 pb-2">🎯 추천 베팅 조합</h3>
+                        <div id="betting-combinations" class="space-y-4"></div>
                     </div>
                 </div>
+            </section>
 
-                <section id="betting-recommendations-section" class="bg-white p-6 rounded-lg shadow-md border border-slate-200 fade-in">
-                    <h2 class="text-xl font-bold mb-4 text-slate-800">최종 추천 조합</h2>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <div>
-                            <h3 class="font-semibold text-lg text-blue-700">복승식 (상위 3두 조합)</h3>
-                            <div id="exacta-bets" class="mt-2 space-y-1 text-slate-700"></div>
-                        </div>
-                        <div>
-                            <h3 class="font-semibold text-lg text-green-700">삼복승식 (상위 4두 조합)</h3>
-                            <div id="trifecta-bets" class="mt-2 space-y-1 text-slate-700"></div>
-                        </div>
-                    </div>
-                </section>
-
-            </div>
-            <div id="welcome-message" class="text-center py-16">
-                <h2 class="text-2xl font-semibold text-slate-700">상단의 경주 번호를 선택하여 분석 리포트를 확인하세요.</h2>
-                <p class="text-slate-500 mt-2">데이터를 기반으로 한 심층 분석을 제공합니다.</p>
-            </div>
         </main>
+
+        <footer class="text-center mt-12 text-slate-500 text-sm">
+            <p>본 정보는 제공된 데이터를 기반으로 한 분석 결과이며, 실제 경주 결과와 다를 수 있습니다.</p>
+            <p>&copy; 2025 스마트 경마 분석. All Rights Reserved.</p>
+        </footer>
     </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    const loaderContainer = document.getElementById('loader-container');
-    const appContainer = document.getElementById('app-container');
-    const raceNavigation = document.getElementById('race-navigation');
-    const mainContent = document.getElementById('main-content');
-    const raceContent = document.getElementById('race-content');
-    const welcomeMessage = document.getElementById('welcome-message');
-    const raceInfoEl = document.getElementById('race-info');
-    const pacePredictionEl = document.getElementById('pace-prediction');
-    const topPicksEl = document.getElementById('top-picks');
-    const horseTableHeader = document.getElementById('horse-table-header');
-    const horseTableBody = document.getElementById('horse-table-body');
-    const exactaBetsEl = document.getElementById('exacta-bets');
-    const trifectaBetsEl = document.getElementById('trifecta-bets');
-    
-    const modal = document.getElementById('horse-detail-modal');
-    const closeModalBtn = document.getElementById('close-modal-btn');
-    const modalContent = document.getElementById('modal-content');
-
-    let allRacesData = {};
-    let currentRaceData = [];
-    let charts = {};
-
-    function showLoader(show) {
-        if (show) {
-            loaderContainer.style.display = 'flex';
-            appContainer.style.opacity = '0';
-        } else {
-            loaderContainer.style.display = 'none';
-            appContainer.style.opacity = '1';
-        }
-    }
-
-    showLoader(true);
-    
-    // GitHub Pages용 경로 (저장소 이름 포함)
-    const localCsvFile = "/race-dashboard/Seoulrace_0719data_final_merged.csv";
-
-    // 또는 상대 경로 (현재 페이지 기준)
-    // const localCsvFile = "./서울race_0719data_final_merged.csv";
-
-    // 디버깅용 로그 추가
-    console.log("Attempting to load file:", localCsvFile);
-
-    // 외부 CSV 파일 로드 시도 (이 부분을 수정)
-    Papa.parse(localCsvFile, {
-        download: true,
-        header: true,
-        skipEmptyLines: true,
-        complete: function(results) {
-            console.log("Parse results:", results);
-            if (results.data && results.data.length > 0) {
-                processData(results.data);
-                console.log("Local data loaded successfully.");
-                welcomeMessage.innerHTML = `<h2 class="text-2xl font-semibold text-green-700">데이터가 성공적으로 로드되었습니다.</h2><p class="text-slate-500 mt-2">상단의 경주 번호를 선택하여 분석 리포트를 확인하세요.</p>`;
-            } else {
-                console.warn("Local CSV is empty or invalid.");
-                welcomeMessage.innerHTML = `<h2 class="text-2xl font-semibold text-red-700">데이터 로딩 실패.</h2><p class="text-slate-500 mt-2">로컬 CSV 파일이 비어있거나 유효하지 않습니다.</p>`;
-            }
-            showLoader(false);
+const raceData = {
+    8: {
+        title: "제8경주",
+        details: "혼4등급, 1700M, 핸디캡",
+        time: "15:35",
+        horses: [
+            { 번호: 1, 마명: '블랙사탕', 기수: '정정희', 부담중량: 51.0, 증감: -2.5, 출전주기: '3주', 주요스타일: '자유', 선행등급: 'D', 선입등급: 'D', 추입등급: 'B+' },
+            { 번호: 2, 마명: '카라위너', 기수: '임다빈', 부담중량: 52.0, 증감: 0.0, 출전주기: '4주', 주요스타일: '자유', 선행등급: 'C', 선입등급: 'D', 추입등급: 'C' },
+            { 번호: 3, 마명: '거센진격', 기수: '마이아', 부담중량: 55.5, 증감: 0.0, 출전주기: '8주', 주요스타일: '선입', 선행등급: 'D', 선입등급: 'D', 추입등급: 'A' },
+            { 번호: 4, 마명: '칸맥스', 기수: '김용근', 부담중량: 58.0, 증감: 1.0, 출전주기: '12주', 주요스타일: '자유', 선행등급: 'D', 선입등급: 'D', 추입등급: 'A' },
+            { 번호: 5, 마명: '빅토리퀸', 기수: '김효정', 부담중량: 53.0, 증감: -1.5, 출전주기: '5주', 주요스타일: '추입', 선행등급: 'C', 선입등급: 'C', 추입등급: 'B' },
+            { 번호: 6, 마명: '자체발광', 기수: '조상범', 부담중량: 53.5, 증감: 0.5, 출전주기: '5주', 주요스타일: '자유', 선행등급: 'B', 선입등급: 'B', 추입등급: 'D' },
+            { 번호: 7, 마명: '뉴질랜드삭스', 기수: '정우주', 부담중량: 51.0, 증감: -1.0, 출전주기: '5주', 주요스타일: '자유', 선행등급: 'D', 선입등급: 'D', 추입등급: 'A' },
+            { 번호: 8, 마명: '나올대왕', 기수: '유승완', 부담중량: 52.0, 증감: 0.0, 출전주기: '4주', 주요스타일: '자유', 선행등급: 'C', 선입등급: 'C', 추입등급: 'C' },
+            { 번호: 9, 마명: '금악명장', 기수: '김옥성', 부담중량: 52.5, 증감: 0.0, 출전주기: '3주', 주요스타일: '자유', 선행등급: 'A', 선입등급: 'A', 추입등급: 'D' },
+        ],
+        analysis: {
+            pace: "이번 경주는 9번 '금악명장'이 유일한 A등급 선행마로, 단독 선행이 매우 유력합니다. 다른 말들이 무리한 경합을 피하면서 전반적인 페이스는 느리게 흘러갈 가능성이 높습니다. 이는 선두권에 위치한 말들에게 절대적으로 유리한 조건으로 작용하며, 후미에서 따라오는 추입마들이 역전하기는 상당히 어려울 것으로 보입니다.",
+            strategy: "느린 페이스는 선행마의 독주 또는 선두권에서 힘을 안배한 선입마의 버티기 싸움으로 이어질 확률이 높습니다. 따라서 초반부터 좋은 자리를 선점할 수 있는 말들을 중심으로 전략을 세우는 것이 중요합니다. 막판 스퍼트가 강력한 추입마들은 예상과 달리 페이스가 빨라지는 이변이 없는 한 고전할 가능성이 있습니다."
         },
-        error: function(err) {
-            console.error("Detailed error:", err);
-            welcomeMessage.innerHTML = `<h2 class="text-2xl font-semibold text-red-700">파일을 찾을 수 없습니다.</h2><p class="text-slate-500 mt-2">'서울race_0719data_final_merged.csv' 파일이 HTML 파일과 같은 폴더에 있는지 확인해주세요.</p>`;
-            showLoader(false);
+        picks: {
+            banker: { 번호: 9, 마명: '금악명장', reason: '경주 편성상 단독 선행이 거의 확실시되는 전술적 이점이 다른 모든 요소를 압도합니다. 자신만의 페이스로 경주를 운영할 수 있는 이번 경주는 최고의 기회입니다.' },
+            followers: [
+                { 번호: 1, 마명: '블랙사탕', reason: '직전 우승의 기세와 2.5kg의 감량 이점이 강력합니다. 페이스가 불리하더라도 능력으로 극복할 가능성이 충분합니다.' },
+                { 번호: 6, 마명: '자체발광', reason: '선두권 바로 뒤에서 힘을 안배하며 최적의 전개를 펼칠 수 있는 전술적 이점을 보유하고 있습니다.' },
+                { 번호: 3, 마명: '거센진격', reason: '경주 흐름이 예상과 다르게 흘러갈 경우를 대비한 보험 성격의 선택입니다. 최상급 추입력을 보유하고 있습니다.' },
+            ]
+        },
+        combinations: {
+            quinella: ['9-1 (주력)', '9-6'],
+            trio: ['9-1-6 (안정)', '9-1-3', '9-6-3']
         }
+    },
+    9: {
+        title: "제9경주",
+        details: "혼4등급, 1200M, 핸디캡",
+        time: "16:00",
+        horses: [
+            { 번호: 1, 마명: '한센스타', 기수: '임다빈', 부담중량: 52.0, 증감: 0.0, 출전주기: '44주', 주요스타일: '선행', 선행등급: 'A', 선입등급: 'A', 추입등급: 'D' },
+            { 번호: 2, 마명: '스터닝퀸', 기수: '조재로', 부담중량: 53.0, 증감: 0.5, 출전주기: '3주', 주요스타일: '선행', 선행등급: 'C', 선입등급: 'C', 추입등급: 'C' },
+            { 번호: 3, 마명: '명맨', 기수: '씨씨웡', 부담중량: 52.0, 증감: -4.0, 출전주기: '3주', 주요스타일: '선행', 선행등급: 'D', 선입등급: 'D', 추입등급: 'B' },
+            { 번호: 4, 마명: '브리도시리스', 기수: '송재철', 부담중량: 56.5, 증감: 3.0, 출전주기: '6주', 주요스타일: '선입', 선행등급: 'B+', 선입등급: 'B+', 추입등급: 'D' },
+            { 번호: 5, 마명: '그레이찰리', 기수: '이혁', 부담중량: 58.0, 증감: 6.0, 출전주기: '43주', 주요스타일: '선행', 선행등급: 'D', 선입등급: 'D', 추입등급: 'C' },
+            { 번호: 6, 마명: '컴플리트파티', 기수: '조한별', 부담중량: 52.0, 증감: -1.5, 출전주기: '2주', 주요스타일: '추입', 선행등급: 'C', 선입등급: 'B', 추입등급: 'D' },
+            { 번호: 7, 마명: '위고하이', 기수: '문세영', 부담중량: 53.5, 증감: 0.5, 출전주기: '7주', 주요스타일: '선행', 선행등급: 'D', 선입등급: 'C', 추입등급: 'B+' },
+            { 번호: 8, 마명: '천구챗', 기수: '김철호', 부담중량: 54.5, 증감: 0.0, 출전주기: '3주', 주요스타일: '자유', 선행등급: 'C', 선입등급: 'D', 추입등급: 'D' },
+            { 번호: 9, 마명: '에임엔파이어', 기수: '오수철', 부담중량: 53.5, 증감: 0.5, 출전주기: '5주', 주요스타일: '자유', 선행등급: 'D', 선입등급: 'D', 추입등급: 'C' },
+            { 번호: 10, 마명: '캄인스톰', 기수: '김옥성', 부담중량: 52.0, 증감: 0.0, 출전주기: '2주', 주요스타일: '선입', 선행등급: 'B', 선입등급: 'B', 추입등급: 'D' },
+            { 번호: 11, 마명: '무한아르고', 기수: '해리카심', 부담중량: 52.0, 증감: 0.0, 출전주기: '3주', 주요스타일: '자유', 선행등급: 'A', 선입등급: 'A', 추입등급: 'D' },
+        ],
+        analysis: {
+            pace: "제8경주와 정반대 양상입니다. 선행마가 5두나 포진해 있고, 특히 1번 '한센스타'와 11번 '무한아르고'는 A등급의 스피드를 자랑합니다. 1200M 단거리에서 필연적으로 초반 선두 다툼이 매우 치열하게 전개될 것입니다. 이러한 과도한 페이스 경쟁은 선두권 말들의 체력 소모를 가중시켜 직선주로에서 무너지는 결과를 낳을 수 있습니다.",
+            strategy: "치열한 선두 경쟁의 반사이익을 볼 수 있는 선입, 추입마에게 절대적으로 유리한 경주입니다. 초반에 힘을 아끼고 중후미에서 기회를 엿보다가 직선주로에서 한 발을 쓰는 말들이 입상권에 대거 진입할 가능성이 높습니다. 선행마를 축으로 가져가는 것은 매우 위험한 전략입니다."
+        },
+        picks: {
+            banker: { 번호: 6, 마명: '컴플리트파티', reason: '경주 흐름 예측에 가장 부합하는 추입마입니다. 직전 1200M 우승을 통해 보여준 막판 결정력은 이번 경주에서 가장 강력한 무기가 될 것입니다.' },
+            followers: [
+                { 번호: 4, 마명: '브리도시리스', reason: '늘어난 부담중량이 변수지만, 빠른 페이스를 따라가며 선입 전개를 펼칠 수 있는 능력은 출전마 중 단연 돋보입니다.' },
+                { 번호: 7, 마명: '위고하이', reason: '선행과 추입 능력을 겸비한 유연성이 강점입니다. 명기수 문세영이 기승하여 최적의 전개를 펼칠 것으로 기대됩니다.' },
+                { 번호: 2, 마명: '스터닝퀸', reason: '선행마이지만 최근 꾸준한 성적을 내고 있으며, 다른 선행마들이 무너지는 와중에도 근성으로 버텨낼 가능성이 있습니다.' },
+            ]
+        },
+        combinations: {
+            quinella: ['6-4 (주력)', '6-7'],
+            trio: ['6-4-7 (안정)', '6-4-2', '6-7-2']
+        }
+    },
+    10: {
+        title: "제10경주",
+        details: "혼3등급, 1400M, 핸디캡",
+        time: "16:25",
+        horses: [
+            { 번호: 1, 마명: '신의여제', 기수: '해리카심', 부담중량: 52.0, 증감: 0.0, 출전주기: '3주', 주요스타일: '선행', 선행등급: 'D', 선입등급: 'D', 추입등급: 'A' },
+            { 번호: 2, 마명: '히어로삭스', 기수: '유승완', 부담중량: 52.5, 증감: 0.5, 출전주기: '4주', 주요스타일: '선입', 선행등급: 'B', 선입등급: 'B', 추입등급: 'D' },
+            { 번호: 3, 마명: '케이엔라이트', 기수: '조상범', 부담중량: 54.5, 증감: -1.0, 출전주기: '3주', 주요스타일: '선행', 선행등급: 'B+', 선입등급: 'B+', 추입등급: 'C' },
+            { 번호: 4, 마명: '골드시대', 기수: '정정희', 부담중량: 53.5, 증감: -1.5, 출전주기: '3주', 주요스타일: '선행', 선행등급: 'C', 선입등급: 'D', 추입등급: 'C' },
+            { 번호: 5, 마명: '주몽천하', 기수: '푸르칸', 부담중량: 52.0, 증감: 0.0, 출전주기: '6주', 주요스타일: '선입', 선행등급: 'C', 선입등급: 'B', 추입등급: 'A+' },
+            { 번호: 6, 마명: '바덴바덴', 기수: '김용근', 부담중량: 56.0, 증감: 5.0, 출전주기: '47주', 주요스타일: '선입', 선행등급: 'B+', 선입등급: 'B+', 추입등급: 'B' },
+            { 번호: 7, 마명: '럭키프랭크', 기수: '코지', 부담중량: 53.5, 증감: 0.0, 출전주기: '4주', 주요스타일: '선행', 선행등급: 'D', 선입등급: 'D', 추입등급: 'C' },
+            { 번호: 8, 마명: '탱자', 기수: '문정균', 부담중량: 52.0, 증감: -2.0, 출전주기: '4주', 주요스타일: '선입', 선행등급: 'B', 선입등급: 'B+', 추입등급: 'C' },
+            { 번호: 9, 마명: '엠지베스트', 기수: '장추열', 부담중량: 54.0, 증감: 0.5, 출전주기: '5주', 주요스타일: '선행', 선행등급: 'A', 선입등급: 'B+', 추입등급: 'D' },
+            { 번호: 10, 마명: '서부특송', 기수: '씨씨웡', 부담중량: 53.5, 증감: -0.5, 출전주기: '4주', 주요스타일: '선행', 선행등급: 'D', 선입등급: 'D', 추입등급: 'A+' },
+            { 번호: 11, 마명: '에이스케이', 기수: '정우주', 부담중량: 52.0, 증감: -0.5, 출전주기: '3주', 주요스타일: '자유', 선행등급: 'D', 선입등급: 'D', 추입등급: 'A+' },
+        ],
+        analysis: {
+            pace: "선행마 6두가 출전하여 제9경주처럼 빠른 페이스가 예상됩니다. 특히 9번 '엠지베스트'(A등급), 3번 '케이엔라이트'(B+등급) 등이 초반 주도권 싸움을 치열하게 벌일 것입니다. 1400M는 1200M보다 거리가 길어 무리한 초반 경쟁은 종반 체력 저하로 직결될 수 있습니다.",
+            strategy: "선두권에서 힘겨루기하는 말들보다, 이들의 바로 뒤에서 안정적으로 페이스를 조절하는 선입마나 강력한 한 발을 보유한 추입마에게 유리한 환경입니다. 선행마보다는 선입, 추입 능력이 뛰어난 말을 중심으로 공략하는 것이 합리적입니다."
+        },
+        picks: {
+            banker: { 번호: 3, 마명: '케이엔라이트', reason: '선행과 선입을 자유자재로 구사하는 전술적 유연성이 최대 강점입니다. 무리한 선두 다툼을 피하고 2~3선에서 안정적으로 경주를 풀어갈 가능성이 높습니다.' },
+            followers: [
+                { 번호: 5, 마명: '주몽천하', reason: '경주 흐름의 이점을 극대화할 수 있는 강력한 A+ 등급 추입마입니다. 직선주로에서 위력적인 스퍼트를 보여줄 것입니다.' },
+                { 번호: 10, 마명: '서부특송', reason: 'A+ 등급의 또 다른 강력한 추입마로, 선두권이 무너지는 시점에 맞춰 날아들 가능성이 높습니다.' },
+                { 번호: 9, 마명: '엠지베스트', reason: '선두 경합의 위험은 있지만, 압도적인 스피드를 바탕으로 버텨낼 가능성도 배제할 수 없는 최상위권 능력마입니다.' },
+            ]
+        },
+        combinations: {
+            quinella: ['3-5 (주력)', '3-10'],
+            trio: ['3-5-10 (안정)', '3-5-9', '3-10-9']
+        }
+    },
+    11: {
+        title: "제11경주",
+        details: "혼OPEN, 2000M, 마령",
+        time: "16:50",
+        horses: [
+            { 번호: 1, 마명: '머니크라운', 기수: '유승완', 부담중량: 57.0, 증감: 4.5, 출전주기: '5주', 주요스타일: '자유', 선행등급: 'D', 선입등급: 'D', 추입등급: 'D' },
+            { 번호: 2, 마명: '노던타임', 기수: '코지', 부담중량: 57.0, 증감: -1.0, 출전주기: '2주', 주요스타일: '자유', 선행등급: 'D', 선입등급: 'B', 추입등급: 'B' },
+            { 번호: 3, 마명: '[부]스피드영', 기수: '정도윤', 부담중량: 57.0, 증감: 0.0, 출전주기: '5주', 주요스타일: '선입', 선행등급: 'D', 선입등급: 'C', 추입등급: 'A+' },
+            { 번호: 4, 마명: '[부]석세스백파', 기수: '진겸', 부담중량: 57.0, 증감: 0.0, 출전주기: '5주', 주요스타일: '자유', 선행등급: 'D', 선입등급: 'D', 추입등급: 'A+' },
+            { 번호: 5, 마명: '너트플레이', 기수: '조재로', 부담중량: 57.0, 증감: 0.0, 출전주기: '10주', 주요스타일: '추입', 선행등급: 'D', 선입등급: 'D', 추입등급: 'A+' },
+            { 번호: 6, 마명: '[부]영광의퍼스트', 기수: '이성재', 부담중량: 57.0, 증감: 2.5, 출전주기: '3주', 주요스타일: '선입', 선행등급: 'B', 선입등급: 'B+', 추입등급: 'B' },
+            { 번호: 7, 마명: '[부]투혼의반석', 기수: '다실바', 부담중량: 57.0, 증감: 0.0, 출전주기: '10주', 주요스타일: '선행', 선행등급: 'D', 선입등급: 'C', 추입등급: 'A' },
+            { 번호: 8, 마명: '[부]디스파이트윈', 기수: '서승운', 부담중량: 57.0, 증감: 0.0, 출전주기: '5주', 주요스타일: '자유', 선행등급: 'D', 선입등급: 'B', 추입등급: 'D' },
+            { 번호: 9, 마명: '원더풀슬루', 기수: '문세영', 부담중량: 55.0, 증감: -1.0, 출전주기: '9주', 주요스타일: '선입', 선행등급: 'D', 선입등급: 'C', 추입등급: 'A' },
+            { 번호: 10, 마명: '[부]정문코빗', 기수: '먼로', 부담중량: 57.0, 증감: 0.5, 출전주기: '3주', 주요스타일: '자유', 선행등급: 'D', 선입등급: 'B', 추입등급: 'A+' },
+            { 번호: 11, 마명: '[부]글로벌히트', 기수: '김혜선', 부담중량: 57.0, 증감: 0.0, 출전주기: '10주', 주요스타일: '선입', 선행등급: 'B+', 선입등급: 'B+', 추입등급: 'D' },
+        ],
+        analysis: {
+            pace: "2000M 장거리 경주는 초반 스피드보다 지구력과 막판 스퍼트가 승부를 가릅니다. A+ 등급의 강력한 추입마들이 다수 포진해 있어, 경주 초반 페이스는 빠르지 않을 것입니다. 말들이 서로를 견제하며 힘을 안배하다가, 마지막 직선주로에서 모든 힘을 쏟아붓는 전형적인 장거리 경주 양상이 예상됩니다.",
+            strategy: "누가 더 뛰어난 지구력을 바탕으로 가장 강력한 막판 스퍼트를 구사하느냐가 승부의 관건입니다. 안정적인 경주 운영 능력과 검증된 장거리 혈통, 그리고 막판 결정력이 뛰어난 말을 중심으로 접근해야 합니다."
+        },
+        picks: {
+            banker: { 번호: 11, 마명: '[부]글로벌히트', reason: '이견이 없는 현존 최강자입니다. 2000M 무패 기록, 안정적인 경주 운영, 기수와의 완벽한 호흡 등 모든 면에서 가장 신뢰할 수 있는 축마입니다.' },
+            followers: [
+                { 번호: 9, 마명: '원더풀슬루', reason: '2000M 최고 기록 보유마라는 점과 명기수 문세영의 기승은 매우 매력적인 조합입니다. 가장 강력한 대항마입니다.' },
+                { 번호: 3, 마명: '[부]스피드영', reason: '꾸준하게 장거리 경주에서 좋은 성적을 내고 있는 안정적인 추입마입니다. 입상권 한 자리를 차지할 가능성이 높습니다.' },
+                { 번호: 5, 마명: '너트플레이', reason: '폭발적인 막판 스퍼트 능력은 언제나 변수를 만들 수 있습니다. 직선주로 대결에서 결코 무시할 수 없는 존재입니다.' },
+            ]
+        },
+        combinations: {
+            quinella: ['11-9 (주력)', '11-3'],
+            trio: ['11-9-3 (안정)', '11-9-5', '11-3-5']
+        }
+    },
+    12: {
+        title: "제12경주",
+        details: "2등급, 1200M, 핸디캡",
+        time: "17:25",
+        horses: [
+            { 번호: 1, 마명: '강남불청객', 기수: '김용근', 부담중량: 56.5, 증감: 1.5, 출전주기: '19주', 주요스타일: '선행', 선행등급: 'A', 선입등급: 'B+', 추입등급: 'D' },
+            { 번호: 2, 마명: '미스터퀄리티', 기수: '정정희', 부담중량: 53.5, 증감: 1.5, 출전주기: '5주', 주요스타일: '선행', 선행등급: 'B', 선입등급: 'C', 추입등급: 'B' },
+            { 번호: 3, 마명: '스퍼트빗', 기수: '임다빈', 부담중량: 55.0, 증감: 1.5, 출전주기: '9주', 주요스타일: '자유', 선행등급: 'D', 선입등급: 'D', 추입등급: 'D' },
+            { 번호: 4, 마명: '엠제이베스트', 기수: '이동하', 부담중량: 55.0, 증감: 2.0, 출전주기: '4주', 주요스타일: '선입', 선행등급: 'B+', 선입등급: 'B+', 추입등급: 'C' },
+            { 번호: 5, 마명: '차돌다이아', 기수: '김태희', 부담중량: 51.5, 증감: 0.5, 출전주기: '4주', 주요스타일: '선행', 선행등급: 'C', 선입등급: 'B', 추입등급: 'C' },
+            { 번호: 6, 마명: '오라칸', 기수: '김효정', 부담중량: 58.0, 증감: 1.0, 출전주기: '11주', 주요스타일: '자유', 선행등급: 'B', 선입등급: 'B', 추입등급: 'B+' },
+            { 번호: 7, 마명: '미라클한강', 기수: '마이아', 부담중량: 57.0, 증감: 0.5, 출전주기: '4주', 주요스타일: '자유', 선행등급: 'C', 선입등급: 'B', 추입등급: 'B+' },
+            { 번호: 8, 마명: '탑티어', 기수: '정우주', 부담중량: 55.0, 증감: 1.0, 출전주기: '11주', 주요스타일: '선행', 선행등급: 'B', 선입등급: 'B+', 추입등급: 'D' },
+            { 번호: 9, 마명: '아침동자', 기수: '조재로', 부담중량: 57.5, 증감: 3.5, 출전주기: '7주', 주요스타일: '자유', 선행등급: 'B', 선입등급: 'B', 추입등급: 'C' },
+            { 번호: 10, 마명: '콩나물', 기수: '김철호', 부담중량: 56.5, 증감: 2.5, 출전주기: '3주', 주요스타일: '선행', 선행등급: 'C', 선입등급: 'C', 추입등급: 'A' },
+            { 번호: 11, 마명: '벌교베리타스', 기수: '조인권', 부담중량: 53.5, 증감: -2.5, 출전주기: '5주', 주요스타일: '선입', 선행등급: 'D', 선입등급: 'D', 추입등급: 'B+' },
+        ],
+        analysis: {
+            pace: "선행마 5두가 포진하여 매우 빠른 페이스가 예상됩니다. 1번 '강남불청객'(A등급)이 초반 페이스를 주도할 것입니다. 제9경주와 유사하게 선행마 경합 구도는 후미에서 힘을 안배한 말들에게 유리한 환경을 제공할 수 있습니다.",
+            strategy: "2등급 경주인 만큼 선행마들의 능력 또한 뛰어나므로, 페이스를 이겨내고 버티는 말이 나올 가능성도 함께 고려해야 합니다. 선입 전개를 펼칠 수 있는 말이나, 추입력이 뛰어난 말을 주목해야 합니다."
+        },
+        picks: {
+            banker: { 번호: 9, 마명: '아침동자', reason: '부담중량이 크게 늘었지만, 최근 보여준 압도적인 상승세와 컨디션을 더 높게 평가합니다. 기수와의 검증된 호흡을 바탕으로 안정적인 입상이 기대됩니다.' },
+            followers: [
+                { 번호: 4, 마명: '엠제이베스트', reason: '기복 없는 꾸준함이 최대 무기입니다. 어떤 상황에서도 제 몫을 해주는 안정적인 후착마 후보입니다.' },
+                { 번호: 8, 마명: '탑티어', reason: '공백기가 있지만, 전성기 시절의 스피드는 2등급 내에서도 최상위권입니다. 컨디션을 회복했다면 쉽게 무너지지 않을 것입니다.' },
+                { 번호: 1, 마명: '강남불청객', reason: '공백기와 페이스 부담이 있지만, A등급의 선행 능력은 무시할 수 없습니다. 초반이 순조롭게 풀리면 이변을 만들 수 있습니다.' },
+            ]
+        },
+        combinations: {
+            quinella: ['9-4 (주력)', '9-8'],
+            trio: ['9-4-8 (안정)', '9-4-1', '9-8-1']
+        }
+    },
+    13: {
+        title: "제13경주",
+        details: "국4등급, 1600M, 핸디캡",
+        time: "17:25",
+        horses: [
+            { 번호: 1, 마명: '라이징모', 기수: '씨씨웡', 부담중량: 52.5, 증감: -2.5, 출전주기: '8주', 주요스타일: '자유', 선행등급: 'D', 선입등급: 'D', 추입등급: 'B' },
+            { 번호: 2, 마명: '케이엔언더킹', 기수: '(-2)김성현', 부담중량: 56.0, 증감: 2.0, 출전주기: '7주', 주요스타일: '선입', 선행등급: 'B', 선입등급: 'C', 추입등급: 'D' },
+            { 번호: 3, 마명: '라파예트', 기수: '김용근', 부담중량: 55.5, 증감: 1.0, 출전주기: '4주', 주요스타일: '선입', 선행등급: 'B+', 선입등급: 'B+', 추입등급: 'D' },
+            { 번호: 4, 마명: '레이디코디', 기수: '문정균', 부담중량: 52.0, 증감: 0.0, 출전주기: '6주', 주요스타일: '자유', 선행등급: 'B', 선입등급: 'C', 추입등급: 'B' },
+            { 번호: 5, 마명: '벌교그래미', 기수: '김효정', 부담중량: 53.0, 증감: 0.5, 출전주기: '4주', 주요스타일: '선행', 선행등급: 'B', 선입등급: 'C', 추입등급: 'D' },
+            { 번호: 6, 마명: '블러드마운틴', 기수: '유승완', 부담중량: 52.5, 증감: 1.0, 출전주기: '7주', 주요스타일: '선입', 선행등급: 'B', 선입등급: 'B', 추입등급: 'B' },
+            { 번호: 7, 마명: '서울돌풍', 기수: '빅투아르', 부담중량: 52.5, 증감: -0.5, 출전주기: '11주', 주요스타일: '선행', 선행등급: 'C', 선입등급: 'C', 추입등급: 'B+' },
+            { 번호: 8, 마명: '한강글로리', 기수: '김철호', 부담중량: 53.5, 증감: -0.5, 출전주기: '3주', 주요스타일: '선입', 선행등급: 'B', 선입등급: 'B+', 추입등급: 'C' },
+            { 번호: 9, 마명: '어퍼핸드', 기수: '정우주', 부담중량: 52.0, 증감: 0.0, 출전주기: '5주', 주요스타일: '선행', 선행등급: 'C', 선입등급: 'C', 추입등급: 'B' },
+            { 번호: 10, 마명: '캠프데이비드', 기수: '정우주', 부담중량: 54.0, 증감: 0.0, 출전주기: '4주', 주요스타일: '선행', 선행등급: 'B', 선입등급: 'B', 추입등급: 'B+' },
+        ],
+        analysis: {
+            pace: "선행마가 4두 출전하여 비교적 안정적인 페이스가 예상됩니다. 선두권 경쟁이 아주 치열하지는 않겠지만, 꾸준한 흐름 속에서 경주가 진행될 것입니다. 1600M(마일) 거리는 스피드와 지구력을 겸비해야 합니다.",
+            strategy: "꾸준한 페이스 속에서는 선두권 바로 뒤에 위치한 선입마들이 가장 유리한 고지를 점할 수 있습니다. 특히 선입 등급이 높은 말들이 최적의 위치에서 경주를 풀어갈 것으로 기대됩니다. 전술적 운영이 중요한 승부처가 될 것입니다."
+        },
+        picks: {
+            banker: { 번호: 3, 마명: '라파예트', reason: '안정적인 경주 운영 능력과 기수와의 검증된 호흡을 바탕으로 가장 신뢰할 수 있는 축마입니다. 꾸준한 성적을 내고 있습니다.' },
+            followers: [
+                { 번호: 6, 마명: '블러드마운틴', reason: '1600M 거리에서 보여준 꾸준함과 좋은 기록은 이 말의 가치를 증명합니다. 가장 강력한 후착마 후보입니다.' },
+                { 번호: 8, 마명: '한강글로리', reason: '유리한 부담중량과 뛰어난 선입 능력을 바탕으로 입상권에 도전할 복병마입니다.' },
+                { 번호: 10, 마명: '캠프데이비드', reason: '선행마 중 가장 안정적으로 평가되며, 최근 상승세를 타고 있어 무시할 수 없습니다.' },
+            ]
+        },
+        combinations: {
+            quinella: ['3-6 (주력)', '3-8'],
+            trio: ['3-6-8 (안정)', '3-6-10', '3-8-10']
+        }
+    },
+    14: {
+        title: "제14경주",
+        details: "1등급, 1600M, 핸디캡",
+        time: "18:00",
+        horses: [
+            { 번호: 1, 마명: '빅스고', 기수: '장추열', 부담중량: 58.5, 증감: -0.5, 출전주기: '2주', 주요스타일: '자유', 선행등급: 'B', 선입등급: 'B', 추입등급: 'C' },
+            { 번호: 2, 마명: '포에버드림', 기수: '조재로', 부담중량: 57.0, 증감: -0.5, 출전주기: '4주', 주요스타일: '선입', 선행등급: 'C', 선입등급: 'C', 추입등급: 'C' },
+            { 번호: 3, 마명: '컴플리트레벨', 기수: '(-2)김성현', 부담중량: 56.5, 증감: -2.5, 출전주기: '7주', 주요스타일: '자유', 선행등급: 'B', 선입등급: 'B', 추입등급: 'C' },
+            { 번호: 4, 마명: '원평스톰', 기수: '임다빈', 부담중량: 56.5, 증감: 2.5, 출전주기: '5주', 주요스타일: '선입', 선행등급: 'D', 선입등급: 'D', 추입등급: 'B+' },
+            { 번호: 5, 마명: '용암보스', 기수: '이혁', 부담중량: 56.5, 증감: -1.5, 출전주기: '23주', 주요스타일: '자유', 선행등급: 'C', 선입등급: 'B', 추입등급: 'D' },
+            { 번호: 6, 마명: '굿필승', 기수: '송재철', 부담중량: 56.0, 증감: -1.0, 출전주기: '4주', 주요스타일: '자유', 선행등급: 'B+', 선입등급: 'B+', 추입등급: 'D' },
+            { 번호: 7, 마명: '마의웨이', 기수: '해리카심', 부담중량: 55.5, 증감: -0.5, 출전주기: '5주', 주요스타일: '선행', 선행등급: 'A', 선입등급: 'A', 추입등급: 'D' },
+            { 번호: 8, 마명: '대사리', 기수: '코지', 부담중량: 52.0, 증감: -0.5, 출전주기: '7주', 주요스타일: '선행', 선행등급: 'C', 선입등급: 'B+', 추입등급: 'C' },
+            { 번호: 9, 마명: '마이티네오', 기수: '문세영', 부담중량: 53.5, 증감: -4.0, 출전주기: '7주', 주요스타일: '선행', 선행등급: 'D', 선입등급: 'D', 추입등급: 'A+' },
+            { 번호: 10, 마명: '금빛마', 기수: '정우주', 부담중량: 51.0, 증감: -0.5, 출전주기: '7주', 주요스타일: '선입', 선행등급: 'N/A', 선입등급: 'N/A', 추입등급: 'N/A' },
+        ],
+        analysis: {
+            pace: "7번 '마의웨이'가 A등급의 압도적인 스피드로 경주를 주도할 가능성이 높습니다. 다른 선행마들이 무리한 경합을 피하면서 전반적인 페이스는 보통 수준으로 형성될 것입니다. 높은 부담중량을 극복하는 능력과 관록이 승부를 가를 것입니다.",
+            strategy: "보통 페이스 흐름은 선두권에서 안정적으로 경주를 풀어가는 말이나, 강력한 추입력을 갖춘 말 모두에게 기회를 줄 수 있는 복합적인 양상을 띱니다. 축마를 중심으로 안정적인 후착마를 조합하는 전략이 필요합니다."
+        },
+        picks: {
+            banker: { 번호: 7, 마명: '마의웨이', reason: '압도적인 선행 능력과 검증된 거리 적성을 바탕으로 가장 안정적인 축마입니다. 경주를 스스로 만들어갈 수 있는 능력을 갖추고 있습니다.' },
+            followers: [
+                { 번호: 9, 마명: '마이티네오', reason: '4kg의 대폭 감량 이점과 문세영 기수와의 재회가 매력적입니다. 막판 직선주로에서 가장 위협적인 모습을 보여줄 것입니다.' },
+                { 번호: 4, 마명: '원평스톰', reason: '1등급 우승 경험과 기수와의 환상적인 호흡은 무시할 수 없는 강점입니다. 언제든 우승을 노릴 수 있습니다.' },
+                { 번호: 2, 마명: '포에버드림', reason: '꾸준함과 안정감을 바탕으로 어떤 조합에서도 받쳐 가야 할 마필입니다.' },
+            ]
+        },
+        combinations: {
+            quinella: ['7-9 (주력)', '7-4'],
+            trio: ['7-9-4 (안정)', '7-9-2', '7-4-2']
+        }
+    },
+};
+
+let currentRace = 8;
+let horseAbilityChart = null;
+let currentSort = { column: '번호', direction: 'asc' };
+
+const styleToIcon = {
+    '선행': { icon: '🚀', color: 'bg-red-100', text: 'text-red-800' },
+    '선입': { icon: '🏃', color: 'bg-yellow-100', text: 'text-yellow-800' },
+    '추입': { icon: '💨', color: 'bg-blue-100', text: 'text-blue-800' },
+    '자유': { icon: '🔄', color: 'bg-green-100', text: 'text-green-800' }
+};
+
+const gradeToValue = { 'A+': 6, 'A': 5, 'B+': 4, 'B': 3, 'C': 2, 'D': 1, 'N/A': 0 };
+
+document.addEventListener('DOMContentLoaded', () => {
+    setupNavigation();
+    updateView(currentRace);
+    setupEventListeners();
+});
+
+function setupNavigation() {
+    const navContainer = document.getElementById('race-navigation');
+    navContainer.innerHTML = '';
+    Object.keys(raceData).forEach(raceNum => {
+        const button = document.createElement('button');
+        button.className = `nav-btn px-3 py-2 md:px-4 rounded-lg text-sm md:text-base font-medium ${raceNum == currentRace ? 'active' : 'bg-white text-slate-700 hover:bg-blue-50'}`;
+        button.textContent = `제${raceNum}경주`;
+        button.dataset.race = raceNum;
+        button.addEventListener('click', () => {
+            currentRace = raceNum;
+            updateView(currentRace);
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active', 'bg-blue-700', 'text-white'));
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                if(btn.dataset.race != currentRace) {
+                    btn.classList.add('bg-white', 'text-slate-700', 'hover:bg-blue-50');
+                }
+            });
+            button.classList.add('active');
+        });
+        navContainer.appendChild(button);
+    });
+}
+
+function updateView(raceNum) {
+    const data = raceData[raceNum];
+    
+    document.getElementById('race-title').textContent = data.title;
+    document.getElementById('race-details').textContent = data.details;
+    document.getElementById('race-time').textContent = data.time;
+
+    renderPaceVisualizer(data.horses);
+    renderHorseTable(data.horses);
+    renderAnalysis(data.analysis);
+    renderRecommendations(data.picks, data.combinations);
+    updateChart(data.horses, '선행등급');
+    
+    document.querySelectorAll('.chart-toggle-btn').forEach(btn => {
+        btn.classList.remove('bg-blue-500', 'text-white');
+        btn.classList.add('bg-gray-300', 'text-gray-800');
+    });
+    document.querySelector('.chart-toggle-btn[data-metric="선행등급"]').classList.add('bg-blue-500', 'text-white');
+    document.querySelector('.chart-toggle-btn[data-metric="선행등급"]').classList.remove('bg-gray-300', 'text-gray-800');
+
+}
+
+function renderPaceVisualizer(horses) {
+    const visualizer = document.getElementById('pace-visualizer');
+    const paceCounts = horses.reduce((acc, horse) => {
+        const style = horse.주요스타일;
+        if (style === '선행') acc.front++;
+        else if (style === '선입') acc.stalker++;
+        else if (style === '추입') acc.chaser++;
+        else acc.free++;
+        return acc;
+    }, { front: 0, stalker: 0, chaser: 0, free: 0 });
+
+    visualizer.innerHTML = `
+        <div class="flex items-center gap-2" title="선행마">
+            <span class="text-2xl">${styleToIcon['선행'].icon}</span>
+            <span class="font-bold text-lg text-red-600">${paceCounts.front}두</span>
+        </div>
+        <div class="flex items-center gap-2" title="선입마">
+            <span class="text-2xl">${styleToIcon['선입'].icon}</span>
+            <span class="font-bold text-lg text-yellow-600">${paceCounts.stalker}두</span>
+        </div>
+        <div class="flex items-center gap-2" title="추입마">
+            <span class="text-2xl">${styleToIcon['추입'].icon}</span>
+            <span class="font-bold text-lg text-blue-600">${paceCounts.chaser}두</span>
+        </div>
+        <div class="flex items-center gap-2" title="자유마">
+            <span class="text-2xl">${styleToIcon['자유'].icon}</span>
+            <span class="font-bold text-lg text-green-600">${paceCounts.free}두</span>
+        </div>
+    `;
+}
+
+function renderHorseTable(horses) {
+    const tableBody = document.getElementById('horse-table-body');
+    tableBody.innerHTML = '';
+    
+    const sortedHorses = [...horses].sort((a, b) => {
+        const valA = a[currentSort.column];
+        const valB = b[currentSort.column];
+        
+        let comparison = 0;
+        if (typeof valA === 'string' && typeof valB === 'string') {
+            if (currentSort.column.includes('등급')) {
+                comparison = gradeToValue[valA] - gradeToValue[valB];
+            } else {
+                comparison = valA.localeCompare(valB);
+            }
+        } else {
+            comparison = valA - valB;
+        }
+        
+        return currentSort.direction === 'asc' ? comparison : -comparison;
     });
 
-    function processData(data) {
-        data.forEach(row => {
-            const raceNum = row.경주번호;
-            if (!allRacesData[raceNum]) {
-                allRacesData[raceNum] = [];
-            }
-            allRacesData[raceNum].push(row);
-        });
-
-        const raceNumbers = Object.keys(allRacesData).sort((a, b) => parseInt(a) - parseInt(b));
-        raceNavigation.innerHTML = ''; // Clear existing buttons before re-rendering
-        raceNumbers.forEach(raceNum => {
-            const button = document.createElement('button');
-            button.className = 'tab-button px-4 py-2 text-sm font-semibold rounded-md';
-            button.textContent = `제 ${raceNum} 경주`;
-            button.dataset.raceNum = raceNum;
-            button.addEventListener('click', () => displayRace(raceNum));
-            raceNavigation.appendChild(button);
-        });
-        // Automatically display the first race if available
-        if (raceNumbers.length > 0) {
-            displayRace(raceNumbers[0]);
-        } else {
-            welcomeMessage.innerHTML = `<h2 class="text-2xl font-semibold text-red-700">로드할 경주 데이터가 없습니다.</h2><p class="text-slate-500 mt-2">데이터 소스를 확인해주세요.</p>`;
-            raceContent.classList.add('hidden');
-            welcomeMessage.classList.remove('hidden');
-        }
-    }
-
-    function displayRace(raceNum) {
-        welcomeMessage.classList.add('hidden');
-        raceContent.classList.remove('hidden');
-        
-        document.querySelectorAll('#race-navigation button').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.raceNum === raceNum);
-        });
-
-        currentRaceData = allRacesData[raceNum];
-        const raceDetails = currentRaceData[0];
-
-        // 1. Display Race Info
-        raceInfoEl.innerHTML = `
-            <p><strong>경주장:</strong> ${raceDetails.경주장}</p>
-            <p><strong>시간:</strong> ${raceDetails.경주시간}</p>
-            <p><strong>등급:</strong> ${raceDetails.등급}</p>
-            <p><strong>거리:</strong> ${raceDetails.거리}m</p>
-            <p><strong>핸디캡:</strong> ${raceDetails.핸디캡}</p>
+    sortedHorses.forEach(horse => {
+        const styleInfo = styleToIcon[horse.주요스타일] || styleToIcon['자유'];
+        const row = document.createElement('tr');
+        row.className = 'bg-white border-b hover:bg-slate-50';
+        row.innerHTML = `
+            <td class="px-4 py-3 font-medium text-gray-900">${horse.번호}</td>
+            <td class="px-4 py-3 font-semibold">${horse.마명}</td>
+            <td class="px-4 py-3">${horse.기수}</td>
+            <td class="px-4 py-3">${horse.부담중량.toFixed(1)}</td>
+            <td class="px-4 py-3 ${horse.증감 > 0 ? 'text-red-500' : horse.증감 < 0 ? 'text-blue-500' : ''}">${horse.증감.toFixed(1)}</td>
+            <td class="px-4 py-3">${horse.출전주기}</td>
+            <td class="px-4 py-3">
+                <span class="px-2 py-1 font-semibold leading-tight rounded-full ${styleInfo.color} ${styleInfo.text}">${horse.주요스타일}</span>
+            </td>
+            <td class="px-4 py-3 font-bold">${horse.선행등급}</td>
+            <td class="px-4 py-3 font-bold">${horse.선입등급}</td>
+            <td class="px-4 py-3 font-bold">${horse.추입등급}</td>
         `;
+        tableBody.appendChild(row);
+    });
+}
 
-        // 2. Analyze and display data
-        const analyzedData = analyzeRace(currentRaceData);
-        displayPacePrediction(analyzedData.pace);
-        displayTopPicks(analyzedData.topPicks);
-        displayHorseTable(analyzedData.scoredHorses);
-        displayBettingRecommendations(analyzedData.topPicks);
-        
-        // Add fade-in effect to sections
-        document.querySelectorAll('#race-content section').forEach(section => {
-            section.classList.remove('fade-in');
-            void section.offsetWidth;
-            section.classList.add('fade-in');
-        });
-    }
+function renderAnalysis(analysis) {
+    const container = document.getElementById('analysis-content');
+    container.innerHTML = `
+        <div>
+            <h3 class="text-lg font-semibold mb-2 text-slate-800">페이스 전망</h3>
+            <p>${analysis.pace}</p>
+        </div>
+        <div>
+            <h3 class="text-lg font-semibold mb-2 text-slate-800">전략적 접근</h3>
+            <p>${analysis.strategy}</p>
+        </div>
+    `;
+}
+
+function renderRecommendations(picks, combinations) {
+    const picksContainer = document.getElementById('top-picks-content');
+    const combinationsContainer = document.getElementById('betting-combinations');
     
-    function getRunningStyle(horse) {
-        const styles = {
-            '선행력': parseFloat(horse.선행력) || 0,
-            '선입력': parseFloat(horse.선입력) || 0,
-            '추입력': parseFloat(horse.추입력) || 0,
-        };
-        const mainStyle = Object.keys(styles).reduce((a, b) => styles[a] > styles[b] ? a : b);
-        const grade = horse[mainStyle.replace('력','력등급')];
-        return `${mainStyle.replace('력','')} (${grade})`;
+    picksContainer.innerHTML = `
+        <div class="bg-white/20 p-4 rounded-lg">
+            <h4 class="font-bold text-lg">${picks.banker.번호}. ${picks.banker.마명} (축마)</h4>
+            <p class="text-sm opacity-90 mt-1">${picks.banker.reason}</p>
+        </div>
+        <div class="bg-black/10 p-4 rounded-lg space-y-3">
+            ${picks.followers.map(f => `
+                <div>
+                    <h5 class="font-semibold">${f.번호}. ${f.마명}</h5>
+                    <p class="text-xs opacity-80">${f.reason}</p>
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    combinationsContainer.innerHTML = `
+        <div>
+            <h4 class="font-semibold text-lg">복승식</h4>
+            <div class="flex flex-wrap gap-2 mt-2">
+                ${combinations.quinella.map(c => `<span class="bg-white/90 text-blue-800 font-bold px-3 py-1 rounded-full text-sm">${c}</span>`).join('')}
+            </div>
+        </div>
+        <div>
+            <h4 class="font-semibold text-lg">삼복승식</h4>
+            <div class="flex flex-wrap gap-2 mt-2">
+                ${combinations.trio.map(t => `<span class="bg-white/90 text-blue-800 font-bold px-3 py-1 rounded-full text-sm">${t}</span>`).join('')}
+            </div>
+        </div>
+    `;
+}
+
+function updateChart(horses, metric) {
+    const ctx = document.getElementById('horse-ability-chart').getContext('2d');
+    
+    const sortedHorses = [...horses].sort((a, b) => gradeToValue[b[metric]] - gradeToValue[a[metric]]);
+
+    const labels = sortedHorses.map(h => `${h.번호}. ${h.마명}`);
+    const dataValues = sortedHorses.map(h => gradeToValue[h[metric]]);
+
+    const backgroundColors = dataValues.map(value => {
+        if (value >= 5) return 'rgba(29, 78, 216, 0.7)'; // A, A+ (blue)
+        if (value >= 3) return 'rgba(250, 204, 21, 0.7)'; // B, B+ (yellow)
+        return 'rgba(156, 163, 175, 0.7)'; // C, D (gray)
+    });
+    
+    const borderColors = dataValues.map(value => {
+        if (value >= 5) return 'rgba(29, 78, 216, 1)';
+        if (value >= 3) return 'rgba(250, 204, 21, 1)';
+        return 'rgba(156, 163, 175, 1)';
+    });
+
+    if (horseAbilityChart) {
+        horseAbilityChart.destroy();
     }
 
-    function analyzeRace(raceData) {
-        // Pace Prediction
-        const totalPaceScore = raceData.reduce((sum, horse) => sum + (parseFloat(horse.선행력) || 0), 0);
-        const avgPaceScore = totalPaceScore / raceData.length;
-        let pace;
-        if (avgPaceScore > 60) {
-            pace = { type: "빠름", description: "다수의 선행마가 포진하여 초반 페이스가 매우 빠를 것으로 예상됩니다. 이는 후미에서 힘을 비축한 선입/추입마에게 유리하게 작용할 수 있습니다." };
-        } else if (avgPaceScore > 40) {
-            pace = { type: "보통", description: "적절한 페이스로 경주가 진행될 것입니다. 각 말들의 전개 능력과 컨디션이 순위의 주요 변수가 될 것입니다." };
-        } else {
-            pace = { type: "느림", description: "강력한 선행마가 없어 초반 페이스가 느릴 수 있습니다. 이는 선두권에서 편하게 경주를 전개하는 선행마나 선입마에게 절대적으로 유리합니다." };
-        }
-
-        // Scoring horses
-        const scoredHorses = raceData.map(horse => {
-            let score = 50;
-            score += (parseFloat(horse.레이팅) || 0) * 0.2;
-            score += (parseFloat(horse.선행력) || 0) * 0.1;
-            score += (parseFloat(horse.선입력) || 0) * 0.1;
-            score += (parseFloat(horse.추입력) || 0) * 0.1;
-            
-            const last5Ranks = [horse.과거1_순위, horse.과거2_순위, horse.과거3_순위, horse.과거4_순위, horse.과거5_순위];
-            let recentRankScore = 0;
-            let rankCount = 0;
-            last5Ranks.forEach(rankStr => {
-                const rank = parseInt(rankStr);
-                if (!isNaN(rank) && rank > 0) {
-                    recentRankScore += (10 - rank);
-                    rankCount++;
+    horseAbilityChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: metric.replace('등급', ' 능력'),
+                data: dataValues,
+                backgroundColor: backgroundColors,
+                borderColor: borderColors,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const originalValue = sortedHorses[context.dataIndex][metric];
+                            return `${metric}: ${originalValue}`;
+                        }
+                    }
                 }
-            });
-            if (rankCount > 0) score += (recentRankScore / rankCount) * 2;
-            
-            const weightChange = parseInt(horse.증감);
-            if (!isNaN(weightChange)) {
-                if(weightChange > 0 && weightChange < 10) score += 2;
-                if(weightChange < 0 && weightChange > -10) score -= 1;
-                if(Math.abs(weightChange) >= 10) score -= 5;
-            }
-            
-            return { ...horse, score: Math.min(100, Math.max(0, score)).toFixed(1) };
-        });
-
-        scoredHorses.sort((a, b) => b.score - a.score);
-
-        const topPicks = scoredHorses.slice(0, 4);
-        const darkHorse = scoredHorses.find(h => h.score > 75 && h.score < 85 && Math.random() > 0.5) || scoredHorses[4];
-        if (darkHorse && !topPicks.includes(darkHorse)) {
-            topPicks.push(darkHorse);
-        }
-
-        return { pace, scoredHorses, topPicks: topPicks.slice(0, 5) };
-    }
-
-    function displayPacePrediction(pace) {
-        pacePredictionEl.innerHTML = `
-            <p><strong>예상 페이스:</strong> <span class="font-bold ${pace.type === '빠름' ? 'text-red-600' : pace.type === '보통' ? 'text-yellow-600' : 'text-green-600'}">${pace.type}</span></p>
-            <p class="text-slate-600">${pace.description}</p>
-        `;
-    }
-
-    function displayTopPicks(picks) {
-        topPicksEl.innerHTML = picks.map((horse, index) => {
-            const isDarkHorse = index === 4;
-            const rankBg = isDarkHorse ? 'bg-gray-600' : 'bg-blue-600';
-            const rankText = isDarkHorse ? '복병' : `추천 ${index + 1}`;
-            
-            return `
-            <div class="flex items-center space-x-3">
-                <span class="flex-shrink-0 w-16 text-center text-white text-xs font-bold py-1 px-2 rounded ${rankBg}">${rankText}</span>
-                <span class="font-semibold">${horse.NO}. ${horse.마명}</span>
-                <span class="text-sm text-slate-500">(점수: ${horse.score})</span>
-            </div>
-            `;
-        }).join('');
-    }
-
-    function displayHorseTable(horses) {
-        const headers = ['NO', '마명', '기수', '조교사', '부중', '레이팅', '주행스타일', '점수'];
-        horseTableHeader.innerHTML = headers.map(h => `<th scope="col" class="px-6 py-3 cursor-pointer">${h}</th>`).join('');
-
-        horseTableBody.innerHTML = horses.map(horse => `
-            <tr class="bg-white border-b hover:bg-slate-50 cursor-pointer" data-horse-no="${horse.NO}">
-                <td class="px-6 py-4 font-medium text-slate-900">${horse.NO}</td>
-                <td class="px-6 py-4 font-bold">${horse.마명}</td>
-                <td class="px-6 py-4">${horse.기수}</td>
-                <td class="px-6 py-4">${horse.조교사}</td>
-                <td class="px-6 py-4">${horse.부중} (${horse.증감})</td>
-                <td class="px-6 py-4">${horse.레이팅}</td>
-                <td class="px-6 py-4">${getRunningStyle(horse)}</td>
-                <td class="px-6 py-4 font-semibold text-blue-600">${horse.score}</td>
-            </tr>
-        `).join('');
-        
-        document.querySelectorAll('#horse-table-body tr').forEach(row => {
-            row.addEventListener('click', () => {
-                const horseNo = row.dataset.horseNo;
-                const horseData = currentRaceData.find(h => h.NO == horseNo);
-                displayHorseDetailModal(horseData);
-            });
-        });
-    }
-
-    function displayHorseDetailModal(horse) {
-        if(charts['past-performance-chart']) charts['past-performance-chart'].destroy();
-        if(charts['pace-analysis-chart']) charts['pace-analysis-chart'].destroy();
-        
-        const last5Races = [
-            { date: horse.과거1_경주일자, rank: horse.과거1_순위, record: horse.과거1_기록 },
-            { date: horse.과거2_경주일자, rank: horse.과거2_순위, record: horse.과거2_기록 },
-            { date: horse.과거3_경주일자, rank: horse.과거3_순위, record: horse.과거3_기록 },
-            { date: horse.과거4_경주일자, rank: horse.과거4_순위, record: horse.과거4_기록 },
-            { date: horse.과거5_경주일자, rank: horse.과거5_순위, record: horse.과거5_기록 },
-        ].filter(r => r.date && r.rank);
-
-        const sectionalTimes = {
-            'S-1F': parseFloat(horse['과거1_S-1F']) || 0,
-            'G-3F': parseFloat(horse['과거1_G-3F']) || 0,
-            'G-1F': parseFloat(horse['과거1_G-1F']) || 0,
-        };
-
-        modalContent.innerHTML = `
-            <h3 class="text-2xl font-bold mb-4">${horse.NO}. ${horse.마명} (${horse.성별}/${horse.연령}, ${horse.산지})</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div>
-                    <h4 class="font-bold text-lg mb-2">기본 정보</h4>
-                    <p><strong>기수:</strong> ${horse.기수}</p>
-                    <p><strong>조교사:</strong> ${horse.조교사}</p>
-                    <p><strong>마주:</strong> ${horse.마주}</p>
-                    <p><strong>부담중량:</strong> ${horse.부중}kg (증감: ${horse.증감}kg)</p>
-                    <p><strong>레이팅:</strong> ${horse.레이팅}</p>
-                    <p><strong>출전주기:</strong> ${horse.출전주기}주</p>
-                </div>
-                <div>
-                    <h4 class="font-bold text-lg mb-2">특이사항</h4>
-                    <p><strong>장구:</strong> ${horse.장구현황 || '정보 없음'}</p>
-                    <p><strong>기타:</strong> ${horse.특이사항 || '없음'}</p>
-                </div>
-            </div>
-
-            <div class="space-y-8">
-                <div>
-                    <h4 class="font-bold text-lg mb-2 text-center">최근 5개 경주 성적</h4>
-                    <div class="chart-container">
-                        <canvas id="past-performance-chart"></canvas>
-                    </div>
-                </div>
-                <div>
-                    <h4 class="font-bold text-lg mb-2 text-center">최근 경주 구간별 기록 (초)</h4>
-                     <div class="chart-container">
-                        <canvas id="pace-analysis-chart"></canvas>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        modal.classList.remove('hidden');
-
-        // Render charts
-        const perfCtx = document.getElementById('past-performance-chart').getContext('2d');
-        charts['past-performance-chart'] = new Chart(perfCtx, {
-            type: 'line',
-            data: {
-                labels: last5Races.map(r => r.date).reverse(),
-                datasets: [{
-                    label: '순위',
-                    data: last5Races.map(r => parseInt(r.rank)).reverse(),
-                    borderColor: '#2563eb',
-                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                    fill: true,
-                    tension: 0.1
-                }]
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: { y: { reverse: true, beginAtZero: false, suggestedMin: 1 } },
-                plugins: { legend: { display: false } }
-            }
-        });
-
-        const paceCtx = document.getElementById('pace-analysis-chart').getContext('2d');
-        charts['pace-analysis-chart'] = new Chart(paceCtx, {
-            type: 'bar',
-            data: {
-                labels: Object.keys(sectionalTimes),
-                datasets: [{
-                    label: '구간 기록(초)',
-                    data: Object.values(sectionalTimes),
-                    backgroundColor: ['#f87171', '#fbbf24', '#34d399'],
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } }
-            }
-        });
-    }
-
-    function displayBettingRecommendations(picks) {
-        const top3 = picks.slice(0, 3);
-        const top4 = picks.slice(0, 4);
-
-        exactaBetsEl.innerHTML = '';
-        if (top3.length >= 2) {
-            for (let i = 0; i < top3.length; i++) {
-                for (let j = i + 1; j < top3.length; j++) {
-                    const betEl = document.createElement('p');
-                    betEl.textContent = `▶ ${top3[i].NO} - ${top3[j].NO}`;
-                    exactaBetsEl.appendChild(betEl);
-                }
-            }
-        }
-
-        trifectaBetsEl.innerHTML = '';
-        if (top4.length >= 3) {
-            for (let i = 0; i < top4.length; i++) {
-                for (let j = i + 1; j < top4.length; j++) {
-                    for (let k = j + 1; k < top4.length; k++) {
-                       const betEl = document.createElement('p');
-                        betEl.textContent = `▶ ${top4[i].NO} - ${top4[j].NO} - ${top4[k].NO}`;
-                        trifectaBetsEl.appendChild(betEl);
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value, index, values) {
+                            const gradeMap = ['N/A', 'D', 'C', 'B', 'B+', 'A', 'A+'];
+                            return gradeMap[value] || '';
+                        }
+                    }
+                },
+                y: {
+                    ticks: {
+                        font: {
+                            size: 10
+                        }
                     }
                 }
             }
         }
-    }
-    
-    closeModalBtn.addEventListener('click', () => {
-        modal.classList.add('hidden');
+    });
+}
+
+function setupEventListeners() {
+    document.querySelectorAll('.table-sortable th').forEach(headerCell => {
+        headerCell.addEventListener('click', () => {
+            const column = headerCell.dataset.sort;
+            const direction = (currentSort.column === column && currentSort.direction === 'asc') ? 'desc' : 'asc';
+            
+            currentSort = { column, direction };
+            renderHorseTable(raceData[currentRace].horses);
+
+            document.querySelectorAll('.sort-indicator').forEach(span => span.textContent = '');
+            headerCell.querySelector('.sort-indicator').textContent = direction === 'asc' ? '▲' : '▼';
+        });
     });
 
-    window.addEventListener('click', (event) => {
-        if (event.target == modal) {
-            modal.classList.add('hidden');
-        }
+    document.querySelectorAll('.chart-toggle-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const metric = e.target.dataset.metric;
+            updateChart(raceData[currentRace].horses, metric);
+            
+            document.querySelectorAll('.chart-toggle-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-500', 'text-white');
+                btn.classList.add('bg-gray-300', 'text-gray-800');
+            });
+            e.target.classList.add('bg-blue-500', 'text-white');
+            e.target.classList.remove('bg-gray-300', 'text-gray-800');
+        });
     });
+}
 
-});
 </script>
 </body>
 </html>
