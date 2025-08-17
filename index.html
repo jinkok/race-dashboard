@@ -3,459 +3,380 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2025년 8월 3일 서울 경마 인터랙티브 분석</title>
+    <title>서울 경마 6-11경주 대화형 분석</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Chosen Palette: Calm Harmony -->
-    <!-- Application Structure Plan: A dashboard-style SPA. A sticky top navigation bar allows users to jump directly to any race analysis (6R to 14R). The main page starts with a "Key Picks" section summarizing the report's most reliable bet and best high-odds horse. Each race is a dedicated section, containing sub-navigation (tabs) to switch between 'Analysis Summary', 'Data Comparison' (interactive chart), and 'Betting Picks'. This structure provides non-linear access, prioritizes key information, and organizes complex data into digestible, interactive chunks, which is more user-friendly than a linear report. -->
-    <!-- Visualization & Content Choices: Report Info: Race-specific horse data (Rating, Weight) -> Goal: Compare -> Viz/Presentation: Interactive Bar Chart (Chart.js) -> Interaction: Hover for tooltips -> Justification: Visual comparison is faster and more intuitive than reading tables. Report Info: Betting Recommendations -> Goal: Inform -> Viz/Presentation: Structured cards -> Interaction: None -> Justification: Clear, scannable presentation of actionable tips. Report Info: Qualitative Analysis -> Goal: Inform -> Viz/Presentation: Formatted text blocks -> Interaction: None -> Justification: Preserves the narrative insights of the report with high readability. -->
+    <!-- Chosen Palette: Warm Neutrals -->
+    <!-- Application Structure Plan: The application is designed as a single-page dashboard with a tab-based navigation system for races 6 through 11. This structure was chosen for its intuitiveness, allowing users to quickly switch between different race analyses without scrolling or leaving the page. Each tab presents a consistent layout: race overview, a full entry list, a visual chart for running style distribution, and detailed analysis/recommendation cards. This component-based approach makes complex information digestible and allows for easy comparison between races. The primary user flow is selecting a race, visually assessing the race pace via the chart, then reading the expert analysis and picks. This is more efficient than a linear report format. -->
+    <!-- Visualization & Content Choices: 
+        - Race Info -> Goal: Inform -> Presentation: Key Info Card -> Interaction: Static -> Justification: Provides immediate context for the selected race.
+        - Entry List -> Goal: Organize/Inform -> Presentation: HTML Table -> Interaction: Scroll -> Justification: A standard and clear way to present tabular data.
+        - Running Style Distribution -> Goal: Analyze Pace -> Viz: Chart.js Doughnut Chart -> Interaction: Hover Tooltip -> Justification: A doughnut chart provides an immediate, easy-to-understand visual summary of the likely race pace (e.g., many front-runners vs. closers), which is more impactful than a simple list. Library: Chart.js (Canvas).
+        - Analysis & Picks -> Goal: Synthesize/Recommend -> Presentation: Styled Text Cards -> Interaction: Static text update on tab change -> Justification: Separates qualitative analysis into clear, thematic cards (Flow, Anchor, Longshot, Strategy) for readability and quick access to key recommendations.
+    -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
         body {
             font-family: 'Noto Sans KR', sans-serif;
-            background-color: #F8F7F4;
+            background-color: #FDFBF8;
+            color: #4A4A4A;
         }
-        .active-nav-button {
-            background-color: #3B82F6 !important;z
-            color: #FFFFFF !important;
-            font-weight: 700;
+        .tab-active {
+            background-color: #A0522D;
+            color: #FFFFFF;
+            border-color: #A0522D;
         }
-        .active-sub-nav-button {
-            border-color: #3B82F6;
-            color: #3B82F6;
-            font-weight: 500;
+        .tab-inactive {
+            background-color: #FFFFFF;
+            color: #A0522D;
+            border-color: #A0522D;
+        }
+        .card {
+            background-color: #FFFFFF;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            border: 1px solid #F0EBE3;
         }
         .chart-container {
             position: relative;
             width: 100%;
-            max-width: 800px;
+            max-width: 400px;
             margin-left: auto;
             margin-right: auto;
-            height: 400px;
-            max-height: 50vh;
+            height: 300px;
+            max-height: 350px;
         }
-        .content-section {
-            display: none;
-        }
-        .content-section.active {
-            display: block;
+        @media (min-width: 640px) {
+            .chart-container {
+                height: 350px;
+            }
         }
     </style>
 </head>
-<body class="text-gray-800">
+<body class="p-4 sm:p-6 md:p-8">
 
-    <header class="bg-white shadow-md sticky top-0 z-50">
-        <div class="container mx-auto px-4 py-3">
-            <h1 class="text-2xl md:text-3xl font-bold text-center text-gray-900">2025년 8월 3일 서울 경마 전문가 분석</h1>
-            <nav id="race-navigation" class="mt-3 flex flex-wrap justify-center gap-2">
-            </nav>
-        </div>
-    </header>
+    <div class="max-w-7xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold text-[#A0522D]">서울 경마 심층 분석</h1>
+            <p class="text-lg text-gray-600 mt-2">2025년 8월 17일 (6-11 경주)</p>
+        </header>
 
-    <main class="container mx-auto p-4 md:p-6">
-        <section id="key-picks" class="mb-8">
-            <h2 class="text-xl md:text-2xl font-bold mb-4 text-center">오늘의 핵심 추천</h2>
-            <div class="grid md:grid-cols-2 gap-6">
-                <div class="bg-white p-6 rounded-xl shadow-lg border border-blue-200">
-                    <h3 class="text-lg font-bold text-blue-600 mb-2 flex items-center"><span class="text-2xl mr-2">⭐</span>가장 신뢰도 높은 추천</h3>
-                    <p class="text-gray-600">제 11경주 (농림축산식품부장관배)</p>
-                    <p class="text-2xl font-bold my-2">복승: <span class="text-red-600">11-3</span></p>
-                    <p>현 세대 최강자로 평가받는 '글로벌히트'와 강력한 도전자 '스피드영'의 동반 입상 가능성이 매우 높습니다. 두 마리의 압도적인 기량을 믿는 안정적인 조합입니다.</p>
+        <nav id="race-tabs" class="flex flex-wrap justify-center gap-2 mb-8">
+        </nav>
+
+        <main id="race-content" class="space-y-8">
+            <section id="race-overview" class="card p-6 text-center">
+                <h2 id="overview-title" class="text-2xl font-bold text-[#A0522D]"></h2>
+            </section>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-1 space-y-8">
+                    <section class="card p-6">
+                        <h3 class="text-xl font-semibold mb-4 border-b pb-2 text-gray-700">📊 각질 분포</h3>
+                        <p class="text-sm text-gray-500 mb-4">
+                            경주마들의 주행 스타일 분포입니다. 선행마가 많을수록 초반 페이스가 빨라질 가능성이 높습니다.
+                        </p>
+                        <div class="chart-container">
+                            <canvas id="styleChart"></canvas>
+                        </div>
+                    </section>
                 </div>
-                <div class="bg-white p-6 rounded-xl shadow-lg border border-amber-200">
-                    <h3 class="text-lg font-bold text-amber-600 mb-2 flex items-center"><span class="text-2xl mr-2">💣</span>최고의 고배당 잠재마</h3>
-                    <p class="text-gray-600">제 7경주</p>
-                    <p class="text-2xl font-bold my-2">8번 <span class="text-red-600">골든볼</span></p>
-                    <p>직전 경주에서 46.7배의 배당률로 우승하며 기량의 급성장을 증명했습니다. 시장이 아직 그 가치를 완전히 인정하지 않았을 가능성이 있어, 이번에도 높은 배당을 안겨줄 복병입니다.</p>
+
+                <div class="lg:col-span-2 space-y-8">
+                    <section class="card p-6">
+                        <h3 class="text-xl font-semibold mb-4 border-b pb-2 text-gray-700">🐎 출전마 정보</h3>
+                        <div class="overflow-x-auto max-h-96">
+                            <table class="w-full text-sm text-left">
+                                <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3">마번</th>
+                                        <th scope="col" class="px-4 py-3">마명</th>
+                                        <th scope="col" class="px-4 py-3">기수</th>
+                                        <th scope="col" class="px-4 py-3">조교사</th>
+                                        <th scope="col" class="px-4 py-3">부중</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="entry-table-body">
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
                 </div>
             </div>
-        </section>
+            
+            <section class="card p-6">
+                <h3 class="text-xl font-semibold mb-4 border-b pb-2 text-gray-700">💡 종합 분석 및 추천</h3>
+                <div class="space-y-6">
+                    <div>
+                        <h4 class="font-semibold text-lg text-gray-800">흐름 분석</h4>
+                        <p id="analysis-flow" class="mt-2 text-gray-600 leading-relaxed"></p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                        <div class="border-l-4 border-[#A0522D] bg-[#FDFBF8] p-4 rounded-r-lg">
+                            <h4 class="font-semibold text-lg text-gray-800">🎯 축마</h4>
+                            <p id="pick-anchor" class="mt-2 text-gray-600"></p>
+                        </div>
+                        <div class="border-l-4 border-orange-400 bg-[#FDFBF8] p-4 rounded-r-lg">
+                            <h4 class="font-semibold text-lg text-gray-800">💣 고배당마</h4>
+                            <p id="pick-longshot" class="mt-2 text-gray-600"></p>
+                        </div>
+                    </div>
+                     <div>
+                        <h4 class="font-semibold text-lg text-gray-800">💰 베팅 전략</h4>
+                        <div id="pick-bets" class="mt-2 text-gray-600 space-y-1"></div>
+                    </div>
+                </div>
+            </section>
 
-        <div id="race-details-container">
-        </div>
-    </main>
-
-    <footer class="text-center py-6 mt-8 bg-white border-t">
-        <p class="text-gray-500">데이터 기반 분석을 통해 성공적인 베팅을 기원합니다.</p>
-        <p class="text-sm text-gray-400 mt-1">본 정보는 베팅 결정에 대한 참고 자료이며, 최종적인 책임은 본인에게 있습니다.</p>
-    </footer>
+        </main>
+    </div>
 
     <script>
         const raceData = {
             6: {
-                meta: { title: "서울 제6경주 (국5등급, 1700M)", distance: 1700 },
-                horses: [
-                    { no: 1, name: '원더풀테크노', jockey: '정정희', trainer: '리카디', rating: 32, weight: 55.5 },
-                    { no: 2, name: '승리바로우즈', jockey: '마이아', trainer: '서인석', rating: 29, weight: 54 },
-                    { no: 3, name: '관악산글로벌', jockey: '김성현', trainer: '최용구', rating: 28, weight: 51.5 },
-                    { no: 4, name: '라온더캐비아', jockey: '정우주', trainer: '최용건', rating: 26, weight: 51 },
-                    { no: 5, name: '태평무', jockey: '조인권', trainer: '이동국', rating: 25, weight: 52 },
-                    { no: 6, name: '비케이벨', jockey: '이용호', trainer: '조현수', rating: 23, weight: 52 },
-                    { no: 7, name: '시크릿왕자', jockey: '김태희', trainer: '박윤규', rating: 35, weight: 57 },
-                    { no: 8, name: '벌교위수', jockey: '김철호', trainer: '최영주', rating: 28, weight: 52 },
+                title: "제6경주 (국4등급, 1400M, 핸디캡)",
+                entries: [
+                    { no: 1, name: '트로트퀸', jockey: '송재철', trainer: '김동균', weight: 52 },
+                    { no: 2, name: '레전드선', jockey: '정정희', trainer: '김동철', weight: 52 },
+                    { no: 3, name: '안양기쁨', jockey: '문정균', trainer: '홍대유', weight: 52 },
+                    { no: 4, name: '퀸다이아', jockey: '김정준', trainer: '이관호', weight: 55.5 },
+                    { no: 5, name: '어메이징스타', jockey: '조재로', trainer: '서인석', weight: 52.5 },
+                    { no: 6, name: '달맞이', jockey: '김성현', trainer: '김윤섭', weight: 55 },
+                    { no: 7, name: '리걸하이', jockey: '유승완', trainer: '함완식', weight: 52 },
+                    { no: 8, name: '천행챗', jockey: '김태훈', trainer: '배휴준', weight: 52 },
+                    { no: 9, name: '마이티쎈', jockey: '씨씨웡', trainer: '서홍수', weight: 55 },
+                    { no: 10, name: '우승진리', jockey: '장추열', trainer: '박지헌', weight: 55 },
+                    { no: 11, name: '대박스타', jockey: '조상범', trainer: '구자흥', weight: 53 }
                 ],
+                styles: { '선행': 1, '선행/선입': 2, '선입': 2, '추입': 3, '자유': 3 },
                 analysis: {
-                    favorites: "<strong>2번 승리바로우즈</strong>는 직전 1700M 우승으로 절정의 컨디션을 증명한 가장 유력한 우승 후보입니다. <strong>3번 관악산글로벌</strong> 역시 동일 거리 우승 경험이 있어 치열한 접전이 예상됩니다.",
-                    darkHorse: "<strong>7번 시크릿왕자</strong>는 상위 등급에서 경쟁하다가 이번에 하향 출전합니다. 최근 성적은 부진했지만, 더 쉬운 상대를 만나 잠재력을 폭발시키며 이변을 일으킬 최적의 조건을 갖췄습니다."
+                    flow: "강력한 선행마인 5번 '어메이징스타'와 4번 '퀸다이아'의 존재로 초반부터 매우 빠른 페이스가 예상됩니다. 이들의 선두 다툼은 종반 체력 저하로 이어질 수 있으며, 이는 후미에서 힘을 비축한 추입마들에게 절호의 역전 기회를 제공할 것입니다."
                 },
                 picks: {
-                    quinella: "2-3",
-                    exacta: "2-3",
-                    trio: "2-3-7"
+                    anchor: "2번 레전드선: 예측되는 빠른 경주 흐름의 최대 수혜마입니다. 52kg의 가벼운 부중과 검증된 막판 추입력을 고려할 때 가장 안정적인 입상 후보로 판단됩니다.",
+                    longshot: "8번 천행챗: 꾸준한 추입형 마필로, 선두권이 무너지는 이변 발생 시 3위권 내 입상을 노려볼 수 있는 잠재력 있는 복병입니다.",
+                    bets: {
+                        main: "2-4",
+                        sub: "2-5",
+                        trifecta: "2번을 축으로 4, 5, 8번 조합 (2-4-5, 2-4-8, 2-5-8)"
+                    }
                 }
             },
             7: {
-                meta: { title: "서울 제7경주 (국5등급, 1700M)", distance: 1700 },
-                horses: [
-                    { no: 1, name: '위드디스쿠로', jockey: '조한별', trainer: '김윤섭', rating: 31, weight: 55 },
-                    { no: 2, name: '글로리퀸', jockey: '임다빈', trainer: '박지헌', rating: 26, weight: 52 },
-                    { no: 3, name: '원더풀새치', jockey: '조상범', trainer: '리카디', rating: 29, weight: 52 },
-                    { no: 4, name: '아치러너', jockey: '김성현', trainer: '최용건', rating: 35, weight: 53 },
-                    { no: 5, name: '학산대세', jockey: '해리카심', trainer: '홍대유', rating: 24, weight: 52 },
-                    { no: 6, name: '희망밴드', jockey: '문세영', trainer: '이동국', rating: 26, weight: 52 },
-                    { no: 7, name: '블랙시대', jockey: '김용근', trainer: '강성오', rating: 28, weight: 53.5 },
-                    { no: 8, name: '골든볼', jockey: '김효정', trainer: '최봉주', rating: 29, weight: 52 },
+                title: "제7경주 (혼4등급, 1200M, 핸디캡)",
+                entries: [
+                    { no: 1, name: '사다우카', jockey: '조상범', trainer: '강성오', weight: 53.5 },
+                    { no: 2, name: '캄인스톰', jockey: '김옥성', trainer: '조현수', weight: 53 },
+                    { no: 3, name: '슈어니스', jockey: '정정희', trainer: '박재우', weight: 53 },
+                    { no: 4, name: '하남엘도라도', jockey: '김효정', trainer: '서홍수', weight: 55 },
+                    { no: 5, name: '사이클론스타', jockey: '코지', trainer: '안병기', weight: 56 },
+                    { no: 6, name: '픽처', jockey: '송재철', trainer: '강성오', weight: 54 },
+                    { no: 7, name: '예술이야', jockey: '마이아', trainer: '최용구', weight: 57 },
+                    { no: 8, name: '하이퍼선더', jockey: '정우주', trainer: '우창구', weight: 53 },
+                    { no: 9, name: '마이던', jockey: '조인권', trainer: '정호익', weight: 52.5 },
+                    { no: 10, name: '쏘아라스타', jockey: '임다빈', trainer: '이관호', weight: 56 },
+                    { no: 11, name: '컴플리트파티', jockey: '조한별', trainer: '이신우', weight: 52 }
                 ],
+                styles: { '선행': 2, '선입': 5, '추입': 2, '자유': 2 },
                 analysis: {
-                    favorites: "<strong>6번 희망밴드</strong>는 이 거리에서 탁월한 안정감을 보여준 신뢰도 높은 축마입니다. 최상위 기수 문세영과의 조합이 강점입니다. <strong>8번 골든볼</strong>은 직전 경주에서 46.7배의 배당으로 우승하며 기량이 급상승했음을 알렸습니다.",
-                    darkHorse: "<strong>8번 골든볼</strong>은 단순 경쟁마를 넘어 최고의 고배당 잠재마입니다. 직전 우승이 단순 행운이 아님을 기록으로 증명했으며, 레이팅이 대폭 상향 조정되었습니다. 시장의 의구심 속에서 다시 한번 높은 가치를 제공할 것입니다."
+                    flow: "6번 '픽처'와 7번 '예술이야'라는 두 강력한 선행마의 치열한 선두 다툼이 예상됩니다. 1200M 단거리에서의 초반 오버페이스는 종반 급격한 체력 저하로 이어질 수 있어, 선두권 바로 뒤에서 기회를 엿보는 선입마 그룹에게 매우 유리한 전개가 펼쳐질 것입니다."
                 },
                 picks: {
-                    quinella: "6-8",
-                    exacta: "6-8, 8-6",
-                    trio: "6-8-1, 6-8-4"
+                    anchor: "5번 사이클론스타: 최근 3연승의 압도적인 기세와 어떤 경주 흐름에도 적응할 수 있는 자유로운 각질을 높이 평가합니다. 가장 안정적인 축마감입니다.",
+                    longshot: "11번 컴플리트파티: 전형적인 추입마로, 선행마들의 경쟁이 과열되어 경주가 무너지는 시나리오에서 막판 역전을 노려볼 수 있는 잠재력이 충분합니다.",
+                    bets: {
+                        main: "5-10",
+                        sub: "5-4",
+                        trifecta: "5번을 축으로 10, 4, 3번 조합 (5-10-4, 5-10-3, 5-4-3)"
+                    }
                 }
             },
             8: {
-                meta: { title: "서울 제8경주 (혼4등급, 1700M)", distance: 1700 },
-                horses: [
-                    { no: 1, name: '블랙사탕', jockey: '정정희', trainer: '리카디', rating: 36, weight: 51 },
-                    { no: 2, name: '카라위너', jockey: '임다빈', trainer: '정호익', rating: 36, weight: 52 },
-                    { no: 3, name: '거센진격', jockey: '마이아', trainer: '이관호', rating: 43, weight: 55.5 },
-                    { no: 4, name: '칸맥스', jockey: '김용근', trainer: '서인석', rating: 48, weight: 58 },
-                    { no: 5, name: '빅토리퀸', jockey: '김효정', trainer: '강성오', rating: 42, weight: 53 },
-                    { no: 6, name: '자체발광', jockey: '조상범', trainer: '최용건', rating: 39, weight: 53.5 },
-                    { no: 7, name: '뉴질랜드삭스', jockey: '정우주', trainer: '이관호', rating: 36, weight: 51 },
-                    { no: 8, name: '나올대왕', jockey: '유승완', trainer: '조현수', rating: 36, weight: 52 },
-                    { no: 9, name: '금악명장', jockey: '김옥성', trainer: '홍대유', rating: 37, weight: 52.5 },
+                title: "제8경주 (국OPEN, 1200M, Rookie Stakes)",
+                entries: [
+                    { no: 1, name: '유니버설', jockey: '장추열', trainer: '정호익', weight: 55 },
+                    { no: 2, name: '환상의나라', jockey: '씨씨웡', trainer: '안병기', weight: 53 },
+                    { no: 3, name: '안양빛의속도', jockey: '이혁', trainer: '홍대유', weight: 55 },
+                    { no: 4, name: '나올패스', jockey: '문세영', trainer: '박지헌', weight: 53 },
+                    { no: 5, name: '원평스킷', jockey: '임다빈', trainer: '정호익', weight: 53 },
+                    { no: 6, name: '에어포스원', jockey: '김태훈', trainer: '토니', weight: 55 },
+                    { no: 7, name: '블루레인', jockey: '정정희', trainer: '안병기', weight: 55 },
+                    { no: 8, name: '거센대로', jockey: '김용근', trainer: '이신우', weight: 55 },
+                    { no: 9, name: '치프스타', jockey: '최범현', trainer: '문병기', weight: 53 },
+                    { no: 10, name: '새내파이터', jockey: '이동하', trainer: '홍대유', weight: 55 }
                 ],
+                styles: { '선행': 2, '선행/선입': 2, '선입': 1, '추입': 1, '자유': 3 },
                 analysis: {
-                    favorites: "<strong>1번 블랙사탕</strong>과 <strong>5번 빅토리퀸</strong>은 최근 연승과 우승으로 최고의 상승세를 타고 있으며, 레이팅이 급상승하며 뚜렷한 기량 발전을 증명했습니다. 두 마리의 접전이 예상됩니다.",
-                    darkHorse: "<strong>4번 칸맥스</strong>의 최근 성적은 최상위급 대상경주에서 기록된 것으로 기만적입니다. 일반 경주로 돌아온 것은 엄청난 등급 하향 효과를 가져오며, 보유한 높은 레이팅과 정상급 기수와의 조합은 숨겨진 강자의 면모를 보여줍니다."
+                    flow: "2번 '환상의나라'와 9번 '치프스타'가 초반 스피드를 주도하며 빠른 페이스를 형성할 것입니다. 경험이 부족한 신마 경주의 특성상, 빠른 페이스에 무리하게 휘말리는 말들이 종반에 무너질 가능성이 높아, 침착하게 경주를 운영하는 선입/자유마에게 기회가 올 수 있습니다."
                 },
                 picks: {
-                    quinella: "1-5",
-                    exacta: "1-5, 5-1",
-                    trio: "1-5-4"
+                    anchor: "9번 치프스타: 데뷔전에서 보여준 1분 12초 4라는 기록이 워낙 압도적이어서, 큰 이변이 없는 한 가장 강력한 우승 후보로 신뢰할 수 있습니다.",
+                    longshot: "1번 유니버설: 신마 경주의 특성상 선두권이 무너질 가능성을 배제할 수 없습니다. 안정적인 선입 능력을 갖춘 '유니버설'이 이변의 주인공이 될 수 있습니다.",
+                    bets: {
+                        main: "9-3",
+                        sub: "9-4",
+                        trifecta: "9번을 축으로 3, 4, 1번 조합 (9-3-4, 9-3-1, 9-4-1)"
+                    }
                 }
             },
             9: {
-                meta: { title: "서울 제9경주 (혼4등급, 1200M)", distance: 1200 },
-                horses: [
-                    { no: 1, name: '한센스타', jockey: '임다빈', trainer: '이동국', rating: 36, weight: 52 },
-                    { no: 2, name: '스터닝퀸', jockey: '조재로', trainer: '서인석', rating: 43, weight: 53 },
-                    { no: 3, name: '명맨', jockey: '씨씨웡', trainer: '최용건', rating: 39, weight: 52 },
-                    { no: 4, name: '브리도시리스', jockey: '송재철', trainer: '정하백', rating: 46, weight: 56.5 },
-                    { no: 5, name: '그레이찰리', jockey: '이혁', trainer: '강성오', rating: 49, weight: 58 },
-                    { no: 6, name: '컴플리트파티', jockey: '조한별', trainer: '이신우', rating: 38, weight: 52 },
-                    { no: 7, name: '위고하이', jockey: '문세영', trainer: '문병기', rating: 40, weight: 53.5 },
-                    { no: 8, name: '천구챗', jockey: '김철호', trainer: '임채덕', rating: 42, weight: 54.5 },
-                    { no: 9, name: '에임엔파이어', jockey: '오수철', trainer: '김윤섭', rating: 40, weight: 53.5 },
-                    { no: 10, name: '캄인스톰', jockey: '김옥성', trainer: '조현수', rating: 36, weight: 52 },
-                    { no: 11, name: '무한아르고', jockey: '해리카심', trainer: '신삼영', rating: 37, weight: 52 },
+                title: "제9경주 (혼4등급, 1800M, 핸디캡)",
+                entries: [
+                    { no: 1, name: '슈퍼선더', jockey: '코지', trainer: '최용건', weight: 54.5 },
+                    { no: 2, name: '젠틀야라', jockey: '조재로', trainer: '김동철', weight: 56.5 },
+                    { no: 3, name: '트라움퀸', jockey: '김용근', trainer: '이준철', weight: 53 },
+                    { no: 4, name: '케이엔티즈원', jockey: '씨씨웡', trainer: '서인석', weight: 54.5 },
+                    { no: 5, name: '럭키붐', jockey: '정우주', trainer: '이관호', weight: 56 },
+                    { no: 6, name: '이클립스블랙', jockey: '이혁', trainer: '서홍수', weight: 54.5 },
+                    { no: 7, name: '티나케이', jockey: '장추열', trainer: '우창구', weight: 53.5 },
+                    { no: 8, name: '히어로레전드', jockey: '유승완', trainer: '김윤섭', weight: 52 },
+                    { no: 9, name: '티즈에너지', jockey: '김태훈', trainer: '토니', weight: 57.5 },
+                    { no: 10, name: '클림트월드', jockey: '조한별', trainer: '조현수', weight: 52 }
                 ],
+                styles: { '선행': 1, '선입': 1, '추입': 3, '자유': 5 },
                 analysis: {
-                    favorites: "<strong>7번 위고하이</strong>는 최근 4전 3승의 뛰어난 재능을 보여주는 강력한 우승 후보입니다. <strong>1번 한센스타</strong>는 국내 최상위권의 스피드를 바탕으로 초반부터 경주를 지배할 잠재력이 충분합니다.",
-                    darkHorse: "<strong>4번 브리도시리스</strong>는 직전 경주에서 강력한 막판 스퍼트로 우승하며 상승세를 타고 있습니다. 인기마들에게 관심이 쏠린 틈을 타 의외의 높은 배당을 안겨줄 수 있는 복병입니다."
+                    flow: "2번 '젠틀야라'의 단독 선행이 유력하나, 1800M 장거리 특성상 초반 페이스는 빠르지 않을 것입니다. 경주 중반까지 안정적인 흐름을 보이다가, 3코너 이후부터 후미 그룹에 있던 추입마들이 서서히 순위를 끌어올리며 마지막 직선주로에서 승부가 갈릴 것으로 보입니다."
                 },
                 picks: {
-                    quinella: "7-1",
-                    exacta: "7-1",
-                    trio: "1-7-4"
+                    anchor: "4번 케이엔티즈원: 1800M 우승 경험과 검증된 추입력을 바탕으로, 이번 경주에서도 막판 역전을 기대할 수 있는 가장 신뢰도 높은 마필입니다.",
+                    longshot: "1번 슈퍼선더: 직전 경주에서 보여준 상승세와 유리한 부중 조건을 고려할 때, 인기마들의 견제 속에서 깜짝 입상을 노려볼 수 있는 복병입니다.",
+                    bets: {
+                        main: "4-6",
+                        sub: "4-1",
+                        trifecta: "4번을 축으로 6, 1, 9번 조합 (4-6-1, 4-6-9, 4-1-9)"
+                    }
                 }
             },
             10: {
-                meta: { title: "서울 제10경주 (2등급, 1400M)", distance: 1400 },
-                horses: [
-                    { no: 1, name: '신의여제', jockey: '김철호', trainer: '최용건', rating: 77, weight: 52 },
-                    { no: 2, name: '히어로삭스', jockey: '조재로', trainer: '김윤섭', rating: 78, weight: 52.5 },
-                    { no: 3, name: '케이엔라이트', jockey: '김성현', trainer: '최용건', rating: 78, weight: 52.5 },
-                    { no: 4, name: '골드시대', jockey: '김효정', trainer: '정호익', rating: 76, weight: 51 },
-                    { no: 5, name: '주몽천하', jockey: '이혁', trainer: '최영주', rating: 78, weight: 52.5 },
-                    { no: 6, name: '바덴바덴', jockey: '문세영', trainer: '박윤규', rating: 84, weight: 55.5 },
-                    { no: 7, name: '럭키프랭크', jockey: '정우주', trainer: '서홍수', rating: 79, weight: 53 },
-                    { no: 8, name: '탱자', jockey: '김태희', trainer: '박윤규', rating: 80, weight: 53.5 },
-                    { no: 9, name: '엠지베스트', jockey: '이동하', trainer: '김동균', rating: 80, weight: 53.5 },
-                    { no: 10, name: '서부특송', jockey: '조인권', trainer: '서인석', rating: 76, weight: 51.5 },
-                    { no: 11, name: '에이스케이', jockey: '김용근', trainer: '이신우', rating: 80, weight: 53.5 },
+                title: "제10경주 (국3등급, 1800M, 핸디캡)",
+                entries: [
+                    { no: 1, name: '에펠탑', jockey: '정우주', trainer: '심승태', weight: 52 },
+                    { no: 2, name: '에이피파텍', jockey: '송재철', trainer: '서범석', weight: 53.5 },
+                    { no: 3, name: '마이티탭', jockey: '씨씨웡', trainer: '서홍수', weight: 57.5 },
+                    { no: 4, name: '금빛천하', jockey: '마이아', trainer: '박윤규', weight: 53 },
+                    { no: 5, name: '트라움킹', jockey: '장추열', trainer: '이준철', weight: 58 },
+                    { no: 6, name: '글로벌파워', jockey: '김동수', trainer: '전승규', weight: 54.5 },
+                    { no: 7, name: '스톰브레이커', jockey: '김성현', trainer: '최용건', weight: 54 },
+                    { no: 8, name: '강한퀸', jockey: '김옥성', trainer: '홍대유', weight: 52 },
+                    { no: 9, name: '골드뭉치', jockey: '정정희', trainer: '리카디', weight: 52 },
+                    { no: 10, name: '정우포에버', jockey: '빅투아르', trainer: '박천서', weight: 58 },
+                    { no: 11, name: '새내파워풀', jockey: '조상범', trainer: '홍대유', weight: 52 }
                 ],
+                styles: { '선행': 3, '추입': 4, '자유': 4 },
                 analysis: {
-                    favorites: "<strong>6번 바덴바덴</strong>은 압도적인 안정성을 자랑하는 최상위권 강자입니다. <strong>11번 에이스케이</strong>는 꾸준한 성적과 강력한 막판 스피드로 이번 거리에서도 충분한 경쟁력을 갖추었습니다.",
-                    darkHorse: "<strong>9번 엠지베스트</strong>는 기복이 있지만, 이 등급과 거리에서 준우승 경험이 있어 경쟁력을 증명했습니다. 컨디션만 따라준다면 인기마들을 위협하며 높은 배당을 안겨줄 수 있습니다."
+                    flow: "선행 성향의 마필이 3두나 포진해 있어 초반 페이스가 상당히 빠를 것으로 예상됩니다. 1800M 장거리에서의 초반 과열 경쟁은 선두 그룹의 종반 체력 저하를 야기할 가능성이 높으며, 이는 후미 그룹에서 힘을 비축한 추입마들에게 절대적으로 유리한 경주 전개를 만들어 줄 것입니다."
                 },
                 picks: {
-                    quinella: "6-11",
-                    exacta: "6-11, 11-6",
-                    trio: "6-11-9"
+                    anchor: "9번 골드뭉치: 예상되는 빠른 페이스의 최대 수혜마이며, 1800M 거리에서의 검증된 능력과 52kg의 가벼운 부중을 바탕으로 막판 추입에 성공할 가능성이 가장 높습니다.",
+                    longshot: "2번 에이피파텍: 꾸준히 추입을 시도하는 마필로, 선두권이 완전히 무너지는 혼전 상황에서 3위권 내 입상을 노려볼 수 있는 복병입니다.",
+                    bets: {
+                        main: "9-3",
+                        sub: "9-10",
+                        trifecta: "9번을 축으로 3, 10, 5번 조합 (9-3-10, 9-3-5, 9-10-5)"
+                    }
                 }
             },
             11: {
-                meta: { title: "서울 제11경주 (1등급, 2000M, 농림축산식품부장관배)", distance: 2000 },
-                horses: [
-                    { no: 1, name: '머니크라운', jockey: '유승완', trainer: '이관호', rating: 83, weight: 57 },
-                    { no: 2, name: '노던타임', jockey: '코지', trainer: '토니', rating: 99, weight: 57 },
-                    { no: 3, name: '[부]스피드영', jockey: '정도윤', trainer: '방동석', rating: 114, weight: 57 },
-                    { no: 4, name: '[부]석세스백파', jockey: '진겸', trainer: '민장기', rating: 108, weight: 57 },
-                    { no: 5, name: '너트플레이', jockey: '조재로', trainer: '최영주', rating: 105, weight: 57 },
-                    { no: 6, name: '[부]영광의퍼스트', jockey: '이성재', trainer: '강은석', rating: 87, weight: 57 },
-                    { no: 7, name: '[부]투혼의반석', jockey: '다실바', trainer: '라이스', rating: 106, weight: 57 },
-                    { no: 8, name: '[부]디스파이트윈', jockey: '서승운', trainer: '임금만', rating: 90, weight: 57 },
-                    { no: 9, name: '원더풀슬루', jockey: '문세영', trainer: '리카디', rating: 108, weight: 55 },
-                    { no: 10, name: '[부]정문코빗', jockey: '먼로', trainer: '라이스', rating: 90, weight: 57 },
-                    { no: 11, name: '[부]글로벌히트', jockey: '김혜선', trainer: '방동석', rating: 115, weight: 57 },
+                title: "제11경주 (혼3등급, 1200M, 핸디캡)",
+                entries: [
+                    { no: 1, name: '월드피플', jockey: '유승완', trainer: '강환민', weight: 52 },
+                    { no: 2, name: '엔딩파이어', jockey: '임다빈', trainer: '박재우', weight: 52.5 },
+                    { no: 3, name: '원평킬라', jockey: '씨씨웡', trainer: '서인석', weight: 52 },
+                    { no: 4, name: '라온탑플레이', jockey: '조재로', trainer: '박종곤', weight: 58 },
+                    { no: 5, name: '스마일링프린스', jockey: '이동하', trainer: '박병일', weight: 52 },
+                    { no: 6, name: '관악산오투', jockey: '정정희', trainer: '리카디', weight: 54.5 },
+                    { no: 7, name: '레이디하나비', jockey: '문세영', trainer: '최용구', weight: 52 },
+                    { no: 8, name: '마이티스위트', jockey: '김태희', trainer: '서홍수', weight: 52 },
+                    { no: 9, name: '내길의위너', jockey: '이혁', trainer: '최봉주', weight: 52.5 },
+                    { no: 10, name: '드리머위즈', jockey: '빅투아르', trainer: '박지헌', weight: 52.5 }
                 ],
+                styles: { '선행': 3, '선행/선입': 2, '추입': 1, '자유': 4 },
                 analysis: {
-                    favorites: "<strong>11번 [부]글로벌히트</strong>는 현 세대 최강마로, 압도적인 레이팅과 시장의 절대적 신뢰를 받고 있습니다. <strong>3번 [부]스피드영</strong>과 <strong>9번 원더풀슬루</strong>가 그 뒤를 잇는 강력한 도전자들입니다. 이 세 마리의 경쟁 구도입니다.",
-                    darkHorse: "대상경주에서는 상위 인기마들의 능력이 워낙 출중하여 이변의 가능성이 상대적으로 낮습니다. 하지만 <strong>9번 원더풀슬루</strong>는 서울 소속마 중 가장 강력하며, 55kg의 가벼운 부담중량 이점을 안고 있어 부산의 강자들을 상대로 홈의 자존심을 지킬 수 있습니다."
+                    flow: "강력한 선행마가 3두나 포진해 있어, 시작부터 매우 치열한 선두 다툼이 예상됩니다. 1200M 단거리에서 이러한 초반 페이스 경쟁은 선두 그룹의 체력을 급격히 소모시켜 종반 직선주로에서 선두권이 붕괴될 가능성을 높입니다. 이는 선입마나 추입마에게 절대적으로 유리한 환경을 조성할 것입니다."
                 },
                 picks: {
-                    quinella: "11-3, 11-9",
-                    exacta: "11-3, 11-9",
-                    trio: "11-3-9"
-                }
-            },
-            12: {
-                meta: { title: "서울 제12경주 (2등급, 1400M)", distance: 1400 },
-                horses: [
-                    { no: 1, name: '강남불청객', jockey: '김용근', trainer: '송문길', rating: 72, weight: 56.5 },
-                    { no: 2, name: '미스터퀄리티', jockey: '정정희', trainer: '안병기', rating: 66, weight: 53.5 },
-                    { no: 3, name: '스퍼트빗', jockey: '임다빈', trainer: '정호익', rating: 69, weight: 55 },
-                    { no: 4, name: '엠제이베스트', jockey: '이동하', trainer: '문병기', rating: 69, weight: 55 },
-                    { no: 5, name: '차돌다이아', jockey: '김태희', trainer: '홍대유', rating: 66, weight: 51.5 },
-                    { no: 6, name: '오라칸', jockey: '김효정', trainer: '서홍수', rating: 75, weight: 58 },
-                    { no: 7, name: '미라클한강', jockey: '마이아', trainer: '임채덕', rating: 73, weight: 57 },
-                    { no: 8, name: '탑티어', jockey: '정우주', trainer: '우창구', rating: 69, weight: 55 },
-                    { no: 9, name: '아침동자', jockey: '조재로', trainer: '서인석', rating: 74, weight: 57.5 },
-                    { no: 10, name: '콩나물', jockey: '김철호', trainer: '최용건', rating: 72, weight: 56.5 },
-                    { no: 11, name: '벌교베리타스', jockey: '조인권', trainer: '최영주', rating: 66, weight: 53.5 },
-                ],
-                analysis: {
-                    favorites: "<strong>9번 아침동자</strong>는 파괴적인 막판 스퍼트를 자랑하는 최상위급 추입마입니다. <strong>10번 콩나물</strong>은 최근 2연승으로 상승세가 뚜렷한 안정적인 강자입니다.",
-                    darkHorse: "<strong>8번 탑티어</strong>는 단거리 2연승 경험이 있는 말로, 폭발적인 스피드를 보유하고 있습니다. 1400M 거리까지 스피드를 유지할 수 있다면 예상을 뒤엎는 결과를 만들어낼 잠재력이 충분합니다."
-                },
-                picks: {
-                    quinella: "9-10",
-                    exacta: "9-10",
-                    trio: "9-10-8"
-                }
-            },
-            13: {
-                meta: { title: "서울 제13경주 (혼3등급, 1800M)", distance: 1800 },
-                horses: [
-                    { no: 1, name: '라이징모', jockey: '씨씨웡', trainer: '서인석', rating: 42, weight: 52.5 },
-                    { no: 2, name: '케이엔언더킹', jockey: '김성현', trainer: '최용건', rating: 49, weight: 56 },
-                    { no: 3, name: '라파예트', jockey: '김용근', trainer: '강성오', rating: 44, weight: 55.5 },
-                    { no: 4, name: '레이디코디', jockey: '문정균', trainer: '손영표', rating: 38, weight: 52 },
-                    { no: 5, name: '벌교그래미', jockey: '김효정', trainer: '서홍수', rating: 43, weight: 53 },
-                    { no: 6, name: '블러드마운틴', jockey: '유승완', trainer: '김윤섭', rating: 38, weight: 52.5 },
-                    { no: 7, name: '서울돌풍', jockey: '빅투아르', trainer: '이관호', rating: 38, weight: 52.5 },
-                    { no: 8, name: '한강글로리', jockey: '김철호', trainer: '임채덕', rating: 40, weight: 53.5 },
-                    { no: 9, name: '어퍼핸드', jockey: '정우주', trainer: '서범석', rating: 41, weight: 52 },
-                    { no: 10, name: '캠프데이비드', jockey: '임다빈', trainer: '강환민', rating: 41, weight: 54 },
-                ],
-                analysis: {
-                    favorites: "<strong>10번 캠프데이비드</strong>는 장거리에서 우승과 준우승을 기록하며 완벽한 거리 적성을 입증했습니다. <strong>2번 케이엔언더킹</strong>은 가장 높은 레이팅을 보유한 클래스 높은 경쟁마입니다.",
-                    darkHorse: "<strong>5번 벌교그래미</strong>는 직전 경주에서 날카로운 추입력으로 준우승을 차지했습니다. 숨겨진 스피드와 지구력을 겸비하여 이번 경주에서도 위협적인 복병이 될 것입니다."
-                },
-                picks: {
-                    quinella: "10-2",
-                    exacta: "10-2, 2-10",
-                    trio: "2-10-5"
-                }
-            },
-            14: {
-                meta: { title: "서울 제14경주 (1등급, 1600M)", distance: 1600 },
-                horses: [
-                    { no: 1, name: '빅스고', jockey: '장추열', trainer: '우창구', rating: 96, weight: 58.5 },
-                    { no: 2, name: '포에버드림', jockey: '조재로', trainer: '이관호', rating: 93, weight: 57 },
-                    { no: 3, name: '컴플리트레벨', jockey: '김성현', trainer: '강성오', rating: 96, weight: 56.5 },
-                    { no: 4, name: '원평스톰', jockey: '임다빈', trainer: '정호익', rating: 92, weight: 56.5 },
-                    { no: 5, name: '용암보스', jockey: '이혁', trainer: '서범석', rating: 92, weight: 56.5 },
-                    { no: 6, name: '굿필승', jockey: '송재철', trainer: '심승태', rating: 91, weight: 56 },
-                    { no: 7, name: '마의웨이', jockey: '해리카심', trainer: '박병일', rating: 90, weight: 55.5 },
-                    { no: 8, name: '대사리', jockey: '코지', trainer: '토니', rating: 83, weight: 52 },
-                    { no: 9, name: '마이티네오', jockey: '문세영', trainer: '서홍수', rating: 86, weight: 53.5 },
-                    { no: 10, name: '금빛마', jockey: '정우주', trainer: '이관호', rating: 81, weight: 51 },
-                ],
-                analysis: {
-                    favorites: "<strong>9번 마이티네오</strong>는 이 거리 우승 경험과 시장의 높은 신뢰, 문세영 기수와의 조합까지 갖춘 필승 카드입니다. <strong>4번 원평스톰</strong> 역시 검증된 강자로, 꾸준한 신뢰를 받고 있습니다.",
-                    darkHorse: "<strong>8번 대사리</strong>는 최상위급 스피드를 자랑하는 단거리 강자입니다. 1600M로 거리를 늘렸지만, 52kg의 매우 가벼운 부담중량 이점을 안고 선행으로 나선다면, 압도적인 스피드로 대이변을 연출할 수 있습니다."
-                },
-                picks: {
-                    quinella: "9-4",
-                    exacta: "9-4",
-                    trio: "9-4-8"
+                    anchor: "9번 내길의위너: 예측되는 빠른 페이스의 최대 수혜마이며, 1200M 거리에서의 꾸준함과 검증된 추입력을 바탕으로 가장 안정적인 입상 후보로 판단됩니다.",
+                    longshot: "5번 스마일링프린스: 최근 뚜렷한 상승세에 있으며, 가벼운 부중과 선입 전개가 가능한 이점을 살려 선두권이 무너지는 틈을 파고들 경우 이변을 일으킬 잠재력이 충분합니다.",
+                    bets: {
+                        main: "9-4",
+                        sub: "9-6",
+                        trifecta: "9번을 축으로 4, 6, 5번 조합 (9-4-6, 9-4-5, 9-6-5)"
+                    }
                 }
             }
         };
 
-        const chartInstances = {};
+        let styleChart;
+        const ctx = document.getElementById('styleChart').getContext('2d');
 
-        function createRaceSection(raceNumber, data) {
-            const section = document.createElement('section');
-            section.id = `race-${raceNumber}`;
-            section.className = 'race-section bg-white p-4 md:p-6 rounded-xl shadow-lg mb-8';
-            section.style.display = 'none';
+        function displayRaceData(raceNum) {
+            const data = raceData[raceNum];
+            if (!data) return;
 
-            section.innerHTML = `
-                <h2 class="text-xl md:text-2xl font-bold mb-4 border-b pb-3">${data.meta.title}</h2>
-                <div class="sub-nav flex border-b mb-4">
-                    <button data-race="${raceNumber}" data-view="analysis" class="sub-nav-button py-2 px-4 border-b-2 border-transparent">분석 요약</button>
-                    <button data-race="${raceNumber}" data-view="data" class="sub-nav-button py-2 px-4 border-b-2 border-transparent">데이터 비교</button>
-                    <button data-race="${raceNumber}" data-view="picks" class="sub-nav-button py-2 px-4 border-b-2 border-transparent">추천 조합</button>
-                </div>
+            document.getElementById('overview-title').textContent = data.title;
 
-                <div id="content-${raceNumber}-analysis" class="content-section">
-                    <div class="grid md:grid-cols-2 gap-6">
-                        <div>
-                            <h4 class="font-bold text-lg mb-2 text-blue-700">주요 경쟁마 분석</h4>
-                            <p class="text-gray-700 leading-relaxed">${data.analysis.favorites}</p>
-                        </div>
-                        <div>
-                            <h4 class="font-bold text-lg mb-2 text-amber-700">고배당 잠재마 분석</h4>
-                            <p class="text-gray-700 leading-relaxed">${data.analysis.darkHorse}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="content-${raceNumber}-data" class="content-section">
-                    <div class="chart-container">
-                        <canvas id="chart-${raceNumber}"></canvas>
-                    </div>
-                </div>
-
-                <div id="content-${raceNumber}-picks" class="content-section">
-                    <div class="grid sm:grid-cols-3 gap-4 text-center">
-                        <div class="bg-gray-100 p-4 rounded-lg">
-                            <h4 class="font-bold">복승 (Quinella)</h4>
-                            <p class="text-2xl font-bold text-red-600 mt-1">${data.picks.quinella}</p>
-                        </div>
-                        <div class="bg-gray-100 p-4 rounded-lg">
-                            <h4 class="font-bold">쌍승 (Exacta)</h4>
-                            <p class="text-2xl font-bold text-red-600 mt-1">${data.picks.exacta}</p>
-                        </div>
-                        <div class="bg-gray-100 p-4 rounded-lg">
-                            <h4 class="font-bold">삼복승 (Trio)</h4>
-                            <p class="text-2xl font-bold text-red-600 mt-1">${data.picks.trio}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mt-6">
-                    <h4 class="font-bold text-lg mb-2">출전마 정보</h4>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm text-left">
-                            <thead class="bg-gray-100">
-                                <tr>
-                                    <th class="p-2">마번</th>
-                                    <th class="p-2">마명</th>
-                                    <th class="p-2">기수</th>
-                                    <th class="p-2">조교사</th>
-                                    <th class="p-2 text-right">레이팅</th>
-                                    <th class="p-2 text-right">부담중량</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${data.horses.map(h => `
-                                    <tr class="border-b">
-                                        <td class="p-2 font-bold">${h.no}</td>
-                                        <td class="p-2">${h.name}</td>
-                                        <td class="p-2">${h.jockey}</td>
-                                        <td class="p-2">${h.trainer}</td>
-                                        <td class="p-2 text-right">${h.rating}</td>
-                                        <td class="p-2 text-right">${h.weight}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            `;
-            return section;
-        }
-
-        function renderChart(raceNumber) {
-            if (chartInstances[raceNumber]) {
-                chartInstances[raceNumber].destroy();
-            }
-            const ctx = document.getElementById(`chart-${raceNumber}`).getContext('2d');
-            const horseData = raceData[raceNumber].horses;
+            const tableBody = document.getElementById('entry-table-body');
+            tableBody.innerHTML = '';
+            data.entries.forEach(horse => {
+                const row = `
+                    <tr class="bg-white border-b hover:bg-gray-50">
+                        <td class="px-4 py-3 font-medium text-gray-900">${horse.no}</td>
+                        <td class="px-4 py-3">${horse.name}</td>
+                        <td class="px-4 py-3">${horse.jockey}</td>
+                        <td class="px-4 py-3">${horse.trainer}</td>
+                        <td class="px-4 py-3">${horse.weight}</td>
+                    </tr>
+                `;
+                tableBody.innerHTML += row;
+            });
             
-            chartInstances[raceNumber] = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: horseData.map(h => `${h.no}. ${h.name}`),
-                    datasets: [
-                        {
-                            label: '레이팅',
-                            data: horseData.map(h => h.rating),
-                            backgroundColor: 'rgba(59, 130, 246, 0.7)',
-                            borderColor: 'rgba(59, 130, 246, 1)',
-                            borderWidth: 1,
-                            yAxisID: 'y'
-                        },
-                        {
-                            label: '부담중량',
-                            data: horseData.map(h => h.weight),
-                            backgroundColor: 'rgba(251, 146, 60, 0.7)',
-                            borderColor: 'rgba(251, 146, 60, 1)',
-                            borderWidth: 1,
-                            yAxisID: 'y1'
-                        }
-                    ]
-                },
+            document.getElementById('analysis-flow').textContent = data.analysis.flow;
+            document.getElementById('pick-anchor').textContent = data.picks.anchor;
+            document.getElementById('pick-longshot').textContent = data.picks.longshot;
+            
+            const betsContainer = document.getElementById('pick-bets');
+            betsContainer.innerHTML = `
+                <p><span class="font-semibold">주력 (복승):</span> ${data.picks.bets.main}</p>
+                <p><span class="font-semibold">방어 (복승):</span> ${data.picks.bets.sub}</p>
+                <p><span class="font-semibold">삼복승:</span> ${data.picks.bets.trifecta}</p>
+            `;
+
+            if (styleChart) {
+                styleChart.destroy();
+            }
+
+            const chartData = {
+                labels: Object.keys(data.styles),
+                datasets: [{
+                    label: '각질 분포',
+                    data: Object.values(data.styles),
+                    backgroundColor: [
+                        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'
+                    ],
+                    hoverOffset: 4
+                }]
+            };
+
+            styleChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: chartData,
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            type: 'linear',
-                            display: true,
-                            position: 'left',
-                            title: {
-                                display: true,
-                                text: '레이팅'
-                            }
-                        },
-                        y1: {
-                            type: 'linear',
-                            display: true,
-                            position: 'right',
-                            title: {
-                                display: true,
-                                text: '부담중량 (kg)'
-                            },
-                            grid: {
-                                drawOnChartArea: false, 
-                            },
-                        }
-                    },
                     plugins: {
+                        legend: {
+                            position: 'top',
+                        },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    let label = context.dataset.label || '';
+                                    let label = context.label || '';
                                     if (label) {
                                         label += ': ';
                                     }
-                                    if (context.parsed.y !== null) {
-                                        label += context.parsed.y;
-                                        if (context.dataset.label === '부담중량') {
-                                            label += 'kg';
-                                        }
+                                    if (context.parsed !== null) {
+                                        label += context.parsed + '두';
                                     }
                                     return label;
                                 }
@@ -464,73 +385,30 @@
                     }
                 }
             });
+
+            document.querySelectorAll('#race-tabs button').forEach(button => {
+                if (parseInt(button.dataset.race) === raceNum) {
+                    button.classList.remove('tab-inactive');
+                    button.classList.add('tab-active');
+                } else {
+                    button.classList.remove('tab-active');
+                    button.classList.add('tab-inactive');
+                }
+            });
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            const raceNavigation = document.getElementById('race-navigation');
-            const raceDetailsContainer = document.getElementById('race-details-container');
-            const raceNumbers = Object.keys(raceData);
-
-            raceNumbers.forEach(num => {
-                if (num === 'summary') return;
-                const navButton = document.createElement('button');
-                navButton.textContent = `${num}R`;
-                navButton.className = 'nav-button bg-white hover:bg-blue-500 hover:text-white text-gray-700 font-medium py-2 px-4 rounded-lg shadow transition-colors duration-200';
-                navButton.dataset.race = num;
-                raceNavigation.appendChild(navButton);
-
-                const raceSection = createRaceSection(num, raceData[num]);
-                raceDetailsContainer.appendChild(raceSection);
+            const tabsContainer = document.getElementById('race-tabs');
+            Object.keys(raceData).forEach(raceNum => {
+                const button = document.createElement('button');
+                button.textContent = `경주 ${raceNum}`;
+                button.dataset.race = raceNum;
+                button.className = 'px-4 py-2 text-sm font-semibold border-2 rounded-full transition-colors duration-300 tab-inactive';
+                button.addEventListener('click', () => displayRaceData(parseInt(raceNum)));
+                tabsContainer.appendChild(button);
             });
-
-            const navButtons = document.querySelectorAll('.nav-button');
-            const raceSections = document.querySelectorAll('.race-section');
-
-            function showRace(raceNumber) {
-                raceSections.forEach(section => {
-                    section.style.display = section.id === `race-${raceNumber}` ? 'block' : 'none';
-                });
-                navButtons.forEach(button => {
-                    button.classList.toggle('active-nav-button', button.dataset.race === raceNumber);
-                });
-                
-                const subNavButtons = document.querySelectorAll(`#race-${raceNumber} .sub-nav-button`);
-                showSubView(raceNumber, 'analysis', subNavButtons);
-            }
-
-            navButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    showRace(button.dataset.race);
-                });
-            });
-
-            const subNavButtons = document.querySelectorAll('.sub-nav-button');
             
-            function showSubView(raceNumber, view, subNavs) {
-                document.querySelectorAll(`#race-${raceNumber} .content-section`).forEach(content => {
-                    content.classList.remove('active');
-                });
-                document.getElementById(`content-${raceNumber}-${view}`).classList.add('active');
-
-                subNavs.forEach(btn => {
-                    btn.classList.toggle('active-sub-nav-button', btn.dataset.view === view);
-                });
-
-                if (view === 'data') {
-                    setTimeout(() => renderChart(raceNumber), 0);
-                }
-            }
-            
-            subNavButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    const raceNumber = button.dataset.race;
-                    const view = button.dataset.view;
-                    const relevantSubNavs = document.querySelectorAll(`#race-${raceNumber} .sub-nav-button`);
-                    showSubView(raceNumber, view, relevantSubNavs);
-                });
-            });
-
-            showRace('6');
+            displayRaceData(6);
         });
     </script>
 </body>
