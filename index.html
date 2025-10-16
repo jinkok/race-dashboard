@@ -3,413 +3,212 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>서울 경마 6-11경주 대화형 분석</title>
+    <title>경마 당일 정보 CSV 생성기 (v2 - 파일명 자동화)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Chosen Palette: Warm Neutrals -->
-    <!-- Application Structure Plan: The application is designed as a single-page dashboard with a tab-based navigation system for races 6 through 11. This structure was chosen for its intuitiveness, allowing users to quickly switch between different race analyses without scrolling or leaving the page. Each tab presents a consistent layout: race overview, a full entry list, a visual chart for running style distribution, and detailed analysis/recommendation cards. This component-based approach makes complex information digestible and allows for easy comparison between races. The primary user flow is selecting a race, visually assessing the race pace via the chart, then reading the expert analysis and picks. This is more efficient than a linear report format. -->
-    <!-- Visualization & Content Choices: 
-        - Race Info -> Goal: Inform -> Presentation: Key Info Card -> Interaction: Static -> Justification: Provides immediate context for the selected race.
-        - Entry List -> Goal: Organize/Inform -> Presentation: HTML Table -> Interaction: Scroll -> Justification: A standard and clear way to present tabular data.
-        - Running Style Distribution -> Goal: Analyze Pace -> Viz: Chart.js Doughnut Chart -> Interaction: Hover Tooltip -> Justification: A doughnut chart provides an immediate, easy-to-understand visual summary of the likely race pace (e.g., many front-runners vs. closers), which is more impactful than a simple list. Library: Chart.js (Canvas).
-        - Analysis & Picks -> Goal: Synthesize/Recommend -> Presentation: Styled Text Cards -> Interaction: Static text update on tab change -> Justification: Separates qualitative analysis into clear, thematic cards (Flow, Anchor, Longshot, Strategy) for readability and quick access to key recommendations.
-    -->
-    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
-        body {
-            font-family: 'Noto Sans KR', sans-serif;
-            background-color: #FDFBF8;
-            color: #4A4A4A;
-        }
-        .tab-active {
-            background-color: #A0522D;
-            color: #FFFFFF;
-            border-color: #A0522D;
-        }
-        .tab-inactive {
-            background-color: #FFFFFF;
-            color: #A0522D;
-            border-color: #A0522D;
-        }
-        .card {
-            background-color: #FFFFFF;
-            border-radius: 0.75rem;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-            border: 1px solid #F0EBE3;
-        }
-        .chart-container {
-            position: relative;
-            width: 100%;
-            max-width: 400px;
-            margin-left: auto;
-            margin-right: auto;
-            height: 300px;
-            max-height: 350px;
-        }
-        @media (min-width: 640px) {
-            .chart-container {
-                height: 350px;
-            }
+        body { font-family: 'Noto Sans KR', sans-serif; }
+        .step-card { transition: all 0.3s ease-in-out; }
+        .hidden { display: none; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
         }
     </style>
 </head>
-<body class="p-4 sm:p-6 md:p-8">
+<body class="bg-gray-100">
 
-    <div class="max-w-7xl mx-auto">
-        <header class="text-center mb-8">
-            <h1 class="text-3xl sm:text-4xl font-bold text-[#A0522D]">서울 경마 심층 분석</h1>
-            <p class="text-lg text-gray-600 mt-2">2025년 8월 17일 (6-11 경주)</p>
-        </header>
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
+            <header class="bg-teal-600 text-white p-6">
+                <h1 class="text-2xl sm:text-3xl font-bold text-center">경마 당일 정보 CSV 생성기</h1>
+                <p class="text-center text-teal-200 mt-2">출전표를 기반으로 체중과 배당률 정보를 입력하고, 분석용 CSV 파일을 만듭니다.</p>
+            </header>
 
-        <nav id="race-tabs" class="flex flex-wrap justify-center gap-2 mb-8">
-        </nav>
-
-        <main id="race-content" class="space-y-8">
-            <section id="race-overview" class="card p-6 text-center">
-                <h2 id="overview-title" class="text-2xl font-bold text-[#A0522D]"></h2>
-            </section>
-
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div class="lg:col-span-1 space-y-8">
-                    <section class="card p-6">
-                        <h3 class="text-xl font-semibold mb-4 border-b pb-2 text-gray-700">📊 각질 분포</h3>
-                        <p class="text-sm text-gray-500 mb-4">
-                            경주마들의 주행 스타일 분포입니다. 선행마가 많을수록 초반 페이스가 빨라질 가능성이 높습니다.
-                        </p>
-                        <div class="chart-container">
-                            <canvas id="styleChart"></canvas>
-                        </div>
-                    </section>
-                </div>
-
-                <div class="lg:col-span-2 space-y-8">
-                    <section class="card p-6">
-                        <h3 class="text-xl font-semibold mb-4 border-b pb-2 text-gray-700">🐎 출전마 정보</h3>
-                        <div class="overflow-x-auto max-h-96">
-                            <table class="w-full text-sm text-left">
-                                <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0">
-                                    <tr>
-                                        <th scope="col" class="px-4 py-3">마번</th>
-                                        <th scope="col" class="px-4 py-3">마명</th>
-                                        <th scope="col" class="px-4 py-3">기수</th>
-                                        <th scope="col" class="px-4 py-3">조교사</th>
-                                        <th scope="col" class="px-4 py-3">부중</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="entry-table-body">
-                                </tbody>
-                            </table>
-                        </div>
-                    </section>
-                </div>
-            </div>
-            
-            <section class="card p-6">
-                <h3 class="text-xl font-semibold mb-4 border-b pb-2 text-gray-700">💡 종합 분석 및 추천</h3>
-                <div class="space-y-6">
+            <main class="p-6 space-y-8">
+                <!-- Step 1: Upload Chuljeonpyo -->
+                <section id="step1" class="step-card bg-gray-50 p-6 rounded-lg border border-gray-200">
+                    <div class="flex items-center mb-4">
+                        <span class="flex items-center justify-center w-8 h-8 bg-teal-500 text-white rounded-full font-bold text-lg mr-4">1</span>
+                        <h2 class="text-xl font-bold text-gray-800">'출전표' 파일 업로드</h2>
+                    </div>
+                    <p class="text-gray-600 mb-4 text-sm">당일 정보를 입력할 경주의 '출전표.csv' 파일을 선택해주세요.</p>
                     <div>
-                        <h4 class="font-semibold text-lg text-gray-800">흐름 분석</h4>
-                        <p id="analysis-flow" class="mt-2 text-gray-600 leading-relaxed"></p>
+                        <label for="chuljeonpyo-file" class="block text-sm font-medium text-gray-700">출전표.csv</label>
+                        <input type="file" id="chuljeonpyo-file" accept=".csv" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"/>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-                        <div class="border-l-4 border-[#A0522D] bg-[#FDFBF8] p-4 rounded-r-lg">
-                            <h4 class="font-semibold text-lg text-gray-800">🎯 축마</h4>
-                            <p id="pick-anchor" class="mt-2 text-gray-600"></p>
-                        </div>
-                        <div class="border-l-4 border-orange-400 bg-[#FDFBF8] p-4 rounded-r-lg">
-                            <h4 class="font-semibold text-lg text-gray-800">💣 고배당마</h4>
-                            <p id="pick-longshot" class="mt-2 text-gray-600"></p>
-                        </div>
+                    <div id="file-status" class="mt-4 text-sm text-center"></div>
+                    <div class="mt-6 text-center">
+                        <button id="load-horses-btn" class="w-full sm:w-auto bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-8 rounded-lg shadow-md transition-transform transform hover:scale-105">
+                            출전마 불러오기
+                        </button>
                     </div>
-                     <div>
-                        <h4 class="font-semibold text-lg text-gray-800">💰 베팅 전략</h4>
-                        <div id="pick-bets" class="mt-2 text-gray-600 space-y-1"></div>
-                    </div>
-                </div>
-            </section>
+                </section>
 
-        </main>
+                <!-- Step 2: Input Data (Hidden Initially) -->
+                <section id="step2" class="step-card bg-gray-50 p-6 rounded-lg border border-gray-200 hidden">
+                    <div class="flex items-center mb-4">
+                        <span class="flex items-center justify-center w-8 h-8 bg-teal-500 text-white rounded-full font-bold text-lg mr-4">2</span>
+                        <h2 class="text-xl font-bold text-gray-800">당일 정보 입력</h2>
+                    </div>
+                    <p class="text-gray-600 mb-4 text-sm">아래 목록에 각 말의 금일 체중과 단승 배당률을 입력하세요.</p>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">번호</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">마명</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">금일 체중 (kg)</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">단승 배당률 (배)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="horse-table-body" class="bg-white divide-y divide-gray-200"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Step 3: Download CSV (Hidden Initially) -->
+                <section id="step3" class="text-center hidden pt-4">
+                     <button id="generate-csv-btn" class="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-16 rounded-lg shadow-xl text-lg transition-transform transform hover:scale-105">
+                        CSV 파일 생성 및 다운로드
+                    </button>
+                </section>
+            </main>
+        </div>
+        <footer class="text-center mt-6 text-sm text-gray-500">
+            <p>&copy; 2025 Race Day Data Generator.</p>
+        </footer>
     </div>
 
-    <script>
-        const raceData = {
-            6: {
-                title: "제6경주 (국4등급, 1400M, 핸디캡)",
-                entries: [
-                    { no: 1, name: '트로트퀸', jockey: '송재철', trainer: '김동균', weight: 52 },
-                    { no: 2, name: '레전드선', jockey: '정정희', trainer: '김동철', weight: 52 },
-                    { no: 3, name: '안양기쁨', jockey: '문정균', trainer: '홍대유', weight: 52 },
-                    { no: 4, name: '퀸다이아', jockey: '김정준', trainer: '이관호', weight: 55.5 },
-                    { no: 5, name: '어메이징스타', jockey: '조재로', trainer: '서인석', weight: 52.5 },
-                    { no: 6, name: '달맞이', jockey: '김성현', trainer: '김윤섭', weight: 55 },
-                    { no: 7, name: '리걸하이', jockey: '유승완', trainer: '함완식', weight: 52 },
-                    { no: 8, name: '천행챗', jockey: '김태훈', trainer: '배휴준', weight: 52 },
-                    { no: 9, name: '마이티쎈', jockey: '씨씨웡', trainer: '서홍수', weight: 55 },
-                    { no: 10, name: '우승진리', jockey: '장추열', trainer: '박지헌', weight: 55 },
-                    { no: 11, name: '대박스타', jockey: '조상범', trainer: '구자흥', weight: 53 }
-                ],
-                styles: { '선행': 1, '선행/선입': 2, '선입': 2, '추입': 3, '자유': 3 },
-                analysis: {
-                    flow: "강력한 선행마인 5번 '어메이징스타'와 4번 '퀸다이아'의 존재로 초반부터 매우 빠른 페이스가 예상됩니다. 이들의 선두 다툼은 종반 체력 저하로 이어질 수 있으며, 이는 후미에서 힘을 비축한 추입마들에게 절호의 역전 기회를 제공할 것입니다."
-                },
-                picks: {
-                    anchor: "2번 레전드선: 예측되는 빠른 경주 흐름의 최대 수혜마입니다. 52kg의 가벼운 부중과 검증된 막판 추입력을 고려할 때 가장 안정적인 입상 후보로 판단됩니다.",
-                    longshot: "8번 천행챗: 꾸준한 추입형 마필로, 선두권이 무너지는 이변 발생 시 3위권 내 입상을 노려볼 수 있는 잠재력 있는 복병입니다.",
-                    bets: {
-                        main: "2-4",
-                        sub: "2-5",
-                        trifecta: "2번을 축으로 4, 5, 8번 조합 (2-4-5, 2-4-8, 2-5-8)"
-                    }
-                }
-            },
-            7: {
-                title: "제7경주 (혼4등급, 1200M, 핸디캡)",
-                entries: [
-                    { no: 1, name: '사다우카', jockey: '조상범', trainer: '강성오', weight: 53.5 },
-                    { no: 2, name: '캄인스톰', jockey: '김옥성', trainer: '조현수', weight: 53 },
-                    { no: 3, name: '슈어니스', jockey: '정정희', trainer: '박재우', weight: 53 },
-                    { no: 4, name: '하남엘도라도', jockey: '김효정', trainer: '서홍수', weight: 55 },
-                    { no: 5, name: '사이클론스타', jockey: '코지', trainer: '안병기', weight: 56 },
-                    { no: 6, name: '픽처', jockey: '송재철', trainer: '강성오', weight: 54 },
-                    { no: 7, name: '예술이야', jockey: '마이아', trainer: '최용구', weight: 57 },
-                    { no: 8, name: '하이퍼선더', jockey: '정우주', trainer: '우창구', weight: 53 },
-                    { no: 9, name: '마이던', jockey: '조인권', trainer: '정호익', weight: 52.5 },
-                    { no: 10, name: '쏘아라스타', jockey: '임다빈', trainer: '이관호', weight: 56 },
-                    { no: 11, name: '컴플리트파티', jockey: '조한별', trainer: '이신우', weight: 52 }
-                ],
-                styles: { '선행': 2, '선입': 5, '추입': 2, '자유': 2 },
-                analysis: {
-                    flow: "6번 '픽처'와 7번 '예술이야'라는 두 강력한 선행마의 치열한 선두 다툼이 예상됩니다. 1200M 단거리에서의 초반 오버페이스는 종반 급격한 체력 저하로 이어질 수 있어, 선두권 바로 뒤에서 기회를 엿보는 선입마 그룹에게 매우 유리한 전개가 펼쳐질 것입니다."
-                },
-                picks: {
-                    anchor: "5번 사이클론스타: 최근 3연승의 압도적인 기세와 어떤 경주 흐름에도 적응할 수 있는 자유로운 각질을 높이 평가합니다. 가장 안정적인 축마감입니다.",
-                    longshot: "11번 컴플리트파티: 전형적인 추입마로, 선행마들의 경쟁이 과열되어 경주가 무너지는 시나리오에서 막판 역전을 노려볼 수 있는 잠재력이 충분합니다.",
-                    bets: {
-                        main: "5-10",
-                        sub: "5-4",
-                        trifecta: "5번을 축으로 10, 4, 3번 조합 (5-10-4, 5-10-3, 5-4-3)"
-                    }
-                }
-            },
-            8: {
-                title: "제8경주 (국OPEN, 1200M, Rookie Stakes)",
-                entries: [
-                    { no: 1, name: '유니버설', jockey: '장추열', trainer: '정호익', weight: 55 },
-                    { no: 2, name: '환상의나라', jockey: '씨씨웡', trainer: '안병기', weight: 53 },
-                    { no: 3, name: '안양빛의속도', jockey: '이혁', trainer: '홍대유', weight: 55 },
-                    { no: 4, name: '나올패스', jockey: '문세영', trainer: '박지헌', weight: 53 },
-                    { no: 5, name: '원평스킷', jockey: '임다빈', trainer: '정호익', weight: 53 },
-                    { no: 6, name: '에어포스원', jockey: '김태훈', trainer: '토니', weight: 55 },
-                    { no: 7, name: '블루레인', jockey: '정정희', trainer: '안병기', weight: 55 },
-                    { no: 8, name: '거센대로', jockey: '김용근', trainer: '이신우', weight: 55 },
-                    { no: 9, name: '치프스타', jockey: '최범현', trainer: '문병기', weight: 53 },
-                    { no: 10, name: '새내파이터', jockey: '이동하', trainer: '홍대유', weight: 55 }
-                ],
-                styles: { '선행': 2, '선행/선입': 2, '선입': 1, '추입': 1, '자유': 3 },
-                analysis: {
-                    flow: "2번 '환상의나라'와 9번 '치프스타'가 초반 스피드를 주도하며 빠른 페이스를 형성할 것입니다. 경험이 부족한 신마 경주의 특성상, 빠른 페이스에 무리하게 휘말리는 말들이 종반에 무너질 가능성이 높아, 침착하게 경주를 운영하는 선입/자유마에게 기회가 올 수 있습니다."
-                },
-                picks: {
-                    anchor: "9번 치프스타: 데뷔전에서 보여준 1분 12초 4라는 기록이 워낙 압도적이어서, 큰 이변이 없는 한 가장 강력한 우승 후보로 신뢰할 수 있습니다.",
-                    longshot: "1번 유니버설: 신마 경주의 특성상 선두권이 무너질 가능성을 배제할 수 없습니다. 안정적인 선입 능력을 갖춘 '유니버설'이 이변의 주인공이 될 수 있습니다.",
-                    bets: {
-                        main: "9-3",
-                        sub: "9-4",
-                        trifecta: "9번을 축으로 3, 4, 1번 조합 (9-3-4, 9-3-1, 9-4-1)"
-                    }
-                }
-            },
-            9: {
-                title: "제9경주 (혼4등급, 1800M, 핸디캡)",
-                entries: [
-                    { no: 1, name: '슈퍼선더', jockey: '코지', trainer: '최용건', weight: 54.5 },
-                    { no: 2, name: '젠틀야라', jockey: '조재로', trainer: '김동철', weight: 56.5 },
-                    { no: 3, name: '트라움퀸', jockey: '김용근', trainer: '이준철', weight: 53 },
-                    { no: 4, name: '케이엔티즈원', jockey: '씨씨웡', trainer: '서인석', weight: 54.5 },
-                    { no: 5, name: '럭키붐', jockey: '정우주', trainer: '이관호', weight: 56 },
-                    { no: 6, name: '이클립스블랙', jockey: '이혁', trainer: '서홍수', weight: 54.5 },
-                    { no: 7, name: '티나케이', jockey: '장추열', trainer: '우창구', weight: 53.5 },
-                    { no: 8, name: '히어로레전드', jockey: '유승완', trainer: '김윤섭', weight: 52 },
-                    { no: 9, name: '티즈에너지', jockey: '김태훈', trainer: '토니', weight: 57.5 },
-                    { no: 10, name: '클림트월드', jockey: '조한별', trainer: '조현수', weight: 52 }
-                ],
-                styles: { '선행': 1, '선입': 1, '추입': 3, '자유': 5 },
-                analysis: {
-                    flow: "2번 '젠틀야라'의 단독 선행이 유력하나, 1800M 장거리 특성상 초반 페이스는 빠르지 않을 것입니다. 경주 중반까지 안정적인 흐름을 보이다가, 3코너 이후부터 후미 그룹에 있던 추입마들이 서서히 순위를 끌어올리며 마지막 직선주로에서 승부가 갈릴 것으로 보입니다."
-                },
-                picks: {
-                    anchor: "4번 케이엔티즈원: 1800M 우승 경험과 검증된 추입력을 바탕으로, 이번 경주에서도 막판 역전을 기대할 수 있는 가장 신뢰도 높은 마필입니다.",
-                    longshot: "1번 슈퍼선더: 직전 경주에서 보여준 상승세와 유리한 부중 조건을 고려할 때, 인기마들의 견제 속에서 깜짝 입상을 노려볼 수 있는 복병입니다.",
-                    bets: {
-                        main: "4-6",
-                        sub: "4-1",
-                        trifecta: "4번을 축으로 6, 1, 9번 조합 (4-6-1, 4-6-9, 4-1-9)"
-                    }
-                }
-            },
-            10: {
-                title: "제10경주 (국3등급, 1800M, 핸디캡)",
-                entries: [
-                    { no: 1, name: '에펠탑', jockey: '정우주', trainer: '심승태', weight: 52 },
-                    { no: 2, name: '에이피파텍', jockey: '송재철', trainer: '서범석', weight: 53.5 },
-                    { no: 3, name: '마이티탭', jockey: '씨씨웡', trainer: '서홍수', weight: 57.5 },
-                    { no: 4, name: '금빛천하', jockey: '마이아', trainer: '박윤규', weight: 53 },
-                    { no: 5, name: '트라움킹', jockey: '장추열', trainer: '이준철', weight: 58 },
-                    { no: 6, name: '글로벌파워', jockey: '김동수', trainer: '전승규', weight: 54.5 },
-                    { no: 7, name: '스톰브레이커', jockey: '김성현', trainer: '최용건', weight: 54 },
-                    { no: 8, name: '강한퀸', jockey: '김옥성', trainer: '홍대유', weight: 52 },
-                    { no: 9, name: '골드뭉치', jockey: '정정희', trainer: '리카디', weight: 52 },
-                    { no: 10, name: '정우포에버', jockey: '빅투아르', trainer: '박천서', weight: 58 },
-                    { no: 11, name: '새내파워풀', jockey: '조상범', trainer: '홍대유', weight: 52 }
-                ],
-                styles: { '선행': 3, '추입': 4, '자유': 4 },
-                analysis: {
-                    flow: "선행 성향의 마필이 3두나 포진해 있어 초반 페이스가 상당히 빠를 것으로 예상됩니다. 1800M 장거리에서의 초반 과열 경쟁은 선두 그룹의 종반 체력 저하를 야기할 가능성이 높으며, 이는 후미 그룹에서 힘을 비축한 추입마들에게 절대적으로 유리한 경주 전개를 만들어 줄 것입니다."
-                },
-                picks: {
-                    anchor: "9번 골드뭉치: 예상되는 빠른 페이스의 최대 수혜마이며, 1800M 거리에서의 검증된 능력과 52kg의 가벼운 부중을 바탕으로 막판 추입에 성공할 가능성이 가장 높습니다.",
-                    longshot: "2번 에이피파텍: 꾸준히 추입을 시도하는 마필로, 선두권이 완전히 무너지는 혼전 상황에서 3위권 내 입상을 노려볼 수 있는 복병입니다.",
-                    bets: {
-                        main: "9-3",
-                        sub: "9-10",
-                        trifecta: "9번을 축으로 3, 10, 5번 조합 (9-3-10, 9-3-5, 9-10-5)"
-                    }
-                }
-            },
-            11: {
-                title: "제11경주 (혼3등급, 1200M, 핸디캡)",
-                entries: [
-                    { no: 1, name: '월드피플', jockey: '유승완', trainer: '강환민', weight: 52 },
-                    { no: 2, name: '엔딩파이어', jockey: '임다빈', trainer: '박재우', weight: 52.5 },
-                    { no: 3, name: '원평킬라', jockey: '씨씨웡', trainer: '서인석', weight: 52 },
-                    { no: 4, name: '라온탑플레이', jockey: '조재로', trainer: '박종곤', weight: 58 },
-                    { no: 5, name: '스마일링프린스', jockey: '이동하', trainer: '박병일', weight: 52 },
-                    { no: 6, name: '관악산오투', jockey: '정정희', trainer: '리카디', weight: 54.5 },
-                    { no: 7, name: '레이디하나비', jockey: '문세영', trainer: '최용구', weight: 52 },
-                    { no: 8, name: '마이티스위트', jockey: '김태희', trainer: '서홍수', weight: 52 },
-                    { no: 9, name: '내길의위너', jockey: '이혁', trainer: '최봉주', weight: 52.5 },
-                    { no: 10, name: '드리머위즈', jockey: '빅투아르', trainer: '박지헌', weight: 52.5 }
-                ],
-                styles: { '선행': 3, '선행/선입': 2, '추입': 1, '자유': 4 },
-                analysis: {
-                    flow: "강력한 선행마가 3두나 포진해 있어, 시작부터 매우 치열한 선두 다툼이 예상됩니다. 1200M 단거리에서 이러한 초반 페이스 경쟁은 선두 그룹의 체력을 급격히 소모시켜 종반 직선주로에서 선두권이 붕괴될 가능성을 높입니다. 이는 선입마나 추입마에게 절대적으로 유리한 환경을 조성할 것입니다."
-                },
-                picks: {
-                    anchor: "9번 내길의위너: 예측되는 빠른 페이스의 최대 수혜마이며, 1200M 거리에서의 꾸준함과 검증된 추입력을 바탕으로 가장 안정적인 입상 후보로 판단됩니다.",
-                    longshot: "5번 스마일링프린스: 최근 뚜렷한 상승세에 있으며, 가벼운 부중과 선입 전개가 가능한 이점을 살려 선두권이 무너지는 틈을 파고들 경우 이변을 일으킬 잠재력이 충분합니다.",
-                    bets: {
-                        main: "9-4",
-                        sub: "9-6",
-                        trifecta: "9번을 축으로 4, 6, 5번 조합 (9-4-6, 9-4-5, 9-6-5)"
-                    }
-                }
-            }
-        };
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const fileInput = document.getElementById('chuljeonpyo-file');
+    const loadHorsesBtn = document.getElementById('load-horses-btn');
+    const generateCsvBtn = document.getElementById('generate-csv-btn');
+    const fileStatusDiv = document.getElementById('file-status');
+    const horseTableBody = document.getElementById('horse-table-body');
+    const step2Section = document.getElementById('step2');
+    const step3Section = document.getElementById('step3');
 
-        let styleChart;
-        const ctx = document.getElementById('styleChart').getContext('2d');
+    let horseData = [];
+    let baseFileName = '경주'; // Default filename part
 
-        function displayRaceData(raceNum) {
-            const data = raceData[raceNum];
-            if (!data) return;
-
-            document.getElementById('overview-title').textContent = data.title;
-
-            const tableBody = document.getElementById('entry-table-body');
-            tableBody.innerHTML = '';
-            data.entries.forEach(horse => {
-                const row = `
-                    <tr class="bg-white border-b hover:bg-gray-50">
-                        <td class="px-4 py-3 font-medium text-gray-900">${horse.no}</td>
-                        <td class="px-4 py-3">${horse.name}</td>
-                        <td class="px-4 py-3">${horse.jockey}</td>
-                        <td class="px-4 py-3">${horse.trainer}</td>
-                        <td class="px-4 py-3">${horse.weight}</td>
-                    </tr>
-                `;
-                tableBody.innerHTML += row;
-            });
-            
-            document.getElementById('analysis-flow').textContent = data.analysis.flow;
-            document.getElementById('pick-anchor').textContent = data.picks.anchor;
-            document.getElementById('pick-longshot').textContent = data.picks.longshot;
-            
-            const betsContainer = document.getElementById('pick-bets');
-            betsContainer.innerHTML = `
-                <p><span class="font-semibold">주력 (복승):</span> ${data.picks.bets.main}</p>
-                <p><span class="font-semibold">방어 (복승):</span> ${data.picks.bets.sub}</p>
-                <p><span class="font-semibold">삼복승:</span> ${data.picks.bets.trifecta}</p>
-            `;
-
-            if (styleChart) {
-                styleChart.destroy();
-            }
-
-            const chartData = {
-                labels: Object.keys(data.styles),
-                datasets: [{
-                    label: '각질 분포',
-                    data: Object.values(data.styles),
-                    backgroundColor: [
-                        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'
-                    ],
-                    hoverOffset: 4
-                }]
-            };
-
-            styleChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: chartData,
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
-                                    if (context.parsed !== null) {
-                                        label += context.parsed + '두';
-                                    }
-                                    return label;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
-            document.querySelectorAll('#race-tabs button').forEach(button => {
-                if (parseInt(button.dataset.race) === raceNum) {
-                    button.classList.remove('tab-inactive');
-                    button.classList.add('tab-active');
-                } else {
-                    button.classList.remove('tab-active');
-                    button.classList.add('tab-inactive');
-                }
-            });
+    loadHorsesBtn.addEventListener('click', () => {
+        if (fileInput.files.length === 0) {
+            fileStatusDiv.innerHTML = `<p class="text-red-500 font-semibold">오류: '출전표.csv' 파일을 선택해주세요.</p>`;
+            return;
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const tabsContainer = document.getElementById('race-tabs');
-            Object.keys(raceData).forEach(raceNum => {
-                const button = document.createElement('button');
-                button.textContent = `경주 ${raceNum}`;
-                button.dataset.race = raceNum;
-                button.className = 'px-4 py-2 text-sm font-semibold border-2 rounded-full transition-colors duration-300 tab-inactive';
-                button.addEventListener('click', () => displayRaceData(parseInt(raceNum)));
-                tabsContainer.appendChild(button);
-            });
-            
-            displayRaceData(6);
+        const file = fileInput.files[0];
+
+        // ====[NEW FEATURE: Dynamic Filename]====
+        const originalFileName = file.name;
+        const underscoreIndex = originalFileName.indexOf('_');
+        if (underscoreIndex !== -1) {
+            let potentialBase = originalFileName.substring(0, underscoreIndex);
+            // " 제XX일" 부분을 제거하여 파일명을 깔끔하게 만듭니다.
+            baseFileName = potentialBase.replace(/ 제\d+일/, '').trim();
+        } else {
+            // Fallback: 확장자(.csv)만 제거합니다.
+            baseFileName = originalFileName.replace(/\.csv$/i, '');
+        }
+        // =========================================
+
+        fileStatusDiv.innerHTML = `<div class="flex items-center justify-center"><div class="loader mr-2"></div><p class="text-teal-600 font-semibold">파일을 읽고 있습니다...</p></div>`;
+
+        Papa.parse(file, {
+            skipEmptyLines: true,
+            beforeFirstChunk: (chunk) => {
+                const lines = chunk.split('\n');
+                const headerIndex = lines.findIndex(line => line.includes('번호▲') && line.includes('마명'));
+                if (headerIndex > -1) {
+                    return lines.slice(headerIndex).join('\n');
+                }
+                return chunk;
+            },
+            header: true,
+            complete: (results) => {
+                if (results.errors.length > 0) {
+                    fileStatusDiv.innerHTML = `<p class="text-red-500 font-semibold">파일 파싱 오류: ${results.errors[0].message}</p>`;
+                    return;
+                }
+                
+                horseData = results.data.map(row => ({
+                    number: row['번호▲'],
+                    name: row['마명']
+                })).filter(h => h.number && h.name);
+
+                if (horseData.length === 0) {
+                     fileStatusDiv.innerHTML = `<p class="text-red-500 font-semibold">오류: 출전마 정보를 찾을 수 없습니다. 파일 형식을 확인해주세요.</p>`;
+                     return;
+                }
+
+                populateTable();
+                fileStatusDiv.innerHTML = `<p class="text-green-600 font-semibold">✅ ${horseData.length}마의 출전마를 성공적으로 불러왔습니다.</p>`;
+                step2Section.classList.remove('hidden');
+                step3Section.classList.remove('hidden');
+            },
+            error: (err) => {
+                fileStatusDiv.innerHTML = `<p class="text-red-500 font-semibold">파일 읽기 오류: ${err.message}</p>`;
+            }
         });
-    </script>
+    });
+
+    function populateTable() {
+        horseTableBody.innerHTML = '';
+        horseData.forEach(horse => {
+            const row = `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-4"><div class="flex items-center"><div class="w-8 h-8 flex-shrink-0 flex items-center justify-center bg-teal-100 text-teal-800 rounded-full font-bold">${horse.number}</div></div></td>
+                    <td class="px-4 py-4"><div class="text-sm font-semibold text-gray-900">${horse.name}</div></td>
+                    <td class="px-4 py-4"><input type="number" name="weight" data-horse-number="${horse.number}" placeholder="예: 485" class="w-28 border-gray-300 rounded-md shadow-sm text-sm"></td>
+                    <td class="px-4 py-4"><input type="number" step="0.1" name="odds" data-horse-number="${horse.number}" placeholder="예: 5.2" class="w-28 border-gray-300 rounded-md shadow-sm text-sm"></td>
+                </tr>`;
+            horseTableBody.insertAdjacentHTML('beforeend', row);
+        });
+    }
+
+    generateCsvBtn.addEventListener('click', () => {
+        const rows = Array.from(document.querySelectorAll('#horse-table-body tr'));
+        const csvData = rows.map(row => {
+            const number = row.querySelector('input[name="weight"]').dataset.horseNumber;
+            const name = row.cells[1].innerText;
+            const weight = row.querySelector('input[name="weight"]').value || '';
+            const odds = row.querySelector('input[name="odds"]').value || '';
+            return {
+                '번호': number,
+                '마명': name,
+                '금일체중': weight,
+                '단승배당률': odds
+            };
+        });
+
+        const csvString = Papa.unparse(csvData);
+        
+        downloadCsv(csvString);
+    });
+
+    function downloadCsv(csvString) {
+        const blob = new Blob([`\uFEFF${csvString}`], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        // ====[NEW FEATURE: Dynamic Filename]====
+        link.setAttribute('download', `${baseFileName}_당일정보.csv`);
+        // =========================================
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+});
+</script>
+
 </body>
 </html>
