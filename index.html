@@ -1,0 +1,492 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title></title>
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="2685.1">
+  <style type="text/css">
+    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
+    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
+  </style>
+</head>
+<body>
+<p class="p1">&lt;!DOCTYPE html&gt;</p>
+<p class="p1">&lt;html lang="ko"&gt;</p>
+<p class="p1">&lt;head&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;meta charset="UTF-8"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;title&gt;경마 분석 통합 애플리케이션&lt;/title&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;script src="https://cdn.tailwindcss.com"&gt;&lt;/script&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;script src="https://cdn.jsdelivr.net/npm/chart.js"&gt;&lt;/script&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"&gt;&lt;/script&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;link rel="preconnect" href="https://fonts.googleapis.com"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;link rel="preconnect" href="https://fonts.gstatic.com" crossorigin&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&amp;display=swap" rel="stylesheet"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;style&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>body {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>font-family: 'Noto Sans KR', sans-serif;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.hidden { display: none; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.nav-button { transition: all 0.3s ease; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.nav-button.active {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>background-color: #6B4F4F;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>color: #FFFFFF;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>font-weight: 700;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.horse-item { transition: all 0.3s ease; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.horse-item.active, .horse-item:hover {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>background-color: #EEDDCC;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>transform: translateX(4px);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.chart-container {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>position: relative;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>width: 100%;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>max-width: 600px;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>margin-left: auto;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>margin-right: auto;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>height: 300px;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>max-height: 400px;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p1"><span class="Apple-converted-space">        </span>@media (min-width: 768px) {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>.chart-container { height: 350px; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.step-card { transition: all 0.3s ease-in-out; }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }</p>
+<p class="p1"><span class="Apple-converted-space">        </span>.loader {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>border: 4px solid #f3f3f3;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>border-top: 4px solid #3498db;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>border-radius: 50%;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>width: 24px;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>height: 24px;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>animation: spin 1s linear infinite;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;/style&gt;</p>
+<p class="p1">&lt;/head&gt;</p>
+<p class="p1">&lt;body class="bg-gray-100 text-[#433636]"&gt;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;!-- Dashboard View --&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;div id="dashboard-view"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="container mx-auto p-4 md:p-8"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;header class="text-center mb-8"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;h1 class="text-4xl font-bold text-[#6B4F4F]"&gt;서울 경마 심층 분석&lt;/h1&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;p class="text-lg text-[#A08C8C] mt-2"&gt;2025년 10월 19일 경주&lt;/p&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="mt-4 text-center"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;button onclick="showGeneratorView()" class="inline-block bg-white text-[#6B4F4F] font-semibold py-2 px-5 rounded-lg shadow-md hover:bg-gray-50 transition-transform transform hover:scale-105"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&amp;larr; 당일 정보 입력하기 (CSV 생성)</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;/header&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;nav id="race-nav" class="flex flex-wrap justify-center gap-2 mb-8"&gt;&lt;/nav&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;main id="race-content-wrapper"&gt;&lt;/main&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;!-- CSV Generator View --&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;div id="generator-view" class="hidden"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;div class="container mx-auto p-4 sm:p-6 lg:p-8"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;header class="bg-teal-600 text-white p-6"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;h1 class="text-2xl sm:text-3xl font-bold text-center"&gt;경마 당일 정보 CSV 생성기&lt;/h1&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;p class="text-center text-teal-200 mt-2"&gt;출전표를 기반으로 체중과 배당률 정보를 입력하고, 분석용 CSV 파일을 만듭니다.&lt;/p&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;div class="mt-4 text-center"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;button onclick="showDashboardView()" class="inline-block bg-white text-teal-700 font-semibold py-2 px-5 rounded-full shadow-md hover:bg-teal-50 transition-transform transform hover:scale-105"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>분석 대시보드 보기 &amp;rarr;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;/header&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;main class="p-6 space-y-8"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;section id="step1" class="step-card bg-gray-50 p-6 rounded-lg border border-gray-200"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;div class="flex items-center mb-4"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;span class="flex items-center justify-center w-8 h-8 bg-teal-500 text-white rounded-full font-bold text-lg mr-4"&gt;1&lt;/span&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;h2 class="text-xl font-bold text-gray-800"&gt;'출전표' 파일 업로드&lt;/h2&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;p class="text-gray-600 mb-4 text-sm"&gt;당일 정보를 입력할 경주의 '출전표.csv' 파일을 선택해주세요.&lt;/p&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;label for="chuljeonpyo-file" class="block text-sm font-medium text-gray-700"&gt;출전표.csv&lt;/label&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;input type="file" id="chuljeonpyo-file" accept=".csv" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"/&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;div id="file-status" class="mt-4 text-sm text-center"&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;div class="mt-6 text-center"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;button id="load-horses-btn" class="w-full sm:w-auto bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-8 rounded-lg shadow-md transition-transform transform hover:scale-105"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                </span>출전마 불러오기</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;/section&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;section id="step2" class="step-card bg-gray-50 p-6 rounded-lg border border-gray-200 hidden"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;div class="flex items-center mb-4"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;span class="flex items-center justify-center w-8 h-8 bg-teal-500 text-white rounded-full font-bold text-lg mr-4"&gt;2&lt;/span&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;h2 class="text-xl font-bold text-gray-800"&gt;당일 정보 입력&lt;/h2&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;p class="text-gray-600 mb-4 text-sm"&gt;아래 목록에 각 말의 금일 체중과 단승 배당률을 입력하세요.&lt;/p&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;div class="overflow-x-auto"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;table class="min-w-full divide-y divide-gray-200"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                </span>&lt;thead class="bg-gray-100"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                    </span>&lt;tr&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                        </span>&lt;th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"&gt;번호&lt;/th&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                        </span>&lt;th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"&gt;마명&lt;/th&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                        </span>&lt;th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"&gt;금일 체중 (kg)&lt;/th&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                        </span>&lt;th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"&gt;단승 배당률 (배)&lt;/th&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                    </span>&lt;/tr&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                </span>&lt;/thead&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                </span>&lt;tbody id="horse-table-body" class="bg-white divide-y divide-gray-200"&gt;&lt;/tbody&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;/table&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;/section&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;section id="step3" class="text-center hidden pt-4"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                           </span>&lt;button id="generate-csv-btn" class="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-16 rounded-lg shadow-xl text-lg transition-transform transform hover:scale-105"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                </span>CSV 파일 생성 및 다운로드</p>
+<p class="p1"><span class="Apple-converted-space">                           </span>&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;/section&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;/main&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;footer class="text-center mt-6 text-sm text-gray-500"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;p&gt;&amp;copy; 2025 Race Day Data Generator.&lt;/p&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;/footer&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;/div&gt;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;script&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const dashboardView = document.getElementById('dashboard-view');</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const generatorView = document.getElementById('generator-view');</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>function showDashboardView() {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>dashboardView.classList.remove('hidden');</p>
+<p class="p1"><span class="Apple-converted-space">            </span>generatorView.classList.add('hidden');</p>
+<p class="p1"><span class="Apple-converted-space">            </span>document.body.style.backgroundColor = '#F9F5F1';</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>function showGeneratorView() {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>dashboardView.classList.add('hidden');</p>
+<p class="p1"><span class="Apple-converted-space">            </span>generatorView.classList.remove('hidden');</p>
+<p class="p1"><span class="Apple-converted-space">            </span>document.body.style.backgroundColor = '#f3f4f6';</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>// === Dashboard JS ===</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const raceData = {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>race6: {</p>
+<p class="p1"><span class="Apple-converted-space">                </span>summary: { title: "제6경주: 국산 4등급, 1200M 단거리", proposition: "빠른 선두 다툼으로 인해, 힘을 비축한 선입/추입마에게 유리한 전개 예상. 주요 우승 후보들이 명확한 약점을 안고 있어 변동성이 극도로 높을 것으로 평가됨." },</p>
+<p class="p1"><span class="Apple-converted-space">                </span>horses: [</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 1, name: "컴플리트파티", scores: { "스피드": 82, "지구력": 88, "부담력": 95, "선행력": 70, "추입력": 98 }, overallScore: 86.6, strengths: "경주 막판 폭발적인 추입력이 최대 무기 (G-1F 최고기록 1위).", weaknesses: "3~4코너에서 바깥쪽으로 심하게 기대는 고질적인 악벽. 경주 직전 안과 질환 진료 기록." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 2, name: "청룡의칼", scores: { "스피드": 90, "지구력": 82, "부담력": 95, "선행력": 92, "추입력": 75 }, overallScore: 86.8, strengths: "탁월한 초반 스피드를 바탕으로 경주 주도. 4kg의 파격적인 부담중량 감량 및 유리한 2번 게이트.", weaknesses: "경주 직전 수액 처치로 컨디션 난조 가능성. 빠른 페이스 경합 시 뒷심 부족 우려." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 3, name: "사이클론스타", scores: { "스피드": 88, "지구력": 92, "부담력": 80, "선행력": 80, "추입력": 90 }, overallScore: 86.0, strengths: "선행부터 추입까지 모든 전법 구사 가능. 빠른 페이스의 수혜를 입을 가능성 높음.", weaknesses: "결정적인 한방 부족. 9주의 긴 공백기로 인한 실전 감각 저하 우려." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 4, name: "단디", scores: { "스피드": 85, "지구력": 86, "부담력": 95, "선행력": 82, "추입력": 85 }, overallScore: 86.6, strengths: "상위 등급에서 뛰다 내려온 '등급 강자'. 4kg의 부담중량 감량으로 조건 유리.", weaknesses: "출발대 진입 거부 악벽. 막판 결정적인 순간 뒷심 부족 경향." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 5, name: "노프라블럼", scores: { "스피드": 95, "지구력": 90, "부담력": 70, "선행력": 85, "추입력": 88 }, overallScore: 85.6, strengths: "현 등급 최강자로 안정적인 기량. 출전마 중 가장 빠른 1200M 기록 보유.", weaknesses: "57kg의 과도한 부담중량. 최근 근육통 진료 이력." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 6, name: "여왕삭스", scores: { "스피드": 80, "지구력": 80, "부담력": 95, "선행력": 80, "추입력": 80 }, overallScore: 83.0, strengths: "국5등급에서 준수한 성적 기록.", weaknesses: "반복되는 각막염 진료. 국4등급 승급 후 뚜렷한 한계 노출." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 7, name: "걸작시대", scores: { "스피드": 88, "지구력": 80, "부담력": 98, "선행력": 90, "추입력": 70 }, overallScore: 85.2, strengths: "부상 이전 빠른 스피드를 바탕으로 선행 전개.", weaknesses: "심각한 다리 질병으로 23주의 장기 공백 후 복귀전." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 8, name: "내길의여정", scores: { "스피드": 83, "지구력": 82, "부담력": 95, "선행력": 85, "추입력": 78 }, overallScore: 84.6, strengths: "복귀를 위해 많은 훈련 소화.", weaknesses: "출발 불안 및 과거 기수 낙마 사고 이력. 기복 심한 능력." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 9, name: "빌리언보이", scores: { "스피드": 92, "지구력": 78, "부담력": 94, "선행력": 94, "추입력": 72 }, overallScore: 86.0, strengths: "스피드 잠재력 높음.", weaknesses: "착지가 심하게 불량한 최악의 출발 악벽." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 10, name: "하트케이", scores: { "스피드": 84, "지구력": 85, "부담력": 95, "선행력": 75, "추입력": 88 }, overallScore: 85.4, strengths: "국4등급에서 꾸준한 경쟁력.", weaknesses: "경주 중 특정 구간에서 스스로 멈추려는 기이한 악벽." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 11, name: "서울빙고", scores: { "스피드": 96, "지구력": 85, "부담력": 80, "선행력": 90, "추입력": 82 }, overallScore: 86.6, strengths: "최상위권 스피드. 직전 경주 우승으로 상승세.", weaknesses: "경주 내내 안쪽으로 심하게 기대는 치명적 악벽. 불리한 11번 게이트." }</p>
+<p class="p1"><span class="Apple-converted-space">                </span>],</p>
+<p class="p1"><span class="Apple-converted-space">                </span>bettingStrategy: { title: "최종 베팅 전략: 삼복승식", content: "경주 흐름상 가장 유리한 3번 사이클론스타와 4번 단디를 축으로, 나머지 유력마(2,5,11번)들을 3위 후보로 조합하는 삼복승식 베팅이 합리적입니다.", combinations: [ { type: "안정 추구 (복승식)", picks: "3-4, 3-5" }, { type: "중배당 공략 (삼복승식)", picks: "3-4-2, 3-4-5, 3-4-11" }, { type: "고배당 노림 (삼쌍승식)", picks: "4 → 3 → 1, 2, 5, 11" } ] }</p>
+<p class="p1"><span class="Apple-converted-space">            </span>},</p>
+<p class="p1"><span class="Apple-converted-space">            </span>race7: {</p>
+<p class="p1"><span class="Apple-converted-space">                </span>summary: { title: "제7경주: 농협중앙회장배(Listed), 1200M", proposition: "절대 강자 '9번 치프스타'가 이끄는 '속도의 전쟁' 예상. 과열된 초반 페이스가 후반 이변의 빌미를 제공할 가능성이 높음." },</p>
+<p class="p1"><span class="Apple-converted-space">                </span>horses: [</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 1, name: "레베랑스", scores: { "스피드": 86, "지구력": 84, "부담력": 80, "선행력": 82, "추입력": 84 }, overallScore: 83.2, strengths: "후반부 순위 상승 능력. 최단거리 이점의 1번 게이트.", weaknesses: "3~4코너에서 바깥으로 크게 도는 악벽." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 2, name: "더엑설런트", scores: { "스피드": 88, "지구력": 85, "부담력": 80, "선행력": 70, "추입력": 98 }, overallScore: 84.2, strengths: "폭발적인 막판 추입력. 빠른 페이스의 최대 수혜주.", weaknesses: "고질적인 출발 지연. 과거 '파행'이라는 심각한 부상 이력." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 3, name: "거센대로", scores: { "스피드": 83, "지구력": 83, "부담력": 80, "선행력": 72, "추입력": 88 }, overallScore: 81.2, strengths: "1200M 우승 경험 및 준수한 막판 스퍼트.", weaknesses: "잦은 진료 기록과 9주의 긴 공백." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 4, name: "원평스킷", scores: { "스피드": 95, "지구력": 82, "부담력": 90, "선행력": 96, "추입력": 70 }, overallScore: 86.6, strengths: "출발과 동시에 선두를 장악하는 압도적인 스피드.", weaknesses: "바깥으로 심하게 기대는 고질적인 주행 악벽." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 5, name: "제이디강자", scores: { "스피드": 82, "지구력": 75, "부담력": 80, "선행력": 84, "추입력": 70 }, overallScore: 78.2, strengths: "1000M 선행 우승 경험.", weaknesses: "심각한 다리 질병 이력과 경주 직전 수액 처치." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 6, name: "원더풀삭스", scores: { "스피드": 92, "지구력": 90, "부담력": 90, "선행력": 90, "추입력": 92 }, overallScore: 90.8, strengths: "최근 2연승의 상승세. 선행과 추입이 모두 가능한 유연함. 양호한 건강 상태.", weaknesses: "2주 만의 짧은 출전 주기로 인한 체력 부담." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 7, name: "만금크라운", scores: { "스피드": 80, "지구력": 80, "부담력": 80, "선행력": 68, "추입력": 95 }, overallScore: 80.6, strengths: "인상적인 추입력 보유 (G-1F 12.7초).", weaknesses: "불안정한 출발과 직선주로 주행 불량." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 8, name: "동강의스타", scores: { "스피드": 85, "지구력": 88, "부담력": 80, "선행력": 75, "추입력": 90 }, overallScore: 83.6, strengths: "검증된 추입 능력. '경마 대통령' 박태종 기수와의 호흡.", weaknesses: "경주 직전 수액 처치. 과거 질병 이력 등 건강 우려." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 9, name: "치프스타", scores: { "스피드": 98, "지구력": 95, "부담력": 90, "선행력": 98, "추입력": 85 }, overallScore: 93.2, strengths: "의심의 여지가 없는 현시점 최강자. 압도적인 스피드와 기록.", weaknesses: "9주의 긴 공백기. 다른 선행마들과의 경합 가능성." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 10, name: "더선불사조", scores: { "스피드": 94, "지구력": 78, "부담력": 90, "선행력": 92, "추입력": 72 }, overallScore: 85.2, strengths: "1000m 59초대 파격적인 기록 보유.", weaknesses: "1200M 경험 전무. 무리한 훈련으로 인한 컨디션 우려." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 11, name: "블리스스타", scores: { "스피드": 85, "지구력": 82, "부담력": 80, "선행력": 85, "추입력": 80 }, overallScore: 82.4, strengths: "1200m 준우승 경험.", weaknesses: "불리한 11번 외곽 게이트." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 12, name: "관악산챔프", scores: { "스피드": 84, "지구력": 86, "부담력": 80, "선행력": 80, "추입력": 85 }, overallScore: 83.0, strengths: "안정적인 선입 전개로 1200M 우승.", weaknesses: "가장 불리한 12번 게이트." }</p>
+<p class="p1"><span class="Apple-converted-space">                </span>],</p>
+<p class="p1"><span class="Apple-converted-space">                </span>bettingStrategy: { title: "최종 베팅 전략: 삼복승식", content: "강력한 우승 후보(9번, 6번)를 인정하면서도, 경주 흐름으로 인해 발생할 수 있는 변수(추입마 2번, 8번의 부상)까지 공략하는 삼복승식 조합이 합리적입니다.", combinations: [ { type: "안정 추구 (복승식)", picks: "9-6" }, { type: "중배당 공략 (삼복승식)", picks: "9-6-2, 9-6-8" }, { type: "고배당 노림 (삼쌍승식)", picks: "9 → 6 → 2, 8 / 9 → 2 → 6, 8" } ] }</p>
+<p class="p1"><span class="Apple-converted-space">            </span>},</p>
+<p class="p1"><span class="Apple-converted-space">            </span>race8: {</p>
+<p class="p1"><span class="Apple-converted-space">                </span>summary: { title: "제8경주: 대통령배(G1), 2000M 장거리", proposition: "'왕의 귀환'과 '신흥 세력의 도전' 구도. 기존 강자들의 컨디션 난조 속에서 진정한 지구력을 갖춘 말이 살아남는 서바이벌 게임." },</p>
+<p class="p1"><span class="Apple-converted-space">                </span>horses: [</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 1, name: "강풍마", scores: { "스피드": 90, "지구력": 97, "부담력": 85, "선행력": 70, "추입력": 98 }, overallScore: 88.0, strengths: "최근 2000M 4전 3승의 압도적인 장거리 적성. 폭발적인 막판 추입력.", weaknesses: "고질적인 출발 지연." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 2, name: "마이드림데이", scores: { "스피드": 92, "지구력": 90, "부담력": 95, "선행력": 88, "추입력": 85 }, overallScore: 90.0, strengths: "2000M 우승 경험이 있는 3세 신예. 부담중량 이점 및 상승세.", weaknesses: "경주 직전 수액 처치. 출발 시 기대는 버릇." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 3, name: "글로벌히트", scores: { "스피드": 98, "지구력": 98, "부담력": 85, "선행력": 90, "추입력": 95 }, overallScore: 93.2, strengths: "자타공인 현존 최강의 국산마. 압도적인 기량과 G1급 스피드.", weaknesses: "'인대염' 부상 후 11주 공백. 경주 직전 수액 처치 등 최악의 컨디션 우려." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 6, name: "석세스백파", scores: { "스피드": 95, "지구력": 95, "부담력": 85, "선행력": 92, "추입력": 90 }, overallScore: 91.4, strengths: "글로벌히트와 자웅을 겨룰 최강자 그룹. 2000M 대상경주 우승 경험.", weaknesses: "과거 '양전지파행'이라는 심각한 부상 이력. 경주 직전 수액 처치." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 9, name: "오아시스레드", scores: { "스피드": 93, "지구력": 85, "부담력": 95, "선행력": 94, "추입력": 80 }, overallScore: 89.4, strengths: "최근 1800m 2연승의 무서운 상승세. 3세마의 패기.", weaknesses: "2000M 첫 도전. 과거 '파행' 이력." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 11, name: "운주가이", scores: { "스피드": 86, "지구력": 87, "부담력": 95, "선행력": 82, "추입력": 86 }, overallScore: 87.2, strengths: "2000m 우승 경험을 갖춘 3세 복병마.", weaknesses: "안쪽에 갇히는 것을 싫어하는 특이한 주행 습성." }</p>
+<p class="p1"><span class="Apple-converted-space">                </span>],</p>
+<p class="p1"><span class="Apple-converted-space">                </span>bettingStrategy: { title: "최종 베팅 전략: 삼복승식", content: "가장 꾸준한 1번 강풍마와 상승세의 2번 마이드림데이를 축으로, 나머지 유력마들을 3위 후보로 조합하는 삼복승식 베팅이 합리적입니다.", combinations: [ { type: "안정 추구 (복승식)", picks: "1-2, 1-3" }, { type: "중배당 공략 (삼복승식)", picks: "1-2-3, 1-2-6, 1-2-9" }, { type: "고배당 노림 (삼쌍승식)", picks: "1 → 2,3 → 9,11 / 3 → 1,2 → 9,11" } ] }</p>
+<p class="p1"><span class="Apple-converted-space">            </span>},</p>
+<p class="p1"><span class="Apple-converted-space">            </span>race9: {</p>
+<p class="p1"><span class="Apple-converted-space">                </span>summary: { title: "제9경주: 혼합 4등급, 1800M 장거리", proposition: "뚜렷한 선행마 부재로 '느린 페이스' 속 '지구력 전쟁' 예상. 막판 스퍼트 능력이 승부를 가를 것." },</p>
+<p class="p1"><span class="Apple-converted-space">                </span>horses: [</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 1, name: "젠틀야라", scores: { "스피드": 88, "지구력": 90, "부담력": 94, "선행력": 80, "추입력": 88 }, overallScore: 88.0, strengths: "3kg 부담중량 감량, 최적의 1번 게이트, 꾸준한 장거리 성적.", weaknesses: "우승을 차지하는 결정적인 한방 부족." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 2, name: "나소챗", scores: { "스피드": 84, "지구력": 88, "부담력": 95, "선행력": 65, "추입력": 98 }, overallScore: 86.0, strengths: "폭발적인 추입력.", weaknesses: "최악의 출발 악벽(과거 출전정지 2개월). 잦은 부상 및 경주 직전 수액 처치." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 3, name: "티나케이", scores: { "스피드": 85, "지구력": 92, "부담력": 85, "선행력": 70, "추입력": 95 }, overallScore: 85.4, strengths: "검증된 장거리 추입마. 꾸준하고 안정적인 기량, 양호한 건강.", weaknesses: "모래를 맞는 것을 싫어하는 예민한 기질." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 6, name: "발더스드래곤", scores: { "스피드": 92, "지구력": 95, "부담력": 70, "선행력": 85, "추입력": 90 }, overallScore: 86.4, strengths: "직전 1800M 경주 우승, 최고의 상승세.", weaknesses: "직전 우승으로 인한 4.5kg의 과도한 부담중량 증가." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 9, name: "이클립스블랙", scores: { "스피드": 90, "지구력": 85, "부담력": 84, "선행력": 92, "추입력": 80 }, overallScore: 86.2, strengths: "1800M 우승 경험, 검증된 능력.", weaknesses: "통제 불능 수준의 심각한 악벽(주행 거부 등)." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 11, name: "축배를들어라", scores: { "스피드": 86, "지구력": 90, "부담력": 75, "선행력": 78, "추입력": 89 }, overallScore: 83.6, strengths: "직전 1700M 우승의 상승세.", weaknesses: "4kg 부담중량 증가, 심각한 다리 질병 이력." }</p>
+<p class="p1"><span class="Apple-converted-space">                </span>],</p>
+<p class="p1"><span class="Apple-converted-space">                </span>bettingStrategy: { title: "최종 베팅 전략: 삼복승식", content: "가장 안정적인 1번 젠틀야라와 3번 티나케이를 축으로, 나머지 유력마들을 3위 후보로 조합하는 삼복승식 베팅이 합리적입니다.", combinations: [ { type: "안정 추구 (복승식)", picks: "3-1, 3-6" }, { type: "중배당 공략 (삼복승식)", picks: "1-3-2, 1-3-6, 1-3-11" }, { type: "고배당 노림 (삼쌍승식)", picks: "6 → 1,3 → 1,2,3,11" } ] }</p>
+<p class="p1"><span class="Apple-converted-space">            </span>},</p>
+<p class="p1"><span class="Apple-converted-space">            </span>race10: {</p>
+<p class="p1"><span class="Apple-converted-space">                </span>summary: { title: "제10경주: 혼4등급, 1400M (암말)", proposition: "강력한 선행마들의 경합으로 '빠른 페이스' 예상. 선두권이 무너지며 추입마에게 절대적으로 유리한 구도." },</p>
+<p class="p1"><span class="Apple-converted-space">                </span>horses: [</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 1, name: "민트플레이", scores: { "스피드": 7, "지구력": 8, "부담력": 8, "선행력": 7, "추입력": 7 }, overallScore: 0, strengths: "1400M 거리 적성, 52kg의 유리한 부담중량.", weaknesses: "코너링 시 바깥으로 기대는 악벽, 경주 직전 수액 처치." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 2, name: "송암스카이", scores: { "스피드": 9, "지구력": 5, "부담력": 6, "선행력": 10, "추입력": 3 }, overallScore: 0, strengths: "폭발적인 초반 스피드를 바탕으로 한 선행력.", weaknesses: "치명적인 폐출혈 이력, 통제 불능에 가까운 심각한 악벽들." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 4, name: "모닝원더", scores: { "스피드": 8, "지구력": 8, "부담력": 8, "선행력": 5, "추입력": 10 }, overallScore: 0, strengths: "출전마 중 최상급 추입력(G-1F 12.9초). 안정적인 건강 상태.", weaknesses: "직선주로에서 안으로 기대는 경미한 악벽." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 6, name: "로열플러스", scores: { "스피드": 9, "지구력": 7, "부담력": 7, "선행력": 10, "추입력": 5 }, overallScore: 0, strengths: "강력한 선행력과 1400M 거리 적성.", weaknesses: "다른 선행마와의 초반 경합 리스크, 기대는 악벽." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 8, name: "아카펠", scores: { "스피드": 7, "지구력": 7, "부담력": 7, "선행력": 4, "추입력": 9 }, overallScore: 0, strengths: "4번 모닝원더에 버금가는 최상급 추입력.", weaknesses: "12주의 긴 공백기로 인한 실전 감각 저하." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 9, name: "안양기쁨", scores: { "스피드": 8, "지구력": 8, "부담력": 7, "선행력": 7, "추입력": 8 }, overallScore: 0, strengths: "균형 잡힌 능력, 어떤 전개에서도 능력을 발휘하는 유연함.", weaknesses: "최근 다리 근육통 및 '파행' 이력." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 11, name: "골드캐처", scores: { "스피드": 8, "지구력": 8, "부담력": 6, "선행력": 5, "추입력": 9 }, overallScore: 0, strengths: "최근 4연속 입상의 절정의 기량, 강력한 추입력.", weaknesses: "직전 우승으로 인한 3kg 부담중량 증가." }</p>
+<p class="p1"><span class="Apple-converted-space">                </span>],</p>
+<p class="p1"><span class="Apple-converted-space">                </span>bettingStrategy: { title: "최종 베팅 전략: 삼복승식", content: "가장 높은 잠재력을 보여준 4번 모닝원더를 축으로, 종반에 강점을 보이는 추입마들을 중심으로 조합을 구성하는 것이 합리적입니다.", combinations: [ { type: "안정 조합 (복승식)", picks: "4-11, 4-9" }, { type: "중배당 공략 (쌍승식)", picks: "4 → 11, 9, 6" }, { type: "고배당 노림 (삼복승식)", picks: "4-9-11, 4-6-11, 4-11-8" } ] }</p>
+<p class="p1"><span class="Apple-converted-space">            </span>},</p>
+<p class="p1"><span class="Apple-converted-space">            </span>race11: {</p>
+<p class="p1"><span class="Apple-converted-space">                </span>summary: { title: "제11경주: 혼3등급, 1800M 장거리", proposition: "일부 상위권 마필의 '건강'과 '제어력' 문제가 최대 변수. 안정적인 선입/추입마 간의 싸움이 될 가능성 높음." },</p>
+<p class="p1"><span class="Apple-converted-space">                </span>horses: [</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 2, name: "금세다", scores: { "스피드": 7, "지구력": 8, "부담력": 7, "선행력": 4, "추입력": 8 }, overallScore: 0, strengths: "검증된 추입력과 노련함.", weaknesses: "고질적인 출발 불안, 과거 부상 이력." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 6, name: "울트라드래곤", scores: { "스피드": 8, "지구력": 9, "부담력": 7, "선행력": 6, "추입력": 10 }, overallScore: 0, strengths: "최상급 추입력(G-1F 12.9초). 완벽한 1800M 거리 적성 및 상승세.", weaknesses: "경미한 건강 이력(교돌상)." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 7, name: "콜긴", scores: { "스피드": 7, "지구력": 8, "부담력": 7, "선행력": 6, "추입력": 8 }, overallScore: 0, strengths: "단 한 번도 무너지지 않는 극강의 안정성.", weaknesses: "우승 결정력 부족. 최근 피로 회복 및 근육통 진료." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 8, name: "탄성의반석", scores: { "스피드": 7, "지구력": 7, "부담력": 7, "선행력": 7, "추입력": 7 }, overallScore: 0, strengths: "1800M 우승 경험이 있는 3세마의 잠재력.", weaknesses: "'모래를 맞지 않으면 제어가 안 되는' 심각하고 통제 불능인 기벽." },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>{ number: 10, name: "슈퍼선더", scores: { "스피드": 7, "지구력": 8, "부담력": 7, "선행력": 4, "추입력": 9 }, overallScore: 0, strengths: "1800M 거리 적성 및 상승세. 안정적인 건강 상태.", weaknesses: "출발이 늦는 경향." }</p>
+<p class="p1"><span class="Apple-converted-space">                </span>],</p>
+<p class="p1"><span class="Apple-converted-space">                </span>bettingStrategy: { title: "최종 베팅 전략: 삼복승식", content: "가장 높은 잠재력을 보여준 6번 울트라드래곤을 축으로, 안정적인 7번, 10번, 2번 등을 조합하는 삼복승식 베팅이 합리적입니다.", combinations: [ { type: "안정 조합 (복승식)", picks: "6-7, 6-10" }, { type: "중배당 공략 (쌍승식)", picks: "6 → 7, 10, 2" }, { type: "고배당 노림 (삼복승식)", picks: "6-7-10, 6-10-2, 6-7-8" } ] }</p>
+<p class="p1"><span class="Apple-converted-space">            </span>}</p>
+<p class="p1"><span class="Apple-converted-space">        </span>};</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>let currentChart = null;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const raceNav = document.getElementById('race-nav');</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const contentWrapper = document.getElementById('race-content-wrapper');</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>function createRadarChart(canvasId, horse) {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const ctx = document.getElementById(canvasId).getContext('2d');</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const labels = Object.keys(horse.scores);</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const data = Object.values(horse.scores);</p>
+<p class="p1"><span class="Apple-converted-space">            </span>if (currentChart &amp;&amp; currentChart.canvas.id.startsWith(canvasId.split('-')[0])) {</p>
+<p class="p1"><span class="Apple-converted-space">                </span>currentChart.destroy();</p>
+<p class="p1"><span class="Apple-converted-space">            </span>}</p>
+<p class="p1"><span class="Apple-converted-space">            </span>currentChart = new Chart(ctx, {</p>
+<p class="p1"><span class="Apple-converted-space">                </span>type: 'radar',</p>
+<p class="p1"><span class="Apple-converted-space">                </span>data: {</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>labels: labels,</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>datasets: [{</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>label: horse.name, data: data, fill: true,</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>backgroundColor: 'rgba(107, 79, 79, 0.2)', borderColor: '#6B4F4F',</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>pointBackgroundColor: '#6B4F4F', pointBorderColor: '#fff',</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>pointHoverBackgroundColor: '#fff', pointHoverBorderColor: '#6B4F4F'</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>}]</p>
+<p class="p1"><span class="Apple-converted-space">                </span>},</p>
+<p class="p1"><span class="Apple-converted-space">                </span>options: {</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>maintainAspectRatio: false,</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>scales: {</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>r: {</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>angleLines: { color: '#EEDDCC' }, grid: { color: '#EEDDCC' },</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>pointLabels: { font: { size: 12 }, color: '#433636' },</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>ticks: { color: '#A08C8C', backdropColor: '#F9F5F1', stepSize: 20 },</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>min: 0, max: 100</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>}</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>},</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>plugins: { legend: { display: false } }</p>
+<p class="p1"><span class="Apple-converted-space">                </span>}</p>
+<p class="p1"><span class="Apple-converted-space">            </span>});</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>function createBarChart(canvasId, horses) {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const ctx = document.getElementById(canvasId).getContext('2d');</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const sortedHorses = [...horses].sort((a, b) =&gt; b.overallScore - a.overallScore);</p>
+<p class="p1"><span class="Apple-converted-space">            </span>if (currentChart &amp;&amp; currentChart.canvas.id.startsWith(canvasId.split('-')[0])) {</p>
+<p class="p1"><span class="Apple-converted-space">                </span>currentChart.destroy();</p>
+<p class="p1"><span class="Apple-converted-space">            </span>}</p>
+<p class="p1"><span class="Apple-converted-space">            </span>currentChart = new Chart(ctx, {</p>
+<p class="p1"><span class="Apple-converted-space">                </span>type: 'bar',</p>
+<p class="p1"><span class="Apple-converted-space">                </span>data: {</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>labels: sortedHorses.map(h =&gt; `${h.number}. ${h.name}`),</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>datasets: [{</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>label: '종합 점수', data: sortedHorses.map(h =&gt; h.overallScore),</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>backgroundColor: '#6B4F4F', borderColor: '#433636', borderWidth: 1</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>}]</p>
+<p class="p1"><span class="Apple-converted-space">                </span>},</p>
+<p class="p1"><span class="Apple-converted-space">                </span>options: {</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>indexAxis: 'y', maintainAspectRatio: false,</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) =&gt; `종합 점수: ${c.raw}` } } },</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>scales: {</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>x: { beginAtZero: true, grid: { color: '#EEDDCC' }, ticks: { color: '#433636' } },</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>y: { grid: { display: false }, ticks: { color: '#433636' } }</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>}</p>
+<p class="p1"><span class="Apple-converted-space">                </span>}</p>
+<p class="p1"><span class="Apple-converted-space">            </span>});</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p2"><span class="Apple-converted-space">        </span></p>
+<p class="p1"><span class="Apple-converted-space">        </span>function showRace(raceId) {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>document.querySelectorAll('#race-nav .nav-button').forEach(btn =&gt; btn.classList.toggle('active', btn.dataset.raceId === raceId));</p>
+<p class="p1"><span class="Apple-converted-space">            </span>document.querySelectorAll('.race-content').forEach(content =&gt; content.style.display = content.id === `${raceId}-content` ? 'block' : 'none');</p>
+<p class="p1"><span class="Apple-converted-space">            </span>showRaceOverview(raceId);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>function showHorseDetails(raceId, horseNumber) {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const race = raceData[raceId];</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const horse = race.horses.find(h =&gt; h.number == horseNumber);</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const detailContainer = document.getElementById(`${raceId}-details`);</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const overviewContainer = document.getElementById(`${raceId}-overview`);</p>
+<p class="p1"><span class="Apple-converted-space">            </span>document.querySelectorAll(`#${raceId}-horse-list .horse-item`).forEach(item =&gt; item.classList.toggle('active', item.dataset.horseNumber == horseNumber));</p>
+<p class="p1"><span class="Apple-converted-space">            </span>overviewContainer.style.display = 'none';</p>
+<p class="p1"><span class="Apple-converted-space">            </span>detailContainer.innerHTML = `</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="flex justify-between items-center mb-4"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;h3 class="text-2xl font-bold text-[#6B4F4F]"&gt;${horse.number}. ${horse.name} 상세 분석&lt;/h3&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;button onclick="showRaceOverview('${raceId}')" class="text-sm text-[#A08C8C] hover:text-[#6B4F4F]"&gt;&amp;larr; 전체 보기&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="chart-container mb-6"&gt; &lt;canvas id="${raceId}-horse-chart"&gt;&lt;/canvas&gt; &lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;div class="space-y-4"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;div&gt; &lt;h4 class="font-bold text-lg"&gt;강점&lt;/h4&gt; &lt;p&gt;${horse.strengths}&lt;/p&gt; &lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;div&gt; &lt;h4 class="font-bold text-lg text-red-700"&gt;약점 및 위험요소&lt;/h4&gt; &lt;p&gt;${horse.weaknesses}&lt;/p&gt; &lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>&lt;/div&gt;`;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>detailContainer.style.display = 'block';</p>
+<p class="p1"><span class="Apple-converted-space">            </span>createRadarChart(`${raceId}-horse-chart`, horse);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>function showRaceOverview(raceId) {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const race = raceData[raceId];</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const detailContainer = document.getElementById(`${raceId}-details`);</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const overviewContainer = document.getElementById(`${raceId}-overview`);</p>
+<p class="p1"><span class="Apple-converted-space">            </span>document.querySelectorAll(`#${raceId}-horse-list .horse-item`).forEach(item =&gt; item.classList.remove('active'));</p>
+<p class="p1"><span class="Apple-converted-space">            </span>detailContainer.style.display = 'none';</p>
+<p class="p1"><span class="Apple-converted-space">            </span>overviewContainer.style.display = 'block';</p>
+<p class="p1"><span class="Apple-converted-space">            </span>createBarChart(`${raceId}-overview-chart`, race.horses.filter(h =&gt; h.overallScore &gt; 0));</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>function initializeDashboard() {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>Object.keys(raceData).forEach((raceId, index) =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const raceName = raceId.replace('race', '제') + '경주';</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const button = document.createElement('button');</p>
+<p class="p1"><span class="Apple-converted-space">                </span>button.className = `nav-button px-4 py-2 rounded-lg bg-[#EEDDCC] text-[#6B4F4F]`;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>button.textContent = raceName;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>button.dataset.raceId = raceId;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>if (index === 0) button.classList.add('active');</p>
+<p class="p1"><span class="Apple-converted-space">                </span>button.onclick = () =&gt; showRace(raceId);</p>
+<p class="p1"><span class="Apple-converted-space">                </span>raceNav.appendChild(button);</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const race = raceData[raceId];</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const contentDiv = document.createElement('div');</p>
+<p class="p1"><span class="Apple-converted-space">                </span>contentDiv.id = `${raceId}-content`;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>contentDiv.className = 'race-content';</p>
+<p class="p1"><span class="Apple-converted-space">                </span>contentDiv.style.display = index === 0 ? 'block' : 'none';</p>
+<p class="p1"><span class="Apple-converted-space">                </span>let horseListHTML = race.horses.map(h =&gt; `&lt;div class="horse-item p-3 rounded-lg cursor-pointer border-b border-[#EEDDCC]" data-horse-number="${h.number}" onclick="showHorseDetails('${raceId}', ${h.number})"&gt;&lt;span class="font-bold text-lg text-[#6B4F4F]"&gt;${h.number}.&lt;/span&gt; ${h.name}&lt;/div&gt;`).join('');</p>
+<p class="p1"><span class="Apple-converted-space">                </span>let bettingCombinationsHTML = race.bettingStrategy.combinations.map(c =&gt; `&lt;div class="bg-[#F9F5F1] p-3 rounded-lg"&gt;&lt;p class="font-semibold"&gt;${c.type}&lt;/p&gt;&lt;p class="text-lg font-bold text-[#6B4F4F]"&gt;${c.picks}&lt;/p&gt;&lt;/div&gt;`).join('');</p>
+<p class="p1"><span class="Apple-converted-space">                </span>contentDiv.innerHTML = `</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;div class="bg-[#FFFFFF] p-6 rounded-lg shadow-lg mb-8"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;h2 class="text-3xl font-bold mb-2"&gt;${race.summary.title}&lt;/h2&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;p class="text-md text-gray-600"&gt;${race.summary.proposition}&lt;/p&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;div class="md:flex md:gap-8"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;div id="${raceId}-horse-list" class="md:w-1/3 bg-[#FFFFFF] p-4 rounded-lg shadow-lg h-full mb-6 md:mb-0 overflow-y-auto" style="max-height: 80vh;"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;h3 class="text-xl font-bold mb-4 text-[#6B4F4F] border-b-2 border-[#EEDDCC] pb-2"&gt;출전마 목록&lt;/h3&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>${horseListHTML}</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;div class="md:w-2/3 bg-[#FFFFFF] p-6 rounded-lg shadow-lg"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                           </span>&lt;div id="${raceId}-overview"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                </span>&lt;h3 class="text-2xl font-bold mb-4 text-[#6B4F4F]"&gt;경주 종합 분석&lt;/h3&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                </span>&lt;div class="chart-container mb-6"&gt;&lt;canvas id="${raceId}-overview-chart"&gt;&lt;/canvas&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                </span>&lt;div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                    </span>&lt;h4 class="font-bold text-xl mb-3"&gt;${race.bettingStrategy.title}&lt;/h4&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                    </span>&lt;p class="mb-4"&gt;${race.bettingStrategy.content}&lt;/p&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                    </span>&lt;div class="space-y-3"&gt;${bettingCombinationsHTML}&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                                </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                           </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                           </span>&lt;div id="${raceId}-details" style="display:none;"&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;`;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>contentWrapper.appendChild(contentDiv);</p>
+<p class="p1"><span class="Apple-converted-space">            </span>});</p>
+<p class="p1"><span class="Apple-converted-space">            </span>showRace(Object.keys(raceData)[0]);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>// === CSV Generator JS ===</p>
+<p class="p1"><span class="Apple-converted-space">        </span>function initializeGenerator() {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const fileInput = document.getElementById('chuljeonpyo-file');</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const loadHorsesBtn = document.getElementById('load-horses-btn');</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const generateCsvBtn = document.getElementById('generate-csv-btn');</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const fileStatusDiv = document.getElementById('file-status');</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const horseTableBody = document.getElementById('horse-table-body');</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const step2Section = document.getElementById('step2');</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const step3Section = document.getElementById('step3');</p>
+<p class="p1"><span class="Apple-converted-space">            </span>let horseData = [];</p>
+<p class="p1"><span class="Apple-converted-space">            </span>let baseFileName = '경주';</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">            </span>loadHorsesBtn.addEventListener('click', () =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">                </span>if (fileInput.files.length === 0) {</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>fileStatusDiv.innerHTML = `&lt;p class="text-red-500 font-semibold"&gt;오류: '출전표.csv' 파일을 선택해주세요.&lt;/p&gt;`;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>return;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>}</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const file = fileInput.files[0];</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const originalFileName = file.name;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const underscoreIndex = originalFileName.indexOf('_');</p>
+<p class="p1"><span class="Apple-converted-space">                </span>baseFileName = underscoreIndex !== -1 ? originalFileName.substring(0, underscoreIndex).replace(/ 제\d+일/, '').trim() : originalFileName.replace(/\.csv$/i, '');</p>
+<p class="p1"><span class="Apple-converted-space">                </span>fileStatusDiv.innerHTML = `&lt;div class="flex items-center justify-center"&gt;&lt;div class="loader mr-2"&gt;&lt;/div&gt;&lt;p class="text-teal-600 font-semibold"&gt;파일을 읽고 있습니다...&lt;/p&gt;&lt;/div&gt;`;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>Papa.parse(file, {</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>skipEmptyLines: true,</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>beforeFirstChunk: chunk =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>const lines = chunk.split('\n');</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>const headerIndex = lines.findIndex(line =&gt; line.includes('번호▲') &amp;&amp; line.includes('마명'));</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>return headerIndex &gt; -1 ? lines.slice(headerIndex).join('\n') : chunk;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>},</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>header: true,</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>complete: results =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>if (results.errors.length &gt; 0) {</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>fileStatusDiv.innerHTML = `&lt;p class="text-red-500 font-semibold"&gt;파일 파싱 오류: ${results.errors[0].message}&lt;/p&gt;`; return;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>}</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>horseData = results.data.map(row =&gt; ({ number: row['번호▲'], name: row['마명'] })).filter(h =&gt; h.number &amp;&amp; h.name);</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>if (horseData.length === 0) {</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>fileStatusDiv.innerHTML = `&lt;p class="text-red-500 font-semibold"&gt;오류: 출전마 정보를 찾을 수 없습니다. 파일 형식을 확인해주세요.&lt;/p&gt;`; return;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>}</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>populateTable();</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>fileStatusDiv.innerHTML = `&lt;p class="text-green-600 font-semibold"&gt;✅ ${horseData.length}마의 출전마를 성공적으로 불러왔습니다.&lt;/p&gt;`;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>step2Section.classList.remove('hidden');</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>step3Section.classList.remove('hidden');</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>},</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>error: err =&gt; { fileStatusDiv.innerHTML = `&lt;p class="text-red-500 font-semibold"&gt;파일 읽기 오류: ${err.message}&lt;/p&gt;`; }</p>
+<p class="p1"><span class="Apple-converted-space">                </span>});</p>
+<p class="p1"><span class="Apple-converted-space">            </span>});</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">            </span>function populateTable() {</p>
+<p class="p1"><span class="Apple-converted-space">                </span>horseTableBody.innerHTML = '';</p>
+<p class="p1"><span class="Apple-converted-space">                </span>horseData.forEach(horse =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>const row = `</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;tr class="hover:bg-gray-50"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;td class="px-4 py-4"&gt;&lt;div class="flex items-center"&gt;&lt;div class="w-8 h-8 flex-shrink-0 flex items-center justify-center bg-teal-100 text-teal-800 rounded-full font-bold"&gt;${horse.number}&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;td class="px-4 py-4"&gt;&lt;div class="text-sm font-semibold text-gray-900"&gt;${horse.name}&lt;/div&gt;&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;td class="px-4 py-4"&gt;&lt;input type="number" name="weight" data-horse-number="${horse.number}" placeholder="예: 485" class="w-28 border-gray-300 rounded-md shadow-sm text-sm"&gt;&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                            </span>&lt;td class="px-4 py-4"&gt;&lt;input type="number" step="0.1" name="odds" data-horse-number="${horse.number}" placeholder="예: 5.2" class="w-28 border-gray-300 rounded-md shadow-sm text-sm"&gt;&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">                        </span>&lt;/tr&gt;`;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>horseTableBody.insertAdjacentHTML('beforeend', row);</p>
+<p class="p1"><span class="Apple-converted-space">                </span>});</p>
+<p class="p1"><span class="Apple-converted-space">            </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">            </span>generateCsvBtn.addEventListener('click', () =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const rows = Array.from(document.querySelectorAll('#horse-table-body tr'));</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const csvData = rows.map(row =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>const number = row.querySelector('input[name="weight"]').dataset.horseNumber;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>const name = row.cells[1].innerText;</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>const weight = row.querySelector('input[name="weight"]').value || '';</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>const odds = row.querySelector('input[name="odds"]').value || '';</p>
+<p class="p1"><span class="Apple-converted-space">                    </span>return { '번호': number, '마명': name, '금일체중': weight, '단승배당률': odds };</p>
+<p class="p1"><span class="Apple-converted-space">                </span>});</p>
+<p class="p1"><span class="Apple-converted-space">                </span>downloadCsv(Papa.unparse(csvData));</p>
+<p class="p1"><span class="Apple-converted-space">            </span>});</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">            </span>function downloadCsv(csvString) {</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const blob = new Blob([`\uFEFF${csvString}`], { type: 'text/csv;charset=utf-8;' });</p>
+<p class="p1"><span class="Apple-converted-space">                </span>const link = document.createElement('a');</p>
+<p class="p1"><span class="Apple-converted-space">                </span>link.href = URL.createObjectURL(blob);</p>
+<p class="p1"><span class="Apple-converted-space">                </span>link.download = `${baseFileName}_당일정보.csv`;</p>
+<p class="p1"><span class="Apple-converted-space">                </span>link.style.visibility = 'hidden';</p>
+<p class="p1"><span class="Apple-converted-space">                </span>document.body.appendChild(link);</p>
+<p class="p1"><span class="Apple-converted-space">                </span>link.click();</p>
+<p class="p1"><span class="Apple-converted-space">                </span>document.body.removeChild(link);</p>
+<p class="p1"><span class="Apple-converted-space">            </span>}</p>
+<p class="p1"><span class="Apple-converted-space">        </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>// Initialize both parts of the app</p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.addEventListener('DOMContentLoaded', () =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>initializeDashboard();</p>
+<p class="p1"><span class="Apple-converted-space">            </span>initializeGenerator();</p>
+<p class="p1"><span class="Apple-converted-space">        </span>});</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;/script&gt;</p>
+<p class="p1">&lt;/body&gt;</p>
+<p class="p1">&lt;/html&gt;</p>
+</body>
+</html>
