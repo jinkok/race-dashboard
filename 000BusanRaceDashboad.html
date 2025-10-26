@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>부산 경마 예측 요약 (3-6경주)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Alpine.js for TABS -->
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto" x-data="{ activeTab: 'race3' }">
+        <!-- 페이지 헤더 -->
+        <header class="p-6 md:p-8 bg-gradient-to-r from-blue-800 to-blue-600 text-white shadow-md rounded-t-2xl">
+            <h1 class="text-3xl md:text-4xl font-bold text-center">부산 경마 핵심 분석 (3-6 경주)</h1>
+            <p class="text-center text-blue-100 text-lg mt-2">2025년 10월 26일</p>
+        </header>
+
+        <!-- 탭 버튼 -->
+        <nav class="flex bg-white shadow-md rounded-b-lg overflow-hidden">
+            <button @click="activeTab = 'race3'" 
+                    :class="activeTab === 'race3' ? 'border-blue-600 text-blue-700 bg-blue-50' : 'border-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
+                    class="flex-1 py-4 px-1 text-center font-medium border-b-4 focus:outline-none transition-all duration-300">
+                <span class="block text-sm md:text-lg">제 3 경주</span>
+                <span class="text-xs md:text-sm text-gray-500">(G3) 2000m</span>
+            </button>
+            <button @click="activeTab = 'race4'" 
+                    :class="activeTab === 'race4' ? 'border-blue-600 text-blue-700 bg-blue-50' : 'border-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
+                    class="flex-1 py-4 px-1 text-center font-medium border-b-4 focus:outline-none transition-all duration-300">
+                <span class="block text-sm md:text-lg">제 4 경주</span>
+                <span class="text-xs md:text-sm text-gray-500">국4 1800m</span>
+            </button>
+            <button @click="activeTab = 'race5'" 
+                    :class="activeTab === 'race5' ? 'border-blue-600 text-blue-700 bg-blue-50' : 'border-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
+                    class="flex-1 py-4 px-1 text-center font-medium border-b-4 focus:outline-none transition-all duration-300">
+                <span class="block text-sm md:text-lg">제 5 경주</span>
+                <span class="text-xs md:text-sm text-gray-500">혼4 1600m</span>
+            </button>
+            <button @click="activeTab = 'race6'" 
+                    :class="activeTab === 'race6' ? 'border-blue-600 text-blue-700 bg-blue-50' : 'border-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-50'"
+                    class="flex-1 py-4 px-1 text-center font-medium border-b-4 focus:outline-none transition-all duration-300">
+                <span class="block text-sm md:text-lg">제 6 경주</span>
+                <span class="text-xs md:text-sm text-gray-500">(G3) 1400m</span>
+            </button>
+        </nav>
+
+        <!-- 탭 컨텐츠 -->
+        <main class="mt-4">
+            
+            <!-- 경주 3 -->
+            <div x-show="activeTab === 'race3'" x-cloak class="bg-white rounded-2xl shadow-xl overflow-hidden animate-fade-in">
+                <main class="p-6 md:p-8 space-y-8">
+                    <!-- 전개 예측 -->
+                    <section>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4 border-l-4 border-blue-600 pl-3">제3경주 전개 예측</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- 시나리오 A -->
+                            <div class="border border-gray-200 rounded-lg p-5 bg-gray-50">
+                                <h3 class="font-bold text-lg text-red-700">시나리오 A: 하이 페이스 붕괴 (발생 확률 70%)</h3>
+                                <p class="text-gray-600 mt-2">
+                                    15번 캐치더드림, 11번 원더풀케이랜, 7번 아잔타 등 빠른 선행마들이 초반 경합을 벌일 가능성이 높습니다.
+                                </p>
+                                <p class="text-gray-800 font-medium mt-3">
+                                    <span class="text-green-600 font-bold">▶ 수혜마:</span> 종반 강력한 추입력을 갖춘 <span class="font-bold">3번 보령라이트퀸</span>과 <span class="font-bold">12번 라온포레스트</span>에게 매우 유리한 전개입니다.
+                                </p>
+                            </div>
+                            <!-- 시나리오 B -->
+                            <div class="border border-gray-200 rounded-lg p-5 bg-gray-50">
+                                <h3 class="font-bold text-lg text-blue-700">시나리오 B: 의외의 단독 선행 (발생 확률 30%)</h3>
+                                <p class="text-gray-600 mt-2">
+                                    15번 캐치더드림이 압도적인 스피드로 단독 선두를 차지하고, 다른 말들이 경합을 피해 페이스가 안정되는 경우입니다.
+                                </p>
+                                <p class="text-gray-800 font-medium mt-3">
+                                    <span class="text-green-600 font-bold">▶ 수혜마:</span> <span class="font-bold">15번 캐치더드림</span>이 버틸 가능성이 높아지고, 선입마 <span class="font-bold">10번 글라디우스</span>에게도 유리합니다.
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+        
+                    <!-- 전체 출전마 정보 -->
+                    <section>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4 border-l-4 border-blue-600 pl-3">제3경주 전체 출전마 정보</h2>
+                        <div class="overflow-x-auto rounded-lg border border-gray-200">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">마번</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">마명</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">기수</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">중량변화</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">최근 5경주</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">각질</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">위험도</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">핵심 코멘트</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">1</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">[서]레이디폭스</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">조상범</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-red-600 font-medium">(+3kg)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">5-2-2-2-1</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">추입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">높음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">심각한 출발 악벽(고착), 최근 파행. 제외 권고.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">2</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">레이디베이더</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">다나카</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-red-600 font-medium">(+2.5kg)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">9-11-6-2-1</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">선입/추입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">높음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">경주 후 '절음' 확인. 만성 문제로 하락세.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-blue-700">3</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">보령라이트퀸</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">정도윤</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">(-0.5kg)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">1-4-4-1-3</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">극추입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">낮음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">2000m(오크스) 우승. G-1F 11.9초. 빠른 페이스 시 최수혜마.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">4</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">금아휴즈히트</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">서승운</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-red-600 font-medium">(+1kg)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">6-1-1-11-3</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">선입/자유</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">높음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">출발대 진입 거부(기질 문제), 만성 관절염.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">5</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">[서]플라잉스타</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">장추열</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(0)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">4-9-8-6-7</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">선행/선입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">높음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">기수 "뛸 의지 없음". 뼈 질환(골연골증) 의심.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">6</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">[서]패션스타</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">정우주</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(0)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">1-1-1-6-5</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">추입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">낮음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">1800m 3연승 기세. 심각한 출발 악벽이 변수. 복병마.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">7</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">아잔타</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">김혜선</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-red-600 font-medium">(+1kg)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">1-5-3-4-4</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">선행/선입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">낮음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">모래(킥백) 민감. 선행 경합 시 무너질 가능성 높음.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">8</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">유어턴</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">이성재</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(0)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">13-1-4-4-4</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">선행</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">중간</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">선행 의존도 높음. 퇴행성 관절염 기록.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">9</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">유니언챔프</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">먼로</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-red-600 font-medium">(+1kg)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">2-2-1-2-1</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">선입/추입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">낮음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">꾸준함이 장점이나 G3급 능력은 다소 부족.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-blue-700">10</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">[서]글라디우스</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">김용근</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(0)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">3-1-4-5-1</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">선입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">낮음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">현역 최상위 클래스(레이팅 102). 안정적 운영. 2000m 첫 도전.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">11</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">원더풀케이랜</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">이현종</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-red-600 font-medium">(+0.5kg)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">2-9-1-11-3</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">선행</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">중간</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">'모 아니면 도'. 모래 민감. 최근 다리 부종.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-blue-700">12</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">[서]라온포레스트</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">최범현</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(0)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">5-1-1-4-4</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">추입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">중간</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">레이팅 1위(106). 2000m 검증. 최근 다리 진료(파행) 기록이 변수.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">13</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">에이스하이</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">최시대</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(0)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">2-1-2-2-8</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">선입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">낮음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">꾸준한 상승세. 3착권 내 진입 가능한 다크호스.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">14</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">[서]서부챔프</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">문정균</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">(-2kg)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">2-1-1-6-6</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">추입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">중간</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">상습적 늦발, 긴 출전 주기. G3급 경쟁력 의문.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-blue-700">15</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">캐치더드림</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">다실바</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">(-3kg)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">1-1-1-10-2</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">선행</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">중간</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">부담중량 -3kg 최대 이점. 단독 선행 시 이변 가능. 관절염 기록.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">16</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">[서]퀸톱</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">임다빈</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-red-600 font-medium">(+2.5kg)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">7-8-11-3-1</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">추입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">높음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">기수 "추진 의지 없음". 경주 의욕 상실. 하락세.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+        
+                    <!-- 추천 배팅 조합 -->
+                    <section>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4 border-l-4 border-blue-600 pl-3">제3경주 추천 배팅 조합</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="border border-green-300 bg-green-50 rounded-lg p-5">
+                                <h4 class="font-bold text-lg text-green-800">안정 조합 (시나리오 A 기반)</h4>
+                                <p class="text-sm text-green-700">(빠른 페이스 & 추입마 유리)</p>
+                                <ul class="list-disc list-inside mt-3 text-green-700 space-y-1">
+                                    <li><span class="font-semibold">복승 (주력):</span> 3-12</li>
+                                    <li><span class="font-semibold">복승 (방어):</span> 3-10, 12-10</li>
+                                    <li><span class="font-semibold">삼복승 (1순위):</span> 3-10-12</li>
+                                </ul>
+                            </div>
+                            <div class="border border-red-300 bg-red-50 rounded-lg p-5">
+                                <h4 class="font-bold text-lg text-red-800">고배당 조합 (시나리오 B 기반)</h4>
+                                <p class="text-sm text-red-700">(15번 단독 선행 가정)</p>
+                                <ul class="list-disc list-inside mt-3 text-red-700 space-y-1">
+                                    <li><span class="font-semibold">쌍승 (1착 15 고정):</span> 15 → 3</li>
+                                    <li><span class="font-semibold">쌍승 (방어):</span> 15 → 10, 15 → 12</li>
+                                    <li><span class="font-semibold">삼쌍승 (예):</span> 15 → 3,10,12 → 3,10,12</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+                </main>
+            </div>
+            
+            <!-- 경주 4 -->
+            <div x-show="activeTab === 'race4'" x-cloak class="bg-white rounded-2xl shadow-xl overflow-hidden animate-fade-in">
+                <main class="p-6 md:p-8 space-y-8">
+                    <!-- 전개 예측 -->
+                    <section>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4 border-l-4 border-blue-600 pl-3">제4경주 전개 예측</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- 시나리오 A -->
+                            <div class="border border-gray-200 rounded-lg p-5 bg-gray-50">
+                                <h3 class="font-bold text-lg text-red-700">시나리오 1: 정직한 페이스 (발생 확률 높음)</h3>
+                                <p class="text-gray-600 mt-2">
+                                    7번 에런다이트가 선행하고 9번 마통령이 압박하며, 10번, 11번이 뒤따르는 꾸준한 페이스가 예상됩니다.
+                                </p>
+                                <p class="text-gray-800 font-medium mt-3">
+                                    <span class="text-green-600 font-bold">▶ 수혜마:</span> 힘을 안배한 추입마 <span class="font-bold">10번 인디고스트</span>, <span class="font-bold">3번 벌교마술사</span>, <span class="font-bold">1번 다이아그릿</span>에게 유리합니다.
+                                </p>
+                            </div>
+                            <!-- 시나리오 B -->
+                            <div class="border border-gray-200 rounded-lg p-5 bg-gray-50">
+                                <h3 class="font-bold text-lg text-blue-700">시나리오 2: 느린 페이스 (발생 확률 낮음)</h3>
+                                <p class="text-gray-600 mt-2">
+                                    7번 에런다이트가 쉽게 단독 선행을 하고 후속 마필들이 견제만 하며 페이스가 느려지는 경우입니다.
+                                </p>
+                                <p class="text-gray-800 font-medium mt-3">
+                                    <span class="text-green-600 font-bold">▶ 수혜마:</span> <span class="font-bold">7번 에런다이트</span>의 버티기 가능성이 급상승하며, <span class="font-bold">9번 마통령</span>도 편하게 경주를 풀어갈 수 있습니다.
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+        
+                    <!-- 전체 출전마 정보 -->
+                    <section>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4 border-l-4 border-blue-600 pl-3">제4경주 전체 출전마 정보</h2>
+                        <div class="overflow-x-auto rounded-lg border border-gray-200">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">마번</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">마명</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">기수</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">중량변화</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">최근 5경주</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">각질</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">위험도</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">핵심 코멘트</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-blue-700">1</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">다이아그릿</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">진겸</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-red-600 font-medium">(+1.5kg)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">1-?-?-?-?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">추입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">낮음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">직전 1800m 우승. 고질적 악벽(기대기)이 변수.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">2</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">코이누르</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">김동영</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(0)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">12-10-?-?-?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">자유</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">높음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">부상 이력(열창), 하락세 뚜렷. 제외 권고.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-blue-700">3</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">벌교마술사</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">김혜선</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(0)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">3-1-?-?-?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">추입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">중간</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">최고 추입력(G-1F 12.5초). 최고 중량(57.5kg)과 늦발이 관건.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">4</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">상상그이상</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">정도윤</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">(-1kg)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(장기부진)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">선입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">높음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">만성 관절염, "뛰지 않으려는 습성". 제외 권고.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">5</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">함안여항산</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">이효식</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">(-3kg)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(부진)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">후미</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">중간</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">7세 노장마, 좌전지 절음 이력. 능력 한계.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">6</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">벌교사랑</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">권오찬</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(0)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(하위권)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">후미</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">낮음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">기본 능력 부족. 최저 중량(51kg) 의미 없음.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-blue-700">7</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">에런다이트</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">다실바</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(0)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">4-3-1-?-?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">선행</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">낮음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">'핸디캡 이점마'. 선행 시 최대 복병.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">8</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">아침의희망</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">모준호</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(0)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">8-6-9-?-?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">후미</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">중간</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">심각한 출발 악벽(기립). 경쟁력 부족.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-blue-700">9</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">마통령</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">최시대</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-red-600 font-medium">(+4kg)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">1-?-?-?-?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">선행/선입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">낮음-중간</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">직전 압도적 우승. +4kg 중량 극복이 관건.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-blue-700">10</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">인디고스트</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">서승운</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-red-600 font-medium">(+2kg)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">1-?-?-?-?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">선입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">낮음-중간</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">상승세 뚜렷. 모래(킥백) 싫어함. 10번 게이트 유리.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-blue-700">11</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">플라잉더칸</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">먼로</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(0)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">5-2-1-?-?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">선입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">낮음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">'핸디캡 이점마'(52kg). 3착권 복병마.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">12</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">제트캐시</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">정우주</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(0)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(하위권)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">후미</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">낮음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">상습 늦발. 능력 부족. 12번 게이트 불리.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+        
+                    <!-- 추천 배팅 조합 -->
+                    <section>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4 border-l-4 border-blue-600 pl-3">제4경주 추천 배팅 조합</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="border border-green-300 bg-green-50 rounded-lg p-5">
+                                <h4 class="font-bold text-lg text-green-800">안정 조합 (시나리오 1 기반)</h4>
+                                <p class="text-sm text-green-700">(정직한 페이스)</p>
+                                <ul class="list-disc list-inside mt-3 text-green-700 space-y-1">
+                                    <li><span class="font-semibold">축마:</span> 10번 인디고스트</li>
+                                    <li><span class="font-semibold">복승 (주력):</span> 10-9, 10-3</li>
+                                    <li><span class="font-semibold">삼복승 (주력):</span> 10-9-3, 10-9-1</li>
+                                </ul>
+                            </div>
+                            <div class="border border-red-300 bg-red-50 rounded-lg p-5">
+                                <h4 class="font-bold text-lg text-red-800">고배당 조합 (시나리오 2 기반)</h4>
+                                <p class="text-sm text-red-700">(7번 단독 선행 가정)</p>
+                                <ul class="list-disc list-inside mt-3 text-red-700 space-y-1">
+                                    <li><span class="font-semibold">축마:</span> 7번 에런다이트, 9번 마통령</li>
+                                    <li><span class="font-semibold">쌍승 (주력):</span> 7 → 9, 7 → 10</li>
+                                    <li><span class="font-semibold">삼쌍승 (고배당):</span> 7 → 9,10 → 3,11</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+                </main>
+            </div>
+            
+            <!-- 경주 5 -->
+            <div x-show="activeTab === 'race5'" x-cloak class="bg-white rounded-2xl shadow-xl overflow-hidden animate-fade-in">
+                <main class="p-6 md:p-8 space-y-8">
+                    <!-- 전개 예측 -->
+                    <section>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4 border-l-4 border-blue-600 pl-3">제5경주 전개 예측</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- 시나리오 A -->
+                            <div class="border border-gray-200 rounded-lg p-5 bg-gray-50">
+                                <h3 class="font-bold text-lg text-red-700">시나리오 1: 빠른 페이스 (발생 확률 높음)</h3>
+                                <p class="text-gray-600 mt-2">
+                                    3번 에코챔프와 5번 영광의허니가 양보 없는 선행 경합을 벌일 가능성이 매우 높습니다.
+                                </p>
+                                <p class="text-gray-800 font-medium mt-3">
+                                    <span class="text-green-600 font-bold">▶ 수혜마:</span> 후미에서 힘을 안배한 추입마 <span class="font-bold">6번 트러블메이커</span>, <span class="font-bold">9번 브라운팰컨</span>, <span class="font-bold">12번 남도일등</span>에게 최적의 시나리오입니다.
+                                </p>
+                            </div>
+                            <!-- 시나리오 B -->
+                            <div class="border border-gray-200 rounded-lg p-5 bg-gray-50">
+                                <h3 class="font-bold text-lg text-blue-700">시나리오 2: 보통 페이스 (발생 확률 낮음)</h3>
+                                <p class="text-gray-600 mt-2">
+                                    두 선행마 중 한쪽이 경합을 피하고 2위로 물러서며 단독 선행 구도가 형성되는 경우입니다.
+                                </p>
+                                <p class="text-gray-800 font-medium mt-3">
+                                    <span class="text-green-600 font-bold">▶ 수혜마:</span> 단독 선행마(3번 or 5번)의 버티기 가능성이 높아지고, 선입마 <span class="font-bold">1번 금아프리시드</span>에게도 유리합니다.
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+        
+                    <!-- 전체 출전마 정보 -->
+                    <section>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4 border-l-4 border-blue-600 pl-3">제5경주 전체 출전마 정보</h2>
+                        <div class="overflow-x-auto rounded-lg border border-gray-200">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">마번</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">마명</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">기수</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">중량변화</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">최근 5경주</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">각질</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">위험도</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">핵심 코멘트</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-blue-700">1</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">금아프리시드</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(0)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">3-4-3-2-1</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">선입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">중간</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">꾸준하지만 결정력 부족. 잦은 치료 이력.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">2</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">성실시화</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-red-600 font-medium">(+0.5kg)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">4-7-7-9-8</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">자유</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">중간</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">심각한 외측 사행 악벽, 하락세.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-blue-700">3</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">에코챔프</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(0)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">3-1-5-1-6</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">선행</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">낮음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">상승세의 선행마. 1600m 첫 도전이 관건.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">4</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">세광최강</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-red-600 font-medium">(+1kg)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">9-11-8-6-5</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">추입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">낮음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">심각한 출발 악벽, 능력 부진.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-blue-700">5</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">영광의허니</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-red-600 font-medium">(+0.5kg)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">5-7-1-1-?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">선행</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">낮음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">선행 경합 시 종반 무너지는 약점.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-blue-700">6</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">트러블메이커</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-red-600 font-medium">(+1kg)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">7-3-5-2-4</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">추입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">낮음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">가장 꾸준하고 안정적인 추입마.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">7</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">퀸오브드래곤</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">(-0.5kg)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">?-?-?-2-?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">선입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">높음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">12주 긴 공백기, 심각한 힘줄염 이력.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">8</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">플라잉메니스</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(0)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">3-?-?-?-?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">추입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">높음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">양쪽 앞다리 '절음' 및 부상. 건강 문제 심각.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-blue-700">9</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">브라운팰컨</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(0)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">1-?-?-?-?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">추입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">높음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">모래 민감, 외곽 전개 필수. 최고 중량(56kg) 불리.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-blue-700">10</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">투혼파이터</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">(-3kg)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">?-?-?-?-?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">자유</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">낮음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">'핸디캡 이점마'. 모래 맞으며 따라갈 때 더 잘 뜀. 최대 복병.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-blue-700">11</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">레이저그릿</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">(-4kg)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">?-?-?-?-?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">선입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">중간</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">'핸디캡 이점마'. 심각한 출발 악벽이 모든 이점 상쇄 위험.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-blue-700">12</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">남도일등</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(0)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">2-?-?-?-?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">추입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">중간</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">모래 민감, 늦발. 외곽 추입 조건부 능력.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+        
+                    <!-- 추천 배팅 조합 -->
+                    <section>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4 border-l-4 border-blue-600 pl-3">제5경주 추천 배팅 조합</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="border border-green-300 bg-green-50 rounded-lg p-5">
+                                <h4 class="font-bold text-lg text-green-800">안정 조합 (시나리오 1 기반)</h4>
+                                <p class="text-sm text-green-700">(빠른 페이스 & 추입마 유리)</p>
+                                <ul class="list-disc list-inside mt-3 text-green-700 space-y-1">
+                                    <li><span class="font-semibold">복승 (Box):</span> 6, 9, 10</li>
+                                    <li><span class="font-semibold">삼복승 (Box):</span> 3, 6, 9, 10</li>
+                                </ul>
+                            </div>
+                            <div class="border border-red-300 bg-red-50 rounded-lg p-5">
+                                <h4 class="font-bold text-lg text-red-800">고배당 조합 (복병마 활용)</h4>
+                                <p class="text-sm text-red-700">(9, 10번 축 / 11번 변수)</p>
+                                <ul class="list-disc list-inside mt-3 text-red-700 space-y-1">
+                                    <li><span class="font-semibold">쌍승 (1착 9, 10 고정):</span> 9,10 → 3,6,11,12</li>
+                                    <li><span class="font-semibold">삼쌍승 (예):</span> 9,10 → 6,11 → 3,6,11,12</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+                </main>
+            </div>
+            
+            <!-- 경주 6 -->
+            <div x-show="activeTab === 'race6'" x-cloak class="bg-white rounded-2xl shadow-xl overflow-hidden animate-fade-in">
+                <main class="p-6 md:p-8 space-y-8">
+                    <!-- 전개 예측 -->
+                    <section>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4 border-l-4 border-blue-600 pl-3">제6경주 전개 예측</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- 시나리오 A -->
+                            <div class="border border-gray-200 rounded-lg p-5 bg-gray-50">
+                                <h3 class="font-bold text-lg text-red-700">시나리오 A: 빠른 페이스 (발생 확률 75%)</h3>
+                                <p class="text-gray-600 mt-2">
+                                    1, 5, 10, 13, 14번 등 5두 이상의 선행마가 치열한 경합을 벌일 것이 확실시됩니다.
+                                </p>
+                                <p class="text-gray-800 font-medium mt-3">
+                                    <span class="text-green-600 font-bold">▶ 수혜마:</span> 선두권 바로 뒤의 <span class="font-bold">11번 빈체로카발로</span>, <span class="font-bold">16번 즐거운여정</span>과 추입마 <span class="font-bold">15번 블랙머스크</span>가 절대적으로 유리합니다.
+                                </p>
+                            </div>
+                            <!-- 시나리오 B -->
+                            <div class="border border-gray-200 rounded-lg p-5 bg-gray-50">
+                                <h3 class="font-bold text-lg text-blue-700">시나리오 B: 단독 선행 (발생 확률 25%)</h3>
+                                <p class="text-gray-600 mt-2">
+                                    5번 슈퍼피니시가 월등한 스피드로 단독 선두를 차지하고, 페이스가 예상보다 느려지는 경우입니다.
+                                </p>
+                                <p class="text-gray-800 font-medium mt-3">
+                                    <span class="text-green-600 font-bold">▶ 수혜마:</span> <span class="font-bold">5번 슈퍼피니시</span>의 버티기 가능성이 생기며, 선입마 <span class="font-bold">1번 문학보이</span>, <span class="font-bold">16번 즐거운여정</span>도 유리해집니다.
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+        
+                    <!-- 전체 출전마 정보 -->
+                    <section>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4 border-l-4 border-blue-600 pl-3">제6경주 전체 출전마 정보</h2>
+                        <div class="overflow-x-auto rounded-lg border border-gray-200">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">마번</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">마명</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">기수</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">중량변화</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">최근 5경주</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">각질</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">위험도</th>
+                                        <th class="px-3 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">핵심 코멘트</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-blue-700">1</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">[서]문학보이</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">(-2kg)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(5연승)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">선행/선입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">중간</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">5연승의 신예. 양전지파행(절음) 이력. '유리검'.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">2</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">스마트보스</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">1-?-?-?-?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">추입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">낮음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">막판 한 발 있으나 고질적 늦발. 1400m는 짧음.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">3</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">오늘이순간</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-red-600 font-medium">(+3kg)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">2-?-?-?-?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">선입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">낮음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">꾸준하나 +3kg 중량 부담. 3착권 목표.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">4</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">[서]마이티고</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">13-8-8-12-2</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">추입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">중간</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">8세 노장. 전성기 지남. '절음' 이력.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-blue-700">5</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">[서]슈퍼피니시</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">3-2-4-4-1</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">선행</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">낮음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">강력한 선행마. 단독 선행 시 버티기 가능.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">6</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">강서자이언트</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(감량)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(하위권)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">선입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">높음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">만성 관절염, '절음' 이력. 제외 권고.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">7</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">[서]늘가을</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">5-3-?-?-?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">추입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">중간</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">1400m는 거리 짧음. 관절염 이력.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">8</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">대지초이스</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(하위권)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">선입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">낮음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">전성기 지남. 최근 뚜렷한 하락세.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">9</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">[서]섬싱로스트</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">5-10-12-9-7</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">선입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">중간</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">반복되는 다리 근육통, 파행 이력.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">10</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">카디널포스</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">1-?-?-?-?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">선행</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">높음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">심각한 악벽, 사지 전체 파행 기록. 제외 권고.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-blue-700">11</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">[서]빈체로카발로</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(대상경주 3연승)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">선입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">낮음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">현역 최강마. 빠른 페이스 최대 수혜마. 가장 안정적인 축마.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">12</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">위너클리어</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-red-600 font-medium">(+3.5kg)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">1-?-?-?-?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">추입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">낮음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">심각한 악벽, 중량 대폭 증가. 복병마 이하.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-gray-700">13</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">판타스틱킹덤</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">1-?-?-?-?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">선행</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">높음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">능력 최상위권이나 반복적 파행. 제외 권고.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-blue-700">14</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">배틀크라이</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(최근 8전 5승)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">선행/선입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">중간</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">절정의 기세. 폐출혈 이력은 변수. 강력한 복병.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-blue-700">15</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">[서]블랙머스크</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">1-4-?-?-?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">추입</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">중간</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">빠른 페이스 시 유리한 추입마. 최근 인대염 진단이 관건.</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="font-bold text-lg text-blue-700">16</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap font-medium text-gray-900">즐거운여정</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">(감량)</td>
+                                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-700">2-?-?-?-?</td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">자유</span></td>
+                                        <td class="px-3 py-4 whitespace-nowrap"><span class="px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">높음</span></td>
+                                        <td class="px-3 py-4 text-sm text-gray-600">최강 암말. 폐출혈, '절음', 관절염 등 건강 리스크 매우 큼.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+        
+                    <!-- 추천 배팅 조합 -->
+                    <section>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4 border-l-4 border-blue-600 pl-3">제6경주 추천 배팅 조합</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="border border-green-300 bg-green-50 rounded-lg p-5">
+                                <h4 class="font-bold text-lg text-green-800">안정 조합 (시나리오 A 기반)</h4>
+                                <p class="text-sm text-green-700">(빠른 페이스 & 선입/추입 유리)</p>
+                                <ul class="list-disc list-inside mt-3 text-green-700 space-y-1">
+                                    <li><span class="font-semibold">축마:</span> 11번 빈체로카발로</li>
+                                    <li><span class="font-semibold">삼복승 (주력):</span> 11 (축) - 15, 16, 1, 14</li>
+                                </ul>
+                            </div>
+                            <div class="border border-red-300 bg-red-50 rounded-lg p-5">
+                                <h4 class="font-bold text-lg text-red-800">고배당 조합 (시나리오 B / 복병)</h4>
+                                <p class="text-sm text-red-700">(5번 선행 또는 14번 복병)</p>
+                                <ul class="list-disc list-inside mt-3 text-red-700 space-y-1">
+                                    <li><span class="font-semibold">쌍승 (5번 선행):</span> 5 → 11, 5 → 16</li>
+                                    <li><span class="font-semibold">삼쌍승 (14번 복병):</span> 11,15 → 14 → 1,11,15,16</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+                </main>
+            </div>
+
+        </main>
+        
+        <footer class="p-4 bg-gray-800 text-gray-400 text-center text-xs rounded-b-2xl mt-4">
+            본 정보는 제공된 분석 자료를 기반으로 요약되었으며, 실제 경주 결과와 다를 수 있습니다.
+        </footer>
+    </div>
+
+</body>
+</html>
+
+
