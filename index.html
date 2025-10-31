@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>경마 당일 정보 CSV 생성기 (v2 - 파일명 자동화)</title>
+    <title>경마 당일 정보 CSV 생성기 (v4 - 모바일 UI 개선)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
@@ -20,6 +20,15 @@
             height: 24px;
             animation: spin 1s linear infinite;
         }
+        /* 입력 필드 숫자 버튼 숨기기 (선택적) */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -28,7 +37,7 @@
         <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
             <header class="bg-teal-600 text-white p-6">
                 <h1 class="text-2xl sm:text-3xl font-bold text-center">경마 당일 정보 CSV 생성기</h1>
-                <p class="text-center text-teal-200 mt-2">출전표를 기반으로 체중과 배당률 정보를 입력하고, 분석용 CSV 파일을 만듭니다.</p>
+                <p class="text-center text-teal-200 mt-2">출전표를 기반으로 당일 정보를 입력하고, 분석용 CSV 파일을 만듭니다.</p>
             </header>
 
             <main class="p-6 space-y-8">
@@ -57,20 +66,33 @@
                         <span class="flex items-center justify-center w-8 h-8 bg-teal-500 text-white rounded-full font-bold text-lg mr-4">2</span>
                         <h2 class="text-xl font-bold text-gray-800">당일 정보 입력</h2>
                     </div>
-                    <p class="text-gray-600 mb-4 text-sm">아래 목록에 각 말의 금일 체중과 단승 배당률을 입력하세요.</p>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-100">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">번호</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">마명</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">금일 체중 (kg)</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">단승 배당률 (배)</th>
-                                </tr>
-                            </thead>
-                            <tbody id="horse-table-body" class="bg-white divide-y divide-gray-200"></tbody>
-                        </table>
+                    <p class="text-gray-600 mb-4 text-sm">먼저 경주로 정보를 입력한 후, 각 말의 금일 체중과 단승 배당률을 입력하세요.</p>
+                    
+                    <!-- ====[ 수정된 부분: 반응형 그리드로 변경 ]==== -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 p-4 bg-white rounded-lg border">
+                        <div>
+                            <label for="track-condition" class="block text-sm font-medium text-gray-700">주로 상태</label>
+                            <select id="track-condition" name="track-condition" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm text-sm p-2 focus:border-teal-500 focus:ring-teal-500">
+                                <option value="">-- 주로 상태 선택 --</option>
+                                <option value="건조">건조 (Dry)</option>
+                                <option value="양호">양호 (Good)</option>
+                                <option value="다습">다습 (Moist)</option>
+                                <option value="포화">포화 (Saturated)</option>
+                                <option value="불량">불량 (Bad)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="water-content" class="block text-sm font-medium text-gray-700">함수율 (%)</label>
+                            <input type="number" step="0.1" id="water-content" name="water-content" placeholder="예: 8.5" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm text-sm p-2 focus:border-teal-500 focus:ring-teal-500">
+                        </div>
                     </div>
+                    <!-- ====[ 수정 완료 ]==== -->
+
+                    <!-- ====[ 수정된 부분: 테이블(<table>)을 카드 리스트(<div>)로 변경 ]==== -->
+                    <div id="horse-data-list" class="space-y-4">
+                        <!-- 자바스크립트가 이 곳에 말 정보 카드를 생성합니다. -->
+                    </div>
+                    <!-- ====[ 수정 완료 ]==== -->
                 </section>
 
                 <!-- Step 3: Download CSV (Hidden Initially) -->
@@ -92,9 +114,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadHorsesBtn = document.getElementById('load-horses-btn');
     const generateCsvBtn = document.getElementById('generate-csv-btn');
     const fileStatusDiv = document.getElementById('file-status');
-    const horseTableBody = document.getElementById('horse-table-body');
+    // ====[ 수정된 부분: 테이블 body 대신 list 컨테이너 ]====
+    const horseDataList = document.getElementById('horse-data-list');
+    // ====[ 수정 완료 ]====
     const step2Section = document.getElementById('step2');
     const step3Section = document.getElementById('step3');
+
+    const trackConditionInput = document.getElementById('track-condition');
+    const waterContentInput = document.getElementById('water-content');
+
+    // 테이블에 실시간으로 값을 반영하기 위한 이벤트 리스너
+    trackConditionInput.addEventListener('change', () => {
+        const value = trackConditionInput.options[trackConditionInput.selectedIndex].text; // "양호 (Good)"
+        document.querySelectorAll('.track-condition-cell').forEach(cell => {
+            cell.textContent = value.split(' (')[0] || ''; // "양호"
+        });
+    });
+
+    waterContentInput.addEventListener('input', () => {
+        const value = waterContentInput.value;
+        document.querySelectorAll('.water-content-cell').forEach(cell => {
+            cell.textContent = value ? `${value}%` : ''; // "8.5%"
+        });
+    });
 
     let horseData = [];
     let baseFileName = '경주'; // Default filename part
@@ -107,18 +149,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const file = fileInput.files[0];
 
-        // ====[NEW FEATURE: Dynamic Filename]====
         const originalFileName = file.name;
         const underscoreIndex = originalFileName.indexOf('_');
         if (underscoreIndex !== -1) {
             let potentialBase = originalFileName.substring(0, underscoreIndex);
-            // " 제XX일" 부분을 제거하여 파일명을 깔끔하게 만듭니다.
             baseFileName = potentialBase.replace(/ 제\d+일/, '').trim();
         } else {
-            // Fallback: 확장자(.csv)만 제거합니다.
             baseFileName = originalFileName.replace(/\.csv$/i, '');
         }
-        // =========================================
 
         fileStatusDiv.innerHTML = `<div class="flex items-center justify-center"><div class="loader mr-2"></div><p class="text-teal-600 font-semibold">파일을 읽고 있습니다...</p></div>`;
 
@@ -149,7 +187,10 @@ document.addEventListener('DOMContentLoaded', () => {
                      return;
                 }
 
-                populateTable();
+                // ====[ 수정된 부분: 함수명 변경 (의미상) ]====
+                populateHorseCards();
+                // ====[ 수정 완료 ]====
+                
                 fileStatusDiv.innerHTML = `<p class="text-green-600 font-semibold">✅ ${horseData.length}마의 출전마를 성공적으로 불러왔습니다.</p>`;
                 step2Section.classList.remove('hidden');
                 step3Section.classList.remove('hidden');
@@ -160,34 +201,79 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    function populateTable() {
-        horseTableBody.innerHTML = '';
+    // ====[ 수정된 부분: populateTable -> populateHorseCards 로 변경 및 카드 UI 생성 ]====
+    function populateHorseCards() {
+        horseDataList.innerHTML = ''; // 리스트 초기화
+        
+        // 현재 설정된 기본값 가져오기
+        const currentTrackCondition = trackConditionInput.options[trackConditionInput.selectedIndex].text.split(' (')[0] || '';
+        const currentWaterContent = waterContentInput.value ? `${waterContentInput.value}%` : '';
+
         horseData.forEach(horse => {
-            const row = `
-                <tr class="hover:bg-gray-50">
-                    <td class="px-4 py-4"><div class="flex items-center"><div class="w-8 h-8 flex-shrink-0 flex items-center justify-center bg-teal-100 text-teal-800 rounded-full font-bold">${horse.number}</div></div></td>
-                    <td class="px-4 py-4"><div class="text-sm font-semibold text-gray-900">${horse.name}</div></td>
-                    <td class="px-4 py-4"><input type="number" name="weight" data-horse-number="${horse.number}" placeholder="예: 485" class="w-28 border-gray-300 rounded-md shadow-sm text-sm"></td>
-                    <td class="px-4 py-4"><input type="number" step="0.1" name="odds" data-horse-number="${horse.number}" placeholder="예: 5.2" class="w-28 border-gray-300 rounded-md shadow-sm text-sm"></td>
-                </tr>`;
-            horseTableBody.insertAdjacentHTML('beforeend', row);
+            const card = `
+                <div class="bg-white p-4 rounded-lg shadow-md border border-gray-200">
+                    <!-- 카드 헤더: 번호와 마명 -->
+                    <div class="flex items-center justify-between pb-3 border-b border-gray-200">
+                        <div class="flex items-center">
+                            <span class="flex items-center justify-center w-10 h-10 bg-teal-100 text-teal-800 rounded-full font-bold text-lg">${horse.number}</span>
+                            <span class="ml-3 text-xl font-semibold text-gray-900">${horse.name}</span>
+                        </div>
+                    </div>
+
+                    <!-- 카드 바디: 입력 필드 (모바일에서 1열, sm 이상에서 2열) -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                        
+                        <!-- 금일 체중 입력 -->
+                        <div>
+                            <label for="weight-${horse.number}" class="block text-sm font-medium text-gray-700 mb-1">금일 체중 (kg)</label>
+                            <input type="number" name="weight" id="weight-${horse.number}" data-horse-number="${horse.number}" placeholder="예: 485" class="w-full border-gray-300 rounded-md shadow-sm text-sm p-3 focus:border-teal-500 focus:ring-teal-500">
+                        </div>
+                        
+                        <!-- 단승 배당률 입력 -->
+                        <div>
+                            <label for="odds-${horse.number}" class="block text-sm font-medium text-gray-700 mb-1">단승 배당률 (배)</label>
+                            <input type="number" step="0.1" name="odds" id="odds-${horse.number}" data-horse-number="${horse.number}" placeholder="예: 5.2" class="w-full border-gray-300 rounded-md shadow-sm text-sm p-3 focus:border-teal-500 focus:ring-teal-500">
+                        </div>
+
+                        <!-- 주로 상태 (읽기 전용) -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">주로 상태</label>
+                            <span class="track-condition-cell text-sm text-gray-800 p-3 block bg-gray-100 rounded-md min-h-[46px] flex items-center">${currentTrackCondition}</span>
+                        </div>
+
+                        <!-- 함수율 (읽기 전용) -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">함수율 (%)</label>
+                            <span class="water-content-cell text-sm text-gray-800 p-3 block bg-gray-100 rounded-md min-h-[46px] flex items-center">${currentWaterContent}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            horseDataList.insertAdjacentHTML('beforeend', card);
         });
     }
+    // ====[ 수정 완료 ]====
 
     generateCsvBtn.addEventListener('click', () => {
-        const rows = Array.from(document.querySelectorAll('#horse-table-body tr'));
-        const csvData = rows.map(row => {
-            const number = row.querySelector('input[name="weight"]').dataset.horseNumber;
-            const name = row.cells[1].innerText;
-            const weight = row.querySelector('input[name="weight"]').value || '';
-            const odds = row.querySelector('input[name="odds"]').value || '';
+        const trackCondition = trackConditionInput.value || '';
+        const waterContent = waterContentInput.value || '';
+
+        // ====[ 수정된 부분: <tr>이 아닌 horseData 배열을 기준으로 CSV 데이터 생성 ]====
+        const csvData = horseData.map(horse => {
+            // 각 말의 번호에 맞는 입력 필드를 직접 찾아서 값을 가져옵니다.
+            const weightInput = document.querySelector(`input[name="weight"][data-horse-number="${horse.number}"]`);
+            const oddsInput = document.querySelector(`input[name="odds"][data-horse-number="${horse.number}"]`);
+            
             return {
-                '번호': number,
-                '마명': name,
-                '금일체중': weight,
-                '단승배당률': odds
+                '번호': horse.number,
+                '마명': horse.name,
+                '금일체중': weightInput ? weightInput.value : '',
+                '단승배당률': oddsInput ? oddsInput.value : '',
+                '주로상태': trackCondition,
+                '함수율': waterContent
             };
         });
+        // ====[ 수정 완료 ]====
 
         const csvString = Papa.unparse(csvData);
         
@@ -199,9 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         link.setAttribute('href', url);
-        // ====[NEW FEATURE: Dynamic Filename]====
         link.setAttribute('download', `${baseFileName}_당일정보.csv`);
-        // =========================================
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
@@ -212,3 +296,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </body>
 </html>
+
