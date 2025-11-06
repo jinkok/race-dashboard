@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>부산 경마 분석 리포트</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Chosen Palette: Warm Neutrals (Gray, White, Amber) -->
+    <!-- Application Structure Plan: A SPA with vertical side navigation (tabs for Race 1-9). Clicking a race updates the main content area. This area displays the selected race's title, flow, tabs for the two scenarios, and 3 cards for betting strategies (Main, Alt, High-Odds). Chart removed per user request. This structure is optimal for quickly comparing races and drilling into specific details. -->
+    <!-- Visualization & Content Choices: Report Info: Horse name, jockey, and '각질' (style) for all horses in a race. Goal: Visualize the race's competitive landscape. Viz/Method: Chart.js Scatter Plot (Canvas) REMOVED per user request. All content is now textual (Scenarios, Betting Strategies) presented in clean cards. Interaction: Clicking a Race (1-9) navigation button updates the content. Justification: Focus on textual analysis. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <style>
+        body {
+            font-family: 'Noto Sans KR', 'Inter', sans-serif;
+        }
+        .tab-button.active {
+            border-color: #f59e0b;
+            color: #f59e0b;
+            font-weight: 600;
+        }
+        .nav-button.active {
+            background-color: #f59e0b;
+            color: white;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex flex-col">
+
+    <header class="w-full bg-white shadow-md p-4">
+        <h1 class="text-2xl md:text-3xl font-bold text-gray-800 text-center">2025년 11월 7일 부산 경마 분석 리포트</h1>
+    </header>
+
+    <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
+        
+        <nav class="w-full md:w-64 bg-gray-50 border-r overflow-y-auto flex-shrink-0">
+            <ul class="p-4 grid grid-cols-3 gap-2 md:flex md:flex-col md:space-y-2 md:gap-0">
+                <li><button class="nav-button block w-full text-center md:text-left p-2 md:p-3 rounded-md hover:bg-amber-100 text-gray-700 font-medium text-sm md:text-base" data-race="1">1경주 (1200M)</button></li>
+                <li><button class="nav-button block w-full text-center md:text-left p-2 md:p-3 rounded-md hover:bg-amber-100 text-gray-700 font-medium text-sm md:text-base" data-race="2">2경주 (1200M)</button></li>
+                <li><button class="nav-button block w-full text-center md:text-left p-2 md:p-3 rounded-md hover:bg-amber-100 text-gray-700 font-medium text-sm md:text-base" data-race="3">3경주 (1600M)</button></li>
+                <li><button class="nav-button block w-full text-center md:text-left p-2 md:p-3 rounded-md hover:bg-amber-100 text-gray-700 font-medium text-sm md:text-base" data-race="4">4경주 (1200M)</button></li>
+                <li><button class="nav-button block w-full text-center md:text-left p-2 md:p-3 rounded-md hover:bg-amber-100 text-gray-700 font-medium text-sm md:text-base" data-race="5">5경주 (1300M)</button></li>
+                <li><button class="nav-button block w-full text-center md:text-left p-2 md:p-3 rounded-md hover:bg-amber-100 text-gray-700 font-medium text-sm md:text-base" data-race="6">6경주 (1400M)</button></li>
+                <li><button class="nav-button block w-full text-center md:text-left p-2 md:p-3 rounded-md hover:bg-amber-100 text-gray-700 font-medium text-sm md:text-base" data-race="7">7경주 (1800M)</button></li>
+                <li><button class="nav-button block w-full text-center md:text-left p-2 md:p-3 rounded-md hover:bg-amber-100 text-gray-700 font-medium text-sm md:text-base" data-race="8">8경주 (1200M)</button></li>
+                <li><button class="nav-button block w-full text-center md:text-left p-2 md:p-3 rounded-md hover:bg-amber-100 text-gray-700 font-medium text-sm md:text-base" data-race="9">9경주 (1600M)</button></li>
+            </ul>
+        </nav>
+
+        <main id="content-area" class="flex-1 p-4 md:p-6 lg:p-8 overflow-y-auto bg-gray-100">
+            
+            <div class="max-w-7xl mx-auto">
+                <div class="mb-6">
+                    <h2 id="race-title" class="text-3xl md:text-4xl font-bold text-gray-800">1경주 (1200M)</h2>
+                    <p id="race-flow" class="text-lg md:text-xl text-amber-600 font-medium mt-1">경주 흐름: 선행 vs 추입</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    
+                    <div class="lg:col-span-1 bg-white p-6 rounded-lg shadow-lg">
+                        <h3 class="text-xl md:text-2xl font-semibold text-gray-800 mb-4">경주 시나리오</h3>
+                        <div class="border-b border-gray-200 mb-4">
+                            <nav class="-mb-px flex space-x-6" aria-label="Tabs">
+                                <button class="tab-button active whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm md:text-base text-gray-500 hover:text-gray-700 hover:border-gray-300" data-tab="1">
+                                    시나리오 1
+                                </button>
+                                <button class="tab-button whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm md:text-base text-gray-500 hover:text-gray-700 hover:border-gray-300" data-tab="2">
+                                    시나리오 2
+                                </button>
+                            </nav>
+                        </div>
+                        <div id="scenario-content" class="text-gray-700 space-y-2 text-base leading-relaxed">
+                            <div id="scenario-1-content"></div>
+                            <div id="scenario-2-content" class="hidden"></div>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-1 space-y-6">
+                        <div class="bg-white p-6 rounded-lg shadow-lg border-l-4 border-amber-500">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-xl md:text-2xl font-semibold text-gray-800">주력 조합</h3>
+                                <span id="main-bet-scenario" class="text-sm font-medium text-amber-600 bg-amber-100 py-0.5 px-2 rounded"></span>
+                            </div>
+                            <div id="main-bet-content" class="space-y-2"></div>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-lg shadow-lg">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-xl md:text-2xl font-semibold text-gray-800">대안 조합</h3>
+                                <span id="alt-bet-scenario" class="text-sm font-medium text-gray-600 bg-gray-100 py-0.5 px-2 rounded"></span>
+                            </div>
+                            <div id="alt-bet-content" class="space-y-2"></div>
+                        </div>
+                        
+                        <div class="bg-white p-6 rounded-lg shadow-lg">
+                            <h3 class="text-xl md:text-2xl font-semibold text-gray-800 mb-4">고배당 옵션</h3>
+                            <div id="high-odds-content" class="space-y-2"></div>
+                            <p id="high-odds-reason" class="text-sm text-gray-500 mt-2"></p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const raceData = [
+            {
+                id: 1,
+                title: "1경주 (1200M)",
+                flow: "경주 흐름: 선행 vs 추입",
+                scenario1: "`4(은빛/서강주/선행)` 단독 선행",
+                scenario2: "`4(은빛/서강주/선행)` 선행 무너짐, `1(판타스틱보스/서승운/추입)` 추입",
+                mainBet: ["1(판타스틱보스/서승운/추입) - 3(미스틱진/송경윤/선입)", "1(판타스틱보스/서승운/추입) - 7(청춘은자유/진겸/선입)"],
+                mainBetScenario: "시나리오 2 기반",
+                altBet: ["4(은빛/서강주/선행) - 3(미스틱진/송경윤/선입)", "4(은빛/서강주/선행) - 7(청춘은자유/진겸/선입)"],
+                altBetScenario: "시나리오 1 기반",
+                highOdds: { horse: "5(행복트리/이성재/후미)", reason: "G-1F 13.4초의 준수한 스퍼트 보유" }
+            },
+            {
+                id: 2,
+                title: "2경주 (1200M)",
+                flow: "경주 흐름: 선행/선입 접전",
+                scenario1: "`10(정문펠릭스/다실바/선행/선입)` 선두 장악",
+                scenario2: "선행 경합, `6(드림레이서/서승운/선입/추입)` 추입",
+                mainBet: ["10(정문펠릭스/다실바/선행/선입) - 6(드림레이서/서승운/선입/추입)", "10(정문펠릭스/다실바/선행/선입) - 3(두바이드림/최시대/추입)"],
+                mainBetScenario: "시나리오 1 기반",
+                altBet: ["6(드림레이서/서승운/선입/추입) - 3(두바이드림/최시대/추입)", "6(드림레이서/서승운/선입/추입) - 7(토함산원/(-4)손경민/선행/선입)"],
+                altBetScenario: "시나리오 2 기반",
+                highOdds: { horse: "3(두바이드림/최시대/추입)", reason: "G-1F 12.7초의 순간 폭발력 보유" }
+            },
+            {
+                id: 3,
+                title: "3경주 (1600M)",
+                flow: "경주 흐름: 선행/선입 vs 추입",
+                scenario1: "`11(마더원더풀/진겸/선행/선입)` 밸런스로 주도",
+                scenario2: "선행 경합, `8(플라잉아이스/김동영/추입)` 추입",
+                mainBet: ["11(마더원더풀/진겸/선행/선입) - 9(소망의길/서승운/선행/선입)", "11(마더원더풀/진겸/선행/선입) - 7(당대투사/이효식/선행/선입)"],
+                mainBetScenario: "시나리오 1 기반",
+                altBet: ["8(플라잉아이스/김동영/추입) - 11(마더원더풀/진겸/선행/선입)", "8(플라잉아이스/김동영/추입) - 4(승리예약/전진구/선행/선입)"],
+                altBetScenario: "시나리오 2 기반",
+                highOdds: { horse: "4(승리예약/전진구/선행/선입)", reason: "G-3F 2위, G-1F 1위의 숨겨진 스퍼트" }
+            },
+            {
+                id: 4,
+                title: "4경주 (1200M)",
+                flow: "경주 흐름: 추입 vs 선입",
+                scenario1: "선행 무너짐, `11(트리플제이/이효식/선입/추입)` 추입",
+                scenario2: "`11(트리플제이)` 추입 불발, 선입마(`2`,`6`) 버티기",
+                mainBet: ["11(트리플제이/이효식/선입/추입) - 2(로드투윈/진겸/선행/선입)", "11(트리플제이/이효식/선입/추입) - 6(탑드림/조창욱/선행/선입)"],
+                mainBetScenario: "시나리오 1 기반",
+                altBet: ["2(로드투윈/진겸/선행/선입) - 6(탑드림/조창욱/선행/선입)", "2(로드투윈/진겸/선행/선입) - 8(플래시데이/송경윤/선행/선입)"],
+                altBetScenario: "시나리오 2 기반",
+                highOdds: { horse: "7(선재/김태현/선입/추입)", reason: "G-3F 37.6초의 준수한 능력 보유" }
+            },
+            {
+                id: 5,
+                title: "5경주 (1300M)",
+                flow: "경주 흐름: 선행 경합, 선입 우세",
+                scenario1: "선행 경합, `2(서귀레이디/진겸/선행/선입)` 선입 역전",
+                scenario2: "`6(파워풀런/서승운/선행)` 단독 선행",
+                mainBet: ["2(서귀레이디/진겸/선행/선입) - 6(파워풀런/서승운/선행)", "2(서귀레이디/진겸/선행/선입) - 9(퀸레이스/송경윤/선행/선입)"],
+                mainBetScenario: "시나리오 1 기반",
+                altBet: ["6(파워풀런/서승운/선행) - 9(퀸레이스/송경윤/선행/선입)", "6(파워풀런/서승운/선행) - 2(서귀레이디/진겸/선행/선입)"],
+                altBetScenario: "시나리오 2 기반",
+                highOdds: { horse: "7(성실제일/박재이/후미)", reason: "G-1F 12.8초의 폭발적인 한 방" }
+            },
+            {
+                id: 6,
+                title: "6경주 (1400M)",
+                flow: "경주 흐름: 선행 vs 추입",
+                scenario1: "`4(로드투희망/다나카/선행/선입)` 단독 선행",
+                scenario2: "선행 경합, `1(글로벌하이/박재이/선입/추입)` 추입",
+                mainBet: ["1(글로벌하이/박재이/선입/추입) - 5(선더패션/다실바/선행/선입)", "1(글로벌하이/박재이/선입/추입) - 12(플라잉더럭키/김동영/선행/선입)"],
+                mainBetScenario: "시나리오 2 기반",
+                altBet: ["4(로드투희망/다나카/선행/선입) - 1(글로벌하이/박재이/선입/추입)", "4(로드투희망/다나카/선행/선입) - 12(플라잉더럭키/김동영/선행/선입)"],
+                altBetScenario: "시나리오 1 기반",
+                highOdds: { horse: "5(선더패션/다실바/선행/선입)", reason: "G-3F 3위, G-1F 2위의 숨겨진 강자" }
+            },
+            {
+                id: 7,
+                title: "7경주 (1800M)",
+                flow: "경주 흐름: `2`번 독주 또는 혼전 (데뷔전 6두)",
+                scenario1: "`2(글로벌위크/진겸/선행/선입)` 데이터 압도/독주",
+                scenario2: "데뷔전 변수, `2(글로벌위크)` 견제",
+                mainBet: ["2(글로벌위크/진겸/선행/선입) - 10(서울드래곤/신윤섭/선행/선입)", "2(글로벌위크/진겸/선행/선입) - 5(코이누르/김동영/선행/선입)"],
+                mainBetScenario: "시나리오 1 기반",
+                altBet: ["10(서울드래곤/신윤섭/선행/선입) - 5(코이누르/김동영/선행/선입)", "10(서울드래곤/신윤섭/선행/선입) - 2(글로벌위크/진겸/선행/선입)"],
+                altBetScenario: "시나리오 2 기반",
+                highOdds: { horse: "6(탐라슈퍼/서승운/데뷔전)", reason: "1800M 데뷔 + 서승운 기수 조합" }
+            },
+            {
+                id: 8,
+                title: "8경주 (1200M)",
+                flow: "경주 흐름: 선행/선입 접전",
+                scenario1: "`8(브라이트마린/송경윤/선행/선입)` 밸런스 우세, `3(삼바스텝)`과 접전",
+                scenario2: "선행 과열, `11(플렉스엔진/진겸/추입)` 추입",
+                mainBet: ["8(브라이트마린/송경윤/선행/선입) - 3(삼바스텝/신윤섭/선행/선입)", "8(브라이트마린/송경윤/선행/선입) - 2(센세이셔널윈/박재이/선행/선입)"],
+                mainBetScenario: "시나리오 1 기반",
+                altBet: ["11(플렉스엔진/진겸/추입) - 8(브라이트마린/송경윤/선행/선입)", "11(플렉스엔진/진겸/추입) - 10(드래곤데빌/이효식/선입/추입)"],
+                altBetScenario: "시나리오 2 기반",
+                highOdds: { horse: "11(플렉스엔진/진겸/추입)", reason: "G-1F 기록이 압도적인 추입마" }
+            },
+            {
+                id: 9,
+                title: "9경주 (1600M)",
+                flow: "경주 흐름: 선입 vs 추입 (데뷔전 8두)",
+                scenario1: "`5(빅뮤지컬스타/최시대/선행/선입)` 밸런스로 버티기",
+                scenario2: "선행 과열, `11(벌마킹/진겸/추입)` 추입",
+                mainBet: ["5(빅뮤지컬스타/최시대/선행/선입) - 11(벌마킹/진겸/추입)"],
+                mainBetScenario: "시나리오 1 기반",
+                altBet: ["11(벌마킹/진겸/추입) - 6(여수슈퍼스타/서승운/선입/추입)", "11(벌마킹/진겸/추입) - 5(빅뮤지컬스타/최시대/선행/선입)"],
+                altBetScenario: "시나리오 2 기반",
+                highOdds: { horse: "2(서부비전/다나카/데뷔전)", reason: "데뷔전 마필 중 기수(다나카)가 가장 우수" }
+            }
+        ];
+
+        function parseHorseString(str) {
+            const match = str.match(/(\d+)\((.*?)\/(.*?)\/(.*?)\)/);
+            if (match) {
+                return { num: match[1], name: match[2], jockey: match[3], style: match[4] };
+            }
+            const debutMatch = str.match(/(\d+)\((.*?)\/(.*?)\/(데뷔전)\)/);
+            if (debutMatch) {
+                return { num: debutMatch[1], name: debutMatch[2], jockey: debutMatch[3], style: debutMatch[4] };
+            }
+            return null;
+        }
+
+        function formatBettingHTML(betStrings) {
+            return betStrings.map(bet => {
+                const parts = bet.split(' - ');
+                const horse1 = parseHorseString(parts[0]);
+                const horse2 = parts[1] ? parseHorseString(parts[1]) : null;
+
+                const horse1Text = horse1 ? `${horse1.num} (${horse1.name}/${horse1.jockey}/${horse1.style})` : parts[0];
+                const horse2Text = horse2 ? `${horse2.num} (${horse2.name}/${horse2.jockey}/${horse1.style})` : (parts[1] || '');
+
+                return `<div class="flex flex-wrap items-center">
+                            <span class="inline-block bg-amber-100 text-amber-800 font-bold py-1 px-2 rounded-md text-xs sm:text-sm mb-1">${horse1Text}</span> 
+                            <span class="mx-1.5 font-bold text-gray-600 mb-1">-</span> 
+                            <span class="inline-block bg-amber-100 text-amber-800 font-bold py-1 px-2 rounded-md text-xs sm:text-sm mb-1">${horse2Text}</span>
+                        </div>`;
+            }).join('');
+        }
+        
+        function formatHorseHTML(horseString) {
+            const horse = parseHorseString(horseString);
+            if (!horse) return `<div>${horseString}</div>`;
+            
+            const horseText = `${horse.num} (${horse.name}/${horse.jockey}/${horse.style})`;
+            return `<div><span class="inline-block bg-blue-100 text-blue-800 font-bold py-1 px-2 rounded-md text-xs sm:text-sm">${horseText}</span></div>`;
+        }
+
+
+        function updateRaceView(raceId) {
+            const race = raceData.find(r => r.id === raceId);
+            if (!race) return;
+
+            document.getElementById('race-title').innerText = race.title;
+            document.getElementById('race-flow').innerText = race.flow;
+            
+            document.getElementById('scenario-1-content').innerText = race.scenario1;
+            document.getElementById('scenario-2-content').innerText = race.scenario2;
+
+            document.getElementById('main-bet-scenario').innerText = race.mainBetScenario;
+            document.getElementById('main-bet-content').innerHTML = formatBettingHTML(race.mainBet);
+            
+            document.getElementById('alt-bet-scenario').innerText = race.altBetScenario;
+            document.getElementById('alt-bet-content').innerHTML = formatBettingHTML(race.altBet);
+            
+            document.getElementById('high-odds-content').innerHTML = formatHorseHTML(race.highOdds.horse);
+            document.getElementById('high-odds-reason').innerText = race.highOdds.reason;
+
+            document.querySelectorAll('.nav-button').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.race == raceId);
+            });
+            
+            initTabs();
+            document.querySelector('.tab-button[data-tab="1"]').click();
+        }
+
+        function initTabs() {
+            const tabs = document.querySelectorAll('.tab-button');
+            const scenario1Content = document.getElementById('scenario-1-content');
+            const scenario2Content = document.getElementById('scenario-2-content');
+
+            tabs.forEach(tab => {
+                tab.onclick = () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+
+                    const tabNum = tab.dataset.tab;
+                    scenario1Content.classList.toggle('hidden', tabNum !== '1');
+                    scenario2Content.classList.toggle('hidden', tabNum !== '2');
+                };
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.nav-button').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const raceId = parseInt(e.currentTarget.dataset.race);
+                    updateRaceView(raceId);
+                });
+            });
+
+            updateRaceView(1);
+        });
+    </script>
+</body>
+</html>
