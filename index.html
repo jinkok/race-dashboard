@@ -7,8 +7,8 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 <!-- Chosen Palette: Calm Harmony (bg-gray-50, white, blue-800, amber-500, red-500) -->
-<!-- Application Structure Plan: A top-level tab navigation ("제주", "부산") switches between two complete sub-applications. Each sub-app is contained in its own div (`#jeju-page`, `#busan-page`). The "제주" app uses a <select> dropdown for mobile-friendly race selection. The "부산" app uses its original sidebar navigation. This structure allows both distinct UIs to coexist and be switched easily. -->
-<!-- Visualization & Content Choices: Both sub-applications are 100% textual. All information (scenarios, betting picks) is presented in structured HTML cards. No charts are used. Interaction: 1) Top tabs switch between "제주" and "부산". 2) Inside "제주", a <select> dropdown switches races. 3) Inside "부산", side navigation buttons switch races. All interactions update the relevant content area dynamically. -->
+<!-- Application Structure Plan: A top-level tab navigation ("제주", "부산") switches between two complete sub-applications. Each sub-app is contained in its own div (`#jeju-page`, `#busan-page`). Both sub-apps now use a <select> dropdown for mobile-friendly race selection, and both use the same content layout (2-col scenarios, 3-col bets) for UI consistency. -->
+<!-- Visualization & Content Choices: Both sub-applications are 100% textual. All information (scenarios, betting picks) is presented in structured HTML cards. No charts are used. Interaction: 1) Top tabs switch between "제주" and "부산". 2) Inside each app, a <select> dropdown switches races. All interactions update the relevant content area dynamically. -->
 <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
 <style>
 body {
@@ -32,57 +32,18 @@ border-color: #1e40af;
 color: #6b7280;
 }
 
-/* --- Jeju Page Styles --- */
-#jeju-page .bet-card h3 {
+/* --- Global Bet Card Styles --- */
+.bet-card h3 {
 font-size: 1.125rem;
 font-weight: 700;
 padding-bottom: 0.5rem;
 margin-bottom: 0.75rem;
 border-bottom-width: 2px;
 }
-#jeju-page .bet-card-main h3 { border-color: #2563eb; color: #1d4ed8; }
-#jeju-page .bet-card-alt h3 { border-color: #f59e0b; color: #b45309; }
-#jeju-page .bet-card-longshot h3 { border-color: #ef4444; color: #b91c1c; }
+.bet-card-main h3 { border-color: #2563eb; color: #1d4ed8; }
+.bet-card-alt h3 { border-color: #f59e0b; color: #b45309; }
+.bet-card-longshot h3 { border-color: #ef4444; color: #b91c1c; }
 
-/* --- Busan Page Styles --- */
-#busan-page .nav-button {
-transition: all 0.2s ease-in-out;
-}
-#busan-page .nav-button.active {
-background-color: #1e40af;
-color: white;
-font-weight: 700;
-transform: scale(1.05);
-}
-#busan-page .nav-button:not(.active) {
-background-color: #e5e7eb;
-color: #374151;
-}
-#busan-page .nav-button:not(.active):hover {
-background-color: #d1d5db;
-}
-#busan-page .tab-button {
-transition: all 0.2s ease-in-out;
-border-bottom: 3px solid transparent;
-}
-#busan-page .tab-button.active {
-border-color: #1e40af;
-color: #1e40af;
-font-weight: 600;
-}
-#busan-page .tab-button:not(.active) {
-color: #6b7280;
-}
-#busan-page .bet-card {
-transition: transform 0.2s, box-shadow 0.2s;
-}
-#busan-page .bet-card:hover {
-transform: translateY(-4px);
-box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-}
-#busan-page .bet-card-main { border-top: 4px solid #2563eb; }
-#busan-page .bet-card-alt { border-top: 4px solid #f59e0b; }
-#busan-page .bet-card-high { border-top: 4px solid #ef4444; }
 </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
@@ -110,61 +71,16 @@ box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.
         </main>
     </div>
 
-    <!-- =========== BUSAN PAGE CONTENT =========== -->
+    <!-- =========== BUSAN PAGE CONTENT (Updated) =========== -->
     <div id="busan-page" class="hidden">
-        <div class="flex flex-col md:flex-row min-h-full bg-gray-100 text-gray-800">
-            
-            <aside class="w-full md:w-64 bg-white p-4 md:p-6 shadow-lg md:h-full md:overflow-y-auto flex-shrink: 0">
-                <h2 class="text-xl font-bold mb-4 text-blue-900 text-center md:text-left">부산 경주</h2>
-                <nav id="busan-nav-bar" class="grid grid-cols-3 md:grid-cols-1 gap-2">
-                </nav>
-            </aside>
-            
-            <main class="flex-1 p-4 md:p-8 overflow-y-auto">
-                <div class="max-w-4xl mx-auto">
-                    <h2 id="race-title" class="text-3xl font-bold mb-6 text-gray-900"></h2>
-                    
-                    <div class="bg-white rounded-lg shadow-xl p-6 mb-6">
-                        <h3 class="text-2xl font-semibold mb-4 text-blue-800">경주 흐름</h3>
-                        <p id="race-flow" class="text-gray-700 leading-relaxed"></p>
-                    </div>
+        <nav class="container mx-auto px-4 py-6">
+            <label for="busan-race-select" class="block text-sm font-medium text-gray-700 sr-only">경주 선택</label>
+            <select id="busan-race-select" class="block w-full max-w-lg mx-auto p-3 text-lg font-semibold text-amber-800 bg-white border-2 border-amber-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+            </select>
+        </nav>
 
-                    <div class="mb-6">
-                        <div class="flex border-b border-gray-300">
-                            <button class="tab-button active py-3 px-6" data-tab="1">시나리오 1</button>
-                            <button class="tab-button py-3 px-6" data-tab="2">시나리오 2</button>
-                        </div>
-                        <div id="scenario-1-content" class="bg-white p-6 rounded-b-lg shadow-lg">
-                            <h4 id="scenario-1-title" class="text-xl font-semibold mb-2 text-blue-700"></h4>
-                            <p id="scenario-1-text" class="text-gray-600"></p>
-                        </div>
-                        <div id="scenario-2-content" class="bg-white p-6 rounded-b-lg shadow-lg hidden">
-                            <h4 id="scenario-2-title" class="text-xl font-semibold mb-2 text-amber-700"></h4>
-                            <p id="scenario-2-text" class="text-gray-600"></p>
-                        </div>
-                    </div>
-                    
-                    <h3 class="text-2xl font-semibold mb-4 text-center text-gray-800">베팅 전략</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div class="bet-card bet-card-main bg-white rounded-lg shadow-lg p-6">
-                            <h4 class="text-lg font-bold text-blue-800 mb-3">주력 전략</h4>
-                            <p class="font-mono text-lg font-semibold text-gray-900" id="main-pick-1"></p>
-                            <p class="font-mono text-lg font-semibold text-gray-900" id="main-pick-2"></p>
-                        </div>
-                        <div class="bet-card bet-card-alt bg-white rounded-lg shadow-lg p-6">
-                            <h4 class="text-lg font-bold text-amber-800 mb-3">대안 전략</h4>
-                            <p class="font-mono text-lg font-semibold text-gray-900" id="alt-pick-1"></p>
-                            <p class="font-mono text-lg font-semibold text-gray-900" id="alt-pick-2"></p>
-                        </div>
-                        <div class="bet-card bet-card-high bg-white rounded-lg shadow-lg p-6">
-                            <h4 class="text-lg font-bold text-red-800 mb-3">고배당 전략</h4>
-                            <p class="font-mono text-lg font-semibold text-gray-900" id="high-odds-pick"></p>
-                            <p class="text-sm text-gray-600 mt-2" id="high-odds-reason"></p>
-                        </div>
-                    </div>
-                </div>
-            </main>
-        </div>
+        <main id="busan-content-area" class="container mx-auto px-4 pb-12">
+        </main>
     </div>
 </div>
 
@@ -253,99 +169,134 @@ box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.
         }
     };
 
-    /* --- 부산 데이터 --- */
-    const busanRaceData = {
-        1: {
-            title: "부산 1경주 (국6 1000M)",
-            flow: "초반 스피드가 빠른 3(경부대로)와 8(골드스피어)가 선두를 다툴 가능성이 높습니다. 1(럭키포인트)도 게이트 이점을 안고 초반 가세합니다. 중반 이후 6(원동파워)과 4(스페셜에이스)의 추격이 예상됩니다.",
-            scenario1: { title: "시나리오 1: 선행마 경합", text: "3(경부대로)와 8(골드스피어)가 초반부터 무리한 경합을 벌일 경우, 두 말 모두 종반 무너질 수 있습니다. 이때 6(원동파워)나 4(스페셜에이스)에게 기회가 올 수 있습니다." },
-            scenario2: { title: "시나리오 2: 3(경부대로) 단독 선행", text: "8(골드스피어)가 무리하지 않고 2선으로 물러설 경우, 3(경부대로)가 단독 선행으로 편하게 경주를 주도하며 그대로 버틸 가능성이 높습니다." },
-            mainPicks: ["3 - 6", "3 - 8"],
-            altPicks: ["6 - 8", "6 - 4"],
-            highOdds: { pick: "4(스페셜에이스)", reason: "직전 경주 막판 걸음이 인상적이었습니다. 앞선이 무너지면 언제든 한발 쓸 수 있습니다." }
+    /* --- 부산 데이터 (Updated from new user file) --- */
+    const busanRaceData = [
+        {
+            id: 1,
+            title: "1경주 (1200M)",
+            flow: "경주 흐름: 선행 vs 추입",
+            scenario1: "`4(은빛/서강주/선행)` 단독 선행",
+            scenario2: "`4(은빛/서강주/선행)` 선행 무너짐, `1(판타스틱보스/서승운/추입)` 추입",
+            mainBet: ["1(판타스틱보스/서승운/추입) - 3(미스틱진/송경윤/선입)", "1(판타스틱보스/서승운/추입) - 7(청춘은자유/진겸/선입)"],
+            mainBetScenario: "시나리오 2 기반",
+            altBet: ["4(은빛/서강주/선행) - 3(미스틱진/송경윤/선입)", "4(은빛/서강주/선행) - 7(청춘은자유/진겸/선입)"],
+            altBetScenario: "시나리오 1 기반",
+            highOdds: { horse: "5(행복트리/이성재/후미)", reason: "G-1F 13.4초의 준수한 스퍼트 보유" }
         },
-        2: {
-            title: "부산 2경주 (국6 1200M)",
-            flow: "9(스페셜리스트)와 10(피스메이커)가 외곽에서부터 빠른 스피드로 선두권에 나섭니다. 2(위너스맨)가 안쪽에서 이들을 견제하며 따라붙는 양상입니다. 5(원평리스트)는 중위권에서 기회를 엿봅니다.",
-            scenario1: { title: "시나리오 1: 외곽 선행마의 버티기", text: "9(스페셜리스트)와 10(피스메이커)의 스피드가 워낙 좋아, 둘 중 한 마리가 초반 주도권을 잡고 그대로 버틸 가능성이 있습니다. 1200M라 종반 체력이 관건입니다." },
-            scenario2: { title: "시나리오 2: 2(위너스맨)의 추월", text: "외곽 선행마들이 초반 힘을 소진할 경우, 안쪽에서 체력을 비축한 2(위너스맨)가 직선주로에서 이들을 추월할 가능성이 높습니다." },
-            mainPicks: ["2 - 9", "2 - 10"],
-            altPicks: ["9 - 10", "2 - 5"],
-            highOdds: { pick: "5(원평리스트)", reason: "꾸준히 순위를 올리고 있습니다. 선행마들이 무너질 경우 가장 큰 이득을 볼 수 있는 추입마입니다." }
+        {
+            id: 2,
+            title: "2경주 (1200M)",
+            flow: "경주 흐름: 선행/선입 접전",
+            scenario1: "`10(정문펠릭스/다실바/선행/선입)` 선두 장악",
+            scenario2: "선행 경합, `6(드림레이서/서승운/선입/추입)` 추입",
+            mainBet: ["10(정문펠릭스/다실바/선행/선입) - 6(드림레이서/서승운/선입/추입)", "10(정문펠릭스/다실바/선행/선입) - 3(두바이드림/최시대/추입)"],
+            mainBetScenario: "시나리오 1 기반",
+            altBet: ["6(드림레이서/서승운/선입/추입) - 3(두바이드림/최시대/추입)", "6(드림레이서/서승운/선입/추입) - 7(토함산원/(-4)손경민/선행/선입)"],
+            altBetScenario: "시나리오 2 기반",
+            highOdds: { horse: "3(두바이드림/최시대/추입)", reason: "G-1F 12.7초의 순간 폭발력 보유" }
         },
-        3: {
-            title: "부산 3경주 (국6 1300M)",
-            flow: "거리가 1300M로 늘어났습니다. 7(닥터페이)가 빠른 출발로 선행을 주도하고, 5(그레이트원)와 8(금아파이어)가 그 뒤를 쫓습니다. 1(골든포인트)는 안쪽에서 차분히 따라옵니다.",
-            scenario1: { title: "시나리오 1: 7(닥터페이) 선행 압살", text: "7(닥터페이)의 스피드가 워낙 뛰어나, 다른 말들이 견제하지 못하고 편하게 선행을 허용할 경우, 1300M 거리도 충분히 버틸 수 있습니다." },
-            scenario2: { title: "시나리오 2: 5(그레이트원)의 역전", text: "7(닥터페이)가 선행에 나섰으나 5(그레이트원)의 압박이 거셀 경우, 직선주로에서 5(그레이트원)가 더 나은 종반 걸음으로 역전할 가능성이 있습니다." },
-            mainPicks: ["5 - 7", "7 - 1"],
-            altPicks: ["5 - 1", "7 - 8"],
-            highOdds: { pick: "1(골든포인트)", reason: "1번 게이트에서 최적의 전개가 가능합니다. 7번과 5번이 싸우는 틈을 타 인코스로 올라올 수 있습니다." }
+        {
+            id: 3,
+            title: "3경주 (1600M)",
+            flow: "경주 흐름: 선행/선입 vs 추입",
+            scenario1: "`11(마더원더풀/진겸/선행/선입)` 밸런스로 주도",
+            scenario2: "선행 경합, `8(플라잉아이스/김동영/추입)` 추입",
+            mainBet: ["11(마더원더풀/진겸/선행/선입) - 9(소망의길/서승운/선행/선입)", "11(마더원더풀/진겸/선행/선입) - 7(당대투사/이효식/선행/선입)"],
+            mainBetScenario: "시나리오 1 기반",
+            altBet: ["8(플라잉아이스/김동영/추입) - 11(마더원더풀/진겸/선행/선입)", "8(플라잉아이스/김동영/추입) - 4(승리예약/전진구/선행/선입)"],
+            altBetScenario: "시나리오 2 기반",
+            highOdds: { horse: "4(승리예약/전진구/선행/선입)", reason: "G-3F 2위, G-1F 1위의 숨겨진 스퍼트" }
         },
-        4: {
-            title: "부산 4경주 (국5 1200M)",
-            flow: "승급전의 4(톱클래스)가 빠른 스피드로 선두권에 나섭니다. 2(큐트가이)와 6(영광의레전드)가 강력한 라이벌로, 초반부터 치열한 3파전이 예상됩니다.",
-            scenario1: { title: "시나리오 1: 4(톱클래스) 승급전 통과", text: "4(톱클래스)가 6등급에서의 압도적인 기량을 바탕으로 5등급에서도 선행으로 경주를 주도하며 그대로 우승하는 시나리오입니다." },
-            scenario2: { title: "시나리오 2: 6(영광의레전드)의 관록", text: "4(톱클래스)가 승급전의 한계를 보이며 2(큐트가이)와 경합할 경우, 5등급에서 꾸준히 활약해 온 6(영광의레전드)가 관록으로 종반 역전을 이뤄낼 수 있습니다." },
-            mainPicks: ["4 - 6", "6 - 2"],
-            altPicks: ["4 - 2", "6 - 7"],
-            highOdds: { pick: "7(스카이샷)", reason: "최근 폼이 좋지 않지만, 원래 1200M에서 강점이 있는 말입니다. 앞선 3두가 무너지면 기회가 있습니다." }
+        {
+            id: 4,
+            title: "4경주 (1200M)",
+            flow: "경주 흐름: 추입 vs 선입",
+            scenario1: "선행 무너짐, `11(트리플제이/이효식/선입/추입)` 추입",
+            scenario2: "`11(트리플제이)` 추입 불발, 선입마(`2`,`6`) 버티기",
+            mainBet: ["11(트리플제이/이효식/선입/추입) - 2(로드투윈/진겸/선행/선입)", "11(트리플제이/이효식/선입/추입) - 6(탑드림/조창욱/선행/선입)"],
+            mainBetScenario: "시나리오 1 기반",
+            altBet: ["2(로드투윈/진겸/선행/선입) - 6(탑드림/조창욱/선행/선입)", "2(로드투윈/진겸/선행/선입) - 8(플래시데이/송경윤/선행/선입)"],
+            altBetScenario: "시나리오 2 기반",
+            highOdds: { horse: "7(선재/김태현/선입/추입)", reason: "G-3F 37.6초의 준수한 능력 보유" }
         },
-        5: {
-            title: "부산 5경주 (국5 1400M)",
-            flow: "1400M 장거리입니다. 3(판타스틱킹)과 4(닥터칼리오)가 선두 그룹을 형성하고, 10(영천솔)이 중위권에서 추입을 준비합니다. 1(월드클래스)은 게이트 이점을 살려 따라갑니다.",
-            scenario1: { title: "시나리오 1: 3(판타스틱킹)의 거리 극복", text: "3(판타스틱킹)이 1400M 경험을 바탕으로 경주를 안정적으로 운영하며 선두를 지켜냅니다. 4(닥터칼리오)와의 2파전이 유력합니다." },
-            scenario2: { title: "시나리오 2: 10(영천솔)의 막판 추입", text: "3번과 4번이 초반부터 힘겨루기를 할 경우, 1400M에서는 종반 체력이 중요합니다. 10(영천솔)의 막판 추입력이 빛을 발할 수 있습니다." },
-            mainPicks: ["3 - 4", "3 - 10"],
-            altPicks: ["4 - 10", "3 - 1"],
-            highOdds: { pick: "1(월드클래스)", reason: "1400M 경험은 적지만 1번 게이트에서 체력을 아낄 수 있습니다. 막판까지 버틴다면 고배당이 가능합니다." }
+        {
+            id: 5,
+            title: "5경주 (1300M)",
+            flow: "경주 흐름: 선행 경합, 선입 우세",
+            scenario1: "선행 경합, `2(서귀레이디/진겸/선행/선입)` 선입 역전",
+            scenario2: "`6(파워풀런/서승운/선행)` 단독 선행",
+            mainBet: ["2(서귀레이디/진겸/선행/선입) - 6(파워풀런/서승운/선행)", "2(서귀레이디/진겸/선행/선입) - 9(퀸레이스/송경윤/선행/선입)"],
+            mainBetScenario: "시나리오 1 기반",
+            altBet: ["6(파워풀런/서승운/선행) - 9(퀸레이스/송경윤/선행/선입)", "6(파워풀런/서승운/선행) - 2(서귀레이디/진겸/선행/선입)"],
+            altBetScenario: "시나리오 2 기반",
+            highOdds: { horse: "7(성실제일/박재이/후미)", reason: "G-1F 12.8초의 폭발적인 한 방" }
         },
-        6: {
-            title: "부산 6경주 (혼4 1200M)",
-            flow: "3(골든플러스)가 강력한 선행마로 나섭니다. 7(닥터시저)와 8(라온더맨)이 2선에서 추격합니다. 2(아델스톰)은 후미에서 추입을 노립니다.",
-            scenario1: { title: "시나리오 1: 3(골든플러스)의 독주", text: "3(골든플러스)의 스피드가 워낙 뛰어나, 다른 말들이 견제하지 못하고 단독 선행에 성공할 경우, 그대로 경주가 끝날 가능성이 높습니다." },
-            scenario2: { title: "시나리오 2: 7(닥터시저)의 역전", text: "3(골든플러스)가 선행에 나섰으나 8(라온더맨)의 견제가 거셀 경우, 2선에서 따라오던 7(닥터시저)가 직선주로에서 이들을 모두 잡아낼 수 있습니다." },
-            mainPicks: ["3 - 7", "7 - 8"],
-            altPicks: ["3 - 8", "7 - 2"],
-            highOdds: { pick: "2(아델스톰)", reason: "전형적인 추입마입니다. 3, 7, 8번이 앞에서 치열하게 싸우면, 이들의 싸움을 지켜보던 2번에게 종반 기회가 올 수 있습니다." }
+        {
+            id: 6,
+            title: "6경주 (1400M)",
+            flow: "경주 흐름: 선행 vs 추입",
+            scenario1: "`4(로드투희망/다나카/선행/선입)` 단독 선행",
+            scenario2: "선행 경합, `1(글로벌하이/박재이/선입/추입)` 추입",
+            mainBet: ["1(글로벌하이/박재이/선입/추입) - 5(선더패션/다실바/선행/선입)", "1(글로벌하이/박재이/선입/추입) - 12(플라잉더럭키/김동영/선행/선입)"],
+            mainBetScenario: "시나리오 2 기반",
+            altBet: ["4(로드투희망/다나카/선행/선입) - 1(글로벌하이/박재이/선입/추입)", "4(로드투희망/다나카/선행/선입) - 12(플라잉더럭키/김동영/선행/선입)"],
+            altBetScenario: "시나리오 1 기반",
+            highOdds: { horse: "5(선더패션/다실바/선행/선입)", reason: "G-3F 3위, G-1F 2위의 숨겨진 강자" }
         },
-        7: {
-            title: "부산 7경주 (국4 1600M)",
-            flow: "1600M 장거리입니다. 4(캡틴골드)와 5(위너영)가 선두 그룹을 형성합니다. 1(클리어)와 6(성실공주)는 중위권에서 체력을 안배하며 기회를 노립니다.",
-            scenario1: { title: "시나리오 1: 4(캡틴골드)의 지구력", text: "4(캡틴골드)가 1600M 경험을 살려 안정적인 페이스로 경주를 주도하며, 5(위너영)의 추격을 뿌리치고 우승합니다." },
-            scenario2: { title: "시나리오 2: 6(성실공주)의 추입", text: "4번과 5번이 중반부터 서로를 견제하며 페이스가 빨라질 경우, 1600M에서 막판 스퍼트가 좋은 6(성실공주)가 역전승을 거둘 수 있습니다." },
-            mainPicks: ["4 - 5", "4 - 6"],
-            altPicks: ["5 - 6", "6 - 1"],
-            highOdds: { pick: "1(클리어)", reason: "1번 게이트에서 거리 손해 없이 최적으로 따라올 수 있습니다. 장거리에서 큰 강점이 될 수 있습니다." }
+        {
+            id: 7,
+            title: "7경주 (1800M)",
+            flow: "경주 흐름: `2`번 독주 또는 혼전 (데뷔전 6두)",
+            scenario1: "`2(글로벌위크/진겸/선행/선입)` 데이터 압도/독주",
+            scenario2: "데뷔전 변수, `2(글로벌위크)` 견제",
+            mainBet: ["2(글로벌위크/진겸/선행/선입) - 10(서울드래곤/신윤섭/선행/선입)", "2(글로벌위크/진겸/선행/선입) - 5(코이누르/김동영/선행/선입)"],
+            mainBetScenario: "시나리오 1 기반",
+            altBet: ["10(서울드래곤/신윤섭/선행/선입) - 5(코이누르/김동영/선행/선입)", "10(서울드래곤/신윤섭/선행/선입) - 2(글로벌위크/진겸/선행/선입)"],
+            altBetScenario: "시나리오 2 기반",
+            highOdds: { horse: "6(탐라슈퍼/서승운/데뷔전)", reason: "1800M 데뷔 + 서승운 기수 조합" }
         },
-        8: {
-            title: "부산 8경주 (국3 1800M)",
-            flow: "오늘의 최장거리 1800M입니다. 2(월드레전드)와 3(킹오브더매치)가 선행을 다툽니다. 7(톱파이어)와 9(가디언엔젤)은 중장거리 강자로, 후미에서 서서히 올라옵니다.",
-            scenario1: { title: "시나리오 1: 선행마 2파전", text: "2(월드레전드)와 3(킹오브더매치)가 서로 무리하지 않고 선두 그룹을 형성하며 경주를 주도하고, 두 마리가 그대로 버티는 시나리오입니다." },
-            scenario2: { title: "시나리오 2: 9(가디언엔젤)의 막판 역전", text: "1800M는 진정한 지구력 싸움입니다. 2번과 3번이 조금이라도 오버페이스를 할 경우, 1800M에서 검증된 추입 강자 9(가디언엔젤)이 막판에 모두 잡아낼 것입니다." },
-            mainPicks: ["9 - 2", "9 - 3"],
-            altPicks: ["2 - 3", "9 - 7"],
-            highOdds: { pick: "7(톱파이어)", reason: "9번과 함께 추입력을 갖춘 말입니다. 9번보다 인기가 덜하지만, 언제든 우승권에 도전할 수 있는 저력마입니다." }
+        {
+            id: 8,
+            title: "8경주 (1200M)",
+            flow: "경주 흐름: 선행/선입 접전",
+            scenario1: "`8(브라이트마린/송경윤/선행/선입)` 밸런스 우세, `3(삼바스텝)`과 접전",
+            scenario2: "선행 과열, `11(플렉스엔진/진겸/추입)` 추입",
+            mainBet: ["8(브라이트마린/송경윤/선행/선입) - 3(삼바스텝/신윤섭/선행/선입)", "8(브라이트마린/송경윤/선행/선입) - 2(센세이셔널윈/박재이/선행/선입)"],
+            mainBetScenario: "시나리오 1 기반",
+            altBet: ["11(플렉스엔진/진겸/추입) - 8(브라이트마린/송경윤/선행/선입)", "11(플렉스엔진/진겸/추입) - 10(드래곤데빌/이효식/선입/추입)"],
+            altBetScenario: "시나리오 2 기반",
+            highOdds: { horse: "11(플렉스엔진/진겸/추입)", reason: "G-1F 기록이 압도적인 추입마" }
+        },
+        {
+            id: 9,
+            title: "9경주 (1600M)",
+            flow: "경주 흐름: 선입 vs 추입 (데뷔전 8두)",
+            scenario1: "`5(빅뮤지컬스타/최시대/선행/선입)` 밸런스로 버티기",
+            scenario2: "선행 과열, `11(벌마킹/진겸/추입)` 추입",
+            mainBet: ["5(빅뮤지컬스타/최시대/선행/선입) - 11(벌마킹/진겸/추입)"],
+            mainBetScenario: "시나리오 1 기반",
+            altBet: ["11(벌마킹/진겸/추입) - 6(여수슈퍼스타/서승운/선입/추입)", "11(벌마킹/진겸/추입) - 5(빅뮤지컬스타/최시대/선행/선입)"],
+            altBetScenario: "시나리오 2 기반",
+            highOdds: { horse: "2(서부비전/다나카/데뷔전)", reason: "데뷔전 마필 중 기수(다나카)가 가장 우수" }
         }
-    };
-
+    ];
 
     /* --- 제주 페이지 로직 --- */
     function jeju_generateRaceHtml(raceId) {
         const data = jejuRaceData[raceId];
         if (!data) return '';
 
-        let betsHtml = data.bets.map(bet => `
-            <div class="bet-card ${bet.class} bg-white rounded-lg shadow-lg p-6 mb-4">
-                <h3>${bet.type}</h3>
-                <div class="space-y-2">
-                    ${bet.combos.map(combo => `<span class="block text-gray-700 font-medium">${combo}</span>`).join('')}
-                </div>
-            </div>
-        `).join('');
+        let betsHtml = data.bets.map(bet => {
+            let comboHtml = bet.combos.map(combo => `<span class="block text-gray-700 font-medium">${combo}</span>`).join('');
+            return `
+                <div class="bet-card ${bet.class} bg-white rounded-lg shadow-lg p-6 mb-4 md:mb-0">
+                    <h3>${bet.type}</h3>
+                    <div class="space-y-2">${comboHtml}</div>
+                </div>`;
+        }).join('');
 
         return `
-            <div class="animate-fade-in">
+            <div class="animate-fade-in max-w-7xl mx-auto">
                 <h2 class="text-3xl font-bold text-gray-900 mb-6 text-center">${data.title}</h2>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -360,7 +311,7 @@ box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.
                 </div>
 
                 <h3 class="text-2xl font-bold text-gray-800 mb-4 text-center">베팅 전략</h3>
-                <div class="space-y-4 md:grid md:grid-cols-3 md:gap-6 md:space-y-0">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     ${betsHtml}
                 </div>
             </div>
@@ -393,66 +344,112 @@ box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.
         jeju_showRace('race-1');
     }
 
-    /* --- 부산 페이지 로직 --- */
-    function busan_updateRaceView(raceId) {
-        const race = busanRaceData[raceId];
-        if (!race) return;
-
-        const busanPage = document.getElementById('busan-page');
-        
-        busanPage.querySelector('#race-title').innerText = race.title;
-        busanPage.querySelector('#race-flow').innerText = race.flow;
-        busanPage.querySelector('#scenario-1-title').innerText = race.scenario1.title;
-        busanPage.querySelector('#scenario-1-text').innerText = race.scenario1.text;
-        busanPage.querySelector('#scenario-2-title').innerText = race.scenario2.title;
-        busanPage.querySelector('#scenario-2-text').innerText = race.scenario2.text;
-        
-        busanPage.querySelector('#main-pick-1').innerText = race.mainPicks[0];
-        busanPage.querySelector('#main-pick-2').innerText = race.mainPicks[1];
-        busanPage.querySelector('#alt-pick-1').innerText = race.altPicks[0];
-        busanPage.querySelector('#alt-pick-2').innerText = race.altPicks[1];
-        busanPage.querySelector('#high-odds-pick').innerText = race.highOdds.pick;
-        busanPage.querySelector('#high-odds-reason').innerText = race.highOdds.reason;
-
-        busanPage.querySelectorAll('#busan-nav-bar .nav-button').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.race == raceId);
-        });
-        
-        busan_initTabs();
-        busanPage.querySelector('.tab-button[data-tab="1"]').click();
+    /* --- 부산 페이지 로직 (Updated) --- */
+    
+    function busan_parseHorseString(str) {
+        const match = str.match(/(\d+)\((.*?)\/(.*?)\/(.*?)\)/);
+        if (match) {
+            return { num: match[1], name: match[2], jockey: match[3], style: match[4] };
+        }
+        const debutMatch = str.match(/(\d+)\((.*?)\/(.*?)\/(데뷔전)\)/);
+        if (debutMatch) {
+            return { num: debutMatch[1], name: debutMatch[2], jockey: debutMatch[3], style: debutMatch[4] };
+        }
+        return null;
     }
 
-    function busan_initTabs() {
+    function busan_formatBettingHTML(betStrings) {
+        return betStrings.map(bet => {
+            const parts = bet.split(' - ');
+            const horse1 = busan_parseHorseString(parts[0]);
+            const horse2 = parts[1] ? busan_parseHorseString(parts[1]) : null;
+
+            const horse1Text = horse1 ? `${horse1.num} (${horse1.name}/${horse1.jockey}/${horse1.style})` : parts[0];
+            const horse2Text = horse2 ? `${horse2.num} (${horse2.name}/${horse2.jockey}/${horse2.style})` : (parts[1] || '');
+
+            if (!horse2) {
+                 return `<div class="flex flex-wrap items-center">
+                            <span class="inline-block bg-amber-100 text-amber-800 font-bold py-1 px-2 rounded-md text-xs sm:text-sm mb-1">${horse1Text}</span>
+                        </div>`;
+            }
+
+            return `<div class="flex flex-wrap items-center">
+                        <span class="inline-block bg-amber-100 text-amber-800 font-bold py-1 px-2 rounded-md text-xs sm:text-sm mb-1">${horse1Text}</span> 
+                        <span class="mx-1.5 font-bold text-gray-600 mb-1">-</span> 
+                        <span class="inline-block bg-amber-100 text-amber-800 font-bold py-1 px-2 rounded-md text-xs sm:text-sm mb-1">${horse2Text}</span>
+                    </div>`;
+        }).join('');
+    }
+    
+    function busan_formatHorseHTML(horseString) {
+        const horse = busan_parseHorseString(horseString);
+        if (!horse) return `<div>${horseString}</div>`;
+        
+        const horseText = `${horse.num} (${horse.name}/${horse.jockey}/${horse.style})`;
+        return `<div><span class="inline-block bg-blue-100 text-blue-800 font-bold py-1 px-2 rounded-md text-xs sm:text-sm">${horseText}</span></div>`;
+    }
+
+
+    function busan_updateRaceView(raceId) {
+        const race = busanRaceData.find(r => r.id === raceId);
+        if (!race) return;
+        
         const busanPage = document.getElementById('busan-page');
-        const tabs = busanPage.querySelectorAll('.tab-button');
-        const scenario1Content = busanPage.querySelector('#scenario-1-content');
-        const scenario2Content = busanPage.querySelector('#scenario-2-content');
+        const contentArea = busanPage.querySelector('#busan-content-area');
 
-        tabs.forEach(tab => {
-            tab.onclick = () => {
-                tabs.forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
+        let html = `
+            <div class="max-w-7xl mx-auto">
+                <div class="mb-6">
+                    <h2 id="race-title" class="text-3xl md:text-4xl font-bold text-gray-800 text-center">${race.title}</h2>
+                    <p id="race-flow" class="text-lg md:text-xl text-amber-600 font-medium mt-1 text-center">${race.flow}</p>
+                </div>
 
-                const tabNum = tab.dataset.tab;
-                scenario1Content.classList.toggle('hidden', tabNum !== '1');
-                scenario2Content.classList.toggle('hidden', tabNum !== '2');
-            };
-        });
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-blue-500">
+                        <h3 class="text-xl font-semibold text-blue-800 mb-2">시나리오 1</h3>
+                        <p class="text-gray-600">${race.scenario1}</p>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-amber-500">
+                        <h3 class="text-xl font-semibold text-amber-800 mb-2">시나리오 2</h3>
+                        <p class="text-gray-600">${race.scenario2}</p>
+                    </div>
+                </div>
+
+                <h3 class="text-2xl font-bold text-gray-800 mb-4 text-center">베팅 전략</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bet-card bet-card-main bg-white rounded-lg shadow-lg p-6">
+                        <h3>주력 조합 (${race.mainBetScenario})</h3>
+                        <div class="space-y-2">${busan_formatBettingHTML(race.mainBet)}</div>
+                    </div>
+                    <div class="bet-card bet-card-alt bg-white rounded-lg shadow-lg p-6">
+                        <h3>대안 조합 (${race.altBetScenario})</h3>
+                        <div class="space-y-2">${busan_formatBettingHTML(race.altBet)}</div>
+                    </div>
+                    <div class="bet-card bet-card-longshot bg-white rounded-lg shadow-lg p-6">
+                        <h3>고배당 옵션</h3>
+                        <div class="space-y-2">${busan_formatHorseHTML(race.highOdds.horse)}</div>
+                        <p class="text-sm text-gray-500 mt-2">${race.highOdds.reason}</p>
+                    </div>
+                </div>
+            </div>`;
+        
+        contentArea.innerHTML = html;
     }
 
     function busan_initialize() {
-        const navBar = document.getElementById('busan-nav-bar');
+        const raceSelect = document.getElementById('busan-race-select');
         let navHtml = '';
-        for (let i = 1; i <= 8; i++) {
-            navHtml += `<button class="nav-button w-full text-left p-3 rounded-lg font-medium" data-race="${i}">제${i}경주</button>`;
-        }
-        navBar.innerHTML = navHtml;
-        
-        navBar.querySelectorAll('.nav-button').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const raceId = parseInt(e.currentTarget.dataset.race);
-                busan_updateRaceView(raceId);
-            });
+        busanRaceData.forEach(race => {
+            navHtml += `
+                <option value="${race.id}">
+                    ${race.title.split(' (')[0]}
+                </option>
+            `;
+        });
+        raceSelect.innerHTML = navHtml;
+
+        raceSelect.addEventListener('change', (event) => {
+            busan_updateRaceView(parseInt(event.target.value));
         });
 
         busan_updateRaceView(1);
