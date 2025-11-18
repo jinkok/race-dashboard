@@ -1,489 +1,267 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>경마 베팅 전략 (통합)</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
-<!-- Chosen Palette: Calm Harmony (bg-gray-50, white, blue-800, amber-500, red-500) -->
-<!-- Application Structure Plan: A top-level tab navigation ("제주", "부산") switches between two complete sub-applications. Each sub-app is contained in its own div (`#jeju-page`, `#busan-page`). Both sub-apps now use a <select> dropdown for mobile-friendly race selection, and both use the same content layout (2-col scenarios, 3-col bets) for UI consistency. -->
-<!-- Visualization & Content Choices: Both sub-applications are 100% textual. All information (scenarios, betting picks) is presented in structured HTML cards. No charts are used. Interaction: 1) Top tabs switch between "제주" and "부산". 2) Inside each app, a <select> dropdown switches races. All interactions update the relevant content area dynamically. -->
-<!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
-<style>
-body {
-font-family: 'Inter', 'Noto Sans KR', sans-serif;
-background-color: #f9fafb;
-}
-
-/* --- Top Level Nav --- */
-.main-nav-button {
-padding: 0.75rem 1.5rem;
-font-size: 1.125rem;
-font-weight: 700;
-transition: all 0.2s ease-in-out;
-border-bottom: 4px solid transparent;
-}
-.main-nav-button.active {
-color: #1e40af;
-border-color: #1e40af;
-}
-.main-nav-button.inactive {
-color: #6b7280;
-}
-
-/* --- Global Bet Card Styles --- */
-.bet-card h3 {
-font-size: 1.125rem;
-font-weight: 700;
-padding-bottom: 0.5rem;
-margin-bottom: 0.75rem;
-border-bottom-width: 2px;
-}
-.bet-card-main h3 { border-color: #2563eb; color: #1d4ed8; }
-.bet-card-alt h3 { border-color: #f59e0b; color: #b45309; }
-.bet-card-longshot h3 { border-color: #ef4444; color: #b91c1c; }
-
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>주간 경마 배당률 요약</title>
+    <!-- Tailwind CSS CDN 로드 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Inter 폰트 (또는 기본 sans-serif) 적용 */
+        body {
+            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+        }
+    </style>
 </head>
-<body class="flex flex-col h-screen overflow-hidden">
+<body class="bg-gray-100 min-h-screen p-4 md:p-8">
+    <div class="container mx-auto max-w-5xl">
+        <!-- 페이지 제목 -->
+        <h1 class="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-6 md:mb-8">
+            주간 경마 배당률 요약
+        </h1>
 
-<header class="bg-white shadow-md flex-shrink: 0">
-    <div class="container mx-auto px-4 py-4">
-        <h1 class="text-3xl font-bold text-center text-blue-900">경마 베팅 전략</h1>
-    </div>
-    <nav id="main-nav-bar" class="flex justify-center border-b border-gray-200">
-        <button id="nav-jeju" class="main-nav-button active">제주 경마</button>
-        <button id="nav-busan" class="main-nav-button inactive">부산 경마</button>
-    </nav>
-</header>
+        <!-- 탭 네비게이션 -->
+        <div class="mb-4 border-b border-gray-200">
+            <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                <!-- 요일별 탭 (기본 활성) -->
+                <button id="tab-btn-day" 
+                        class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-blue-500 text-blue-600"
+                        aria-current="page">
+                    요일별 요약
+                </button>
+                <!-- 경마장별 탭 -->
+                <button id="tab-btn-location" 
+                        class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    경마장별 요약
+                </button>
+            </nav>
+        </div>
 
-<div id="main-content-wrapper" class="flex-grow overflow-y-auto">
+        <!-- 탭 콘텐츠 -->
+        <div>
+            <!-- === 요일별 요약 패널 === -->
+            <div id="tab-panel-day" class="tab-panel">
+                <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <!-- 요일별 요약 테이블 -->
+                        <table class="w-full min-w-max text-sm md:text-base text-left text-gray-700">
+                            <thead class="bg-gray-200 text-gray-600 uppercase tracking-wider">
+                                <tr>
+                                    <th class="py-3 px-4 font-semibold">요일</th>
+                                    <th class="py-3 px-4 font-semibold">구분</th>
+                                    <th class="py-3 px-4 font-semibold text-right">단승</th>
+                                    <th class="py-3 px-4 font-semibold text-right">복승</th>
+                                    <th class="py-3 px-4 font-semibold text-right">삼복승</th>
+                                    <th class="py-3 px-4 font-semibold text-right">삼쌍승</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                <!-- 금요일 데이터 -->
+                                <tr class="hover:bg-gray-50">
+                                    <td class="py-4 px-4 font-medium row-span-3 align-top md:align-middle" rowspan="3">
+                                        <span class="bg-blue-100 text-blue-800 font-bold py-1 px-3 rounded-full">금요일</span>
+                                    </td>
+                                    <td class="py-3 px-4 font-medium text-gray-500">평균</td>
+                                    <td class="py-3 px-4 text-right">5.19</td>
+                                    <td class="py-3 px-4 text-right">16.51</td>
+                                    <td class="py-3 px-4 text-right">50.35</td>
+                                    <td class="py-3 px-4 text-right">342.54</td>
+                                </tr>
+                                <tr class="bg-gray-50 hover:bg-gray-100">
+                                    <td class="py-3 px-4 font-medium text-gray-500">최소</td>
+                                    <td class="py-3 px-4 text-right text-green-700">1.3</td>
+                                    <td class="py-3 px-4 text-right text-green-700">1.5</td>
+                                    <td class="py-3 px-4 text-right text-green-700">4.5</td>
+                                    <td class="py-3 px-4 text-right text-green-700">17.7</td>
+                                </tr>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="py-3 px-4 font-medium text-gray-500">최대</td>
+                                    <td class="py-3 px-4 text-right text-red-700">14.0</td>
+                                    <td class="py-3 px-4 text-right text-red-700">61.3</td>
+                                    <td class="py-3 px-4 text-right text-red-700">356.1</td>
+                                    <td class="py-3 px-4 text-right text-red-700">2544.6</td>
+                                </tr>
 
-    <!-- =========== JEJU PAGE CONTENT =========== -->
-    <div id="jeju-page">
-        <nav class="container mx-auto px-4 py-6">
-            <label for="jeju-race-select" class="block text-sm font-medium text-gray-700 sr-only">경주 선택</label>
-            <select id="jeju-race-select" class="block w-full max-w-lg mx-auto p-3 text-lg font-semibold text-blue-900 bg-white border-2 border-blue-800 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </select>
-        </nav>
-        <main id="jeju-content-area" class="container mx-auto px-4 pb-12">
-        </main>
-    </div>
+                                <!-- 토요일 데이터 -->
+                                <tr class="hover:bg-gray-50 border-t-2 border-gray-300">
+                                    <td class="py-4 px-4 font-medium row-span-3 align-top md:align-middle" rowspan="3">
+                                        <span class="bg-indigo-100 text-indigo-800 font-bold py-1 px-3 rounded-full">토요일</span>
+                                    </td>
+                                    <td class="py-3 px-4 font-medium text-gray-500">평균</td>
+                                    <td class="py-3 px-4 text-right">7.02</td>
+                                    <td class="py-3 px-4 text-right">34.89</td>
+                                    <td class="py-3 px-4 text-right">64.08</td>
+                                    <td class="py-3 px-4 text-right">411.34</td>
+                                </tr>
+                                <tr class="bg-gray-50 hover:bg-gray-100">
+                                    <td class="py-3 px-4 font-medium text-gray-500">최소</td>
+                                    <td class="py-3 px-4 text-right text-green-700">1.3</td>
+                                    <td class="py-3 px-4 text-right text-green-700">5.0</td>
+                                    <td class="py-3 px-4 text-right text-green-700">5.5</td>
+                                    <td class="py-3 px-4 text-right text-green-700">19.5</td>
+                                </tr>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="py-3 px-4 font-medium text-gray-500">최대</td>
+                                    <td class="py-3 px-4 text-right text-red-700 font-bold">48.6</td>
+                                    <td class="py-3 px-4 text-right text-red-700 font-bold">314.4</td>
+                                    <td class="py-3 px-4 text-right text-red-700 font-bold">326.3</td>
+                                    <td class="py-3 px-4 text-right text-red-700 font-bold">2954.2</td>
+                                </tr>
 
-    <!-- =========== BUSAN PAGE CONTENT (Updated) =========== -->
-    <div id="busan-page" class="hidden">
-        <nav class="container mx-auto px-4 py-6">
-            <label for="busan-race-select" class="block text-sm font-medium text-gray-700 sr-only">경주 선택</label>
-            <select id="busan-race-select" class="block w-full max-w-lg mx-auto p-3 text-lg font-semibold text-amber-800 bg-white border-2 border-amber-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
-            </select>
-        </nav>
-
-        <main id="busan-content-area" class="container mx-auto px-4 pb-12">
-        </main>
-    </div>
-</div>
-
-<script>
-    /* --- 제주 데이터 --- */
-    const jejuRaceData = {
-        "race-1": {
-            title: "제주 1경주 (800M)",
-            scenario1: { title: "시나리오 1 (선행 독주)", text: "8(평화군/김홍권/선행)의 독주" },
-            scenario2: { title: "시나리오 2 (선행 경합)", text: "선행마 무너지고 1(일대명작/임재광/자유형), 7(일주향/김용섭/선입)의 추입" },
-            bets: [
-                { type: "주력 (쌍승/복승)", class: "bet-card-main", combos: ["8(평화군/김홍권/선행) - 9(무림통일/원유일/선행)", "8(평화군/김홍권/선행) - 2(천상태양/이성민/선입)"] },
-                { type: "대안 (복승)", class: "bet-card-alt", combos: ["1(일대명작/임재광/자유형) - 7(일주향/김용섭/선입)"] },
-                { type: "고배당 (삼복승 축)", class: "bet-card-longshot", combos: ["7(일주향/김용섭/선입)", "1(일대명작/임재광/자유형)"] }
-            ]
-        },
-        "race-2": {
-            title: "제주 2경주 (900M)",
-            scenario1: { title: "시나리오 1 (G-1F 최강)", text: "4(람바다/강수한/선입(추입형))의 종반 역전" },
-            scenario2: { title: "시나리오 2 (추입마 난타전)", text: "선행 그룹 공멸 후 3(향기가득/나유나/추입)의 역전" },
-            bets: [
-                { type: "주력 (쌍승/복승)", class: "bet-card-main", combos: ["4(람바다/강수한/선입(추입형)) - 3(향기가득/나유나/추입)", "4(람바다/강수한/선입(추입형)) - 9(삼다군주/박성광/선입/선행)"] },
-                { type: "대안 (복승)", class: "bet-card-alt", combos: ["3(향기가득/나유나/추입) - 2(서귀명성/김용섭/추입)", "3(향기가득/나유나/추입) - 6(해뜨고/전현준/추입)"] },
-                { type: "고배당 (복승/삼복승 축)", class: "bet-card-longshot", combos: ["3(향기가득/나유나/추입)"] }
-            ]
-        },
-        "race-3": {
-            title: "제주 3경주 (900M)",
-            scenario1: { title: "시나리오 1 (고중량 극복)", text: "6(한라장사/김홍권/강선행)의 선행 버티기" },
-            scenario2: { title: "시나리오 2 (고중량 부진)", text: "6번 부진 시, 3(제일명/이동준/후미추입)의 막판 역전" },
-            bets: [
-                { type: "주력 (쌍승/복승)", class: "bet-card-main", combos: ["6(한라장사/김홍권/강선행) - 5(일류왕/전현준/선입/선행)", "6(한라장사/김홍권/강선행) - 2(금달란트/김준호/선입/선행)"] },
-                { type: "대안 (복승)", class: "bet-card-alt", combos: ["3(제일명/이동준/후미추입) - 1(블루라이트/박재희/선입/추입)", "3(제일명/이동준/후미추입) - 2(금달란트/김준호/선입/선행)"] },
-                { type: "고배당 (삼복승 축)", class: "bet-card-longshot", combos: ["3(제일명/이동준/후미추입)", "1(블루라이트/박재희/선입/추입)"] }
-            ]
-        },
-        "race-4": {
-            title: "제주 4경주 (1000M)",
-            scenario1: { title: "시나리오 1 (최근 기세)", text: "9(황제천하/박재희/선입/선행), 1(한빛제일/박성광/선입/선행)의 선입 경쟁" },
-            scenario2: { title: "시나리오 2 (G-3F 능력)", text: "선입 그룹 과열 시, 2(어부바/김준호/선입/선행), 5(아라리오/강수한/선입/선행)의 역전" },
-            bets: [
-                { type: "주력 (쌍승/복승)", class: "bet-card-main", combos: ["9(황제천하/박재희/선입/선행) - 1(한빛제일/박성광/선입/선행)", "9(황제천하/박재희/선입/선행) - 10(불꽃시대/이동준/선입/선행)"] },
-                { type: "대안 (복승)", class: "bet-card-alt", combos: ["2(어부바/김준호/선입/선행) - 5(아라리오/강수한/선입/선행)"] },
-                { type: "고배당 (삼복승 축)", class: "bet-card-longshot", combos: ["2(어부바/김준호/선입/선행)", "5(아라리오/강수한/선입/선행)"] }
-            ]
-        },
-        "race-5": {
-            title: "제주 5경주 (1000M) - *혼전/공백마 변수*",
-            scenario1: { title: "시나리오 1 (안정)", text: "공백마 부진, 5(거승태자/원유일/선입/선행)의 선입 후 우승" },
-            scenario2: { title: "시나리오 2 (고배당)", text: "공백마 6(영웅본색/임재광/선입/선행)의 기록상 잠재력 폭발" },
-            bets: [
-                { type: "주력 (쌍승/복승)", class: "bet-card-main", combos: ["5(거승태자/원유일/선입/선행) - 2(기찬/김경휴/선입/선행)", "5(거승태자/원유일/선입/선행) - 3(제이킹/박성광/선입/선행)"] },
-                { type: "대안 (복승)", class: "bet-card-alt", combos: ["6(영웅본색/임재광/선입/선행) - 5(거승태자/원유일/선입/선행)", "6(영웅본색/임재광/선입/선행) - 2(기찬/김경휴/선입/선행)"] },
-                { type: "고배당 (삼복승 축)", class: "bet-card-longshot", combos: ["6(영웅본색/임재광/선입/선행)"] }
-            ]
-        },
-        "race-6": {
-            title: "제주 6경주 (1000M) - *선행 과열*",
-            scenario1: { title: "시나리오 1 (선행 후 버티기)", text: "4(백록챔프/박재희/선행)가 경합 피하고 우승" },
-            scenario2: { title: "시나리오 2 (선행 공멸)", text: "선행마 전멸, 2(동쪽샤인/문현진/선입/선행)의 막판 추입" },
-            bets: [
-                { type: "주력 (쌍승/복승)", class: "bet-card-main", combos: ["4(백록챔프/박재희/선행) - 1(천년약속/박성광/선입/선행)", "4(백록챔프/박재희/선행) - 2(동쪽샤인/문현진/선입/선행)"] },
-                { type: "대안 (복승)", class: "bet-card-alt", combos: ["2(동쪽샤인/문현진/선입/선행) - 9(광명황제/강수한/추입/후미)", "2(동쪽샤인/문현진/선입/선행) - 1(천년약속/박성광/선입/선행)"] },
-                { type: "고배당 (삼복승 축)", class: "bet-card-longshot", combos: ["2(동쪽샤인/문현진/선입/선행)", "9(광명황제/강수한/추입/후미)"] }
-            ]
-        },
-        "race-7": {
-            title: "제주 7경주 (1110M)",
-            scenario1: { title: "시나리오 1 (선행 독주)", text: "10(명인황제/김홍권/강선행)의 G-3F 기반 독주" },
-            scenario2: { title: "시나리오 2 (고중량 부진)", text: "10번 부진 시, 4(한백돌파/곽용남/추입), 3(아카사니/임재광/추입)의 역전" },
-            bets: [
-                { type: "주력 (쌍승/복승)", class: "bet-card-main", combos: ["10(명인황제/김홍권/강선행) - 6(경성윈드/전현준/선입/선행)", "10(명인황제/김홍권/강선행) - 7(강한나래/원유일/선입/선행)"] },
-                { type: "대안 (복승)", class: "bet-card-alt", combos: ["3(아카사니/임재광/추입) - 4(한백돌파/곽용남/추입)", "3(아카사니/임재광/추입) - 2(참나리/박성광/선입/선행)"] },
-                { type: "고배당 (삼복승 축)", class: "bet-card-longshot", combos: ["4(한백돌파/곽용남/추입)", "3(아카사니/임재광/추입)"] }
-            ]
-        },
-        "race-8": {
-            title: "제주 8경주 (1110M)",
-            scenario1: { title: "시나리오 1 (단독 선행)", text: "2(캐논황후/전현준/단독선행)의 완벽한 독주" },
-            scenario2: { title: "시나리오 2 (G-1F 최강)", text: "2번 부진 시, 8(봉천수/강수한/추입)의 경이적인 추입" },
-            bets: [
-                { type: "주력 (쌍승/복승)", class: "bet-card-main", combos: ["2(캐논황후/전현준/단독선행) - 7(청룡퀸/김홍권/선입/선행)", "2(캐논황후/전현준/단독선행) - 1(무주미소/문현진/선입/선행)"] },
-                { type: "대안 (복승)", class: "bet-card-alt", combos: ["8(봉천수/강수한/추입) - 7(청룡퀸/김홍권/선입/선행)", "8(봉천수/강수한/추입) - 1(무주미소/문현진/선입/선행)"] },
-                { type: "고배당 (삼복승 축)", class: "bet-card-longshot", combos: ["8(봉천수/강수한/추입)", "6(광해신천/박성광/선입/선행)"] }
-            ]
-        }
-    };
-
-    /* --- 부산 데이터 (Updated from new user file) --- */
-    const busanRaceData = [
-        {
-            id: 1,
-            title: "1경주 (1200M)",
-            flow: "경주 흐름: 선행 vs 추입",
-            scenario1: "`4(은빛/서강주/선행)` 단독 선행",
-            scenario2: "`4(은빛/서강주/선행)` 선행 무너짐, `1(판타스틱보스/서승운/추입)` 추입",
-            mainBet: ["1(판타스틱보스/서승운/추입) - 3(미스틱진/송경윤/선입)", "1(판타스틱보스/서승운/추입) - 7(청춘은자유/진겸/선입)"],
-            mainBetScenario: "시나리오 2 기반",
-            altBet: ["4(은빛/서강주/선행) - 3(미스틱진/송경윤/선입)", "4(은빛/서강주/선행) - 7(청춘은자유/진겸/선입)"],
-            altBetScenario: "시나리오 1 기반",
-            highOdds: { horse: "5(행복트리/이성재/후미)", reason: "G-1F 13.4초의 준수한 스퍼트 보유" }
-        },
-        {
-            id: 2,
-            title: "2경주 (1200M)",
-            flow: "경주 흐름: 선행/선입 접전",
-            scenario1: "`10(정문펠릭스/다실바/선행/선입)` 선두 장악",
-            scenario2: "선행 경합, `6(드림레이서/서승운/선입/추입)` 추입",
-            mainBet: ["10(정문펠릭스/다실바/선행/선입) - 6(드림레이서/서승운/선입/추입)", "10(정문펠릭스/다실바/선행/선입) - 3(두바이드림/최시대/추입)"],
-            mainBetScenario: "시나리오 1 기반",
-            altBet: ["6(드림레이서/서승운/선입/추입) - 3(두바이드림/최시대/추입)", "6(드림레이서/서승운/선입/추입) - 7(토함산원/(-4)손경민/선행/선입)"],
-            altBetScenario: "시나리오 2 기반",
-            highOdds: { horse: "3(두바이드림/최시대/추입)", reason: "G-1F 12.7초의 순간 폭발력 보유" }
-        },
-        {
-            id: 3,
-            title: "3경주 (1600M)",
-            flow: "경주 흐름: 선행/선입 vs 추입",
-            scenario1: "`11(마더원더풀/진겸/선행/선입)` 밸런스로 주도",
-            scenario2: "선행 경합, `8(플라잉아이스/김동영/추입)` 추입",
-            mainBet: ["11(마더원더풀/진겸/선행/선입) - 9(소망의길/서승운/선행/선입)", "11(마더원더풀/진겸/선행/선입) - 7(당대투사/이효식/선행/선입)"],
-            mainBetScenario: "시나리오 1 기반",
-            altBet: ["8(플라잉아이스/김동영/추입) - 11(마더원더풀/진겸/선행/선입)", "8(플라잉아이스/김동영/추입) - 4(승리예약/전진구/선행/선입)"],
-            altBetScenario: "시나리오 2 기반",
-            highOdds: { horse: "4(승리예약/전진구/선행/선입)", reason: "G-3F 2위, G-1F 1위의 숨겨진 스퍼트" }
-        },
-        {
-            id: 4,
-            title: "4경주 (1200M)",
-            flow: "경주 흐름: 추입 vs 선입",
-            scenario1: "선행 무너짐, `11(트리플제이/이효식/선입/추입)` 추입",
-            scenario2: "`11(트리플제이)` 추입 불발, 선입마(`2`,`6`) 버티기",
-            mainBet: ["11(트리플제이/이효식/선입/추입) - 2(로드투윈/진겸/선행/선입)", "11(트리플제이/이효식/선입/추입) - 6(탑드림/조창욱/선행/선입)"],
-            mainBetScenario: "시나리오 1 기반",
-            altBet: ["2(로드투윈/진겸/선행/선입) - 6(탑드림/조창욱/선행/선입)", "2(로드투윈/진겸/선행/선입) - 8(플래시데이/송경윤/선행/선입)"],
-            altBetScenario: "시나리오 2 기반",
-            highOdds: { horse: "7(선재/김태현/선입/추입)", reason: "G-3F 37.6초의 준수한 능력 보유" }
-        },
-        {
-            id: 5,
-            title: "5경주 (1300M)",
-            flow: "경주 흐름: 선행 경합, 선입 우세",
-            scenario1: "선행 경합, `2(서귀레이디/진겸/선행/선입)` 선입 역전",
-            scenario2: "`6(파워풀런/서승운/선행)` 단독 선행",
-            mainBet: ["2(서귀레이디/진겸/선행/선입) - 6(파워풀런/서승운/선행)", "2(서귀레이디/진겸/선행/선입) - 9(퀸레이스/송경윤/선행/선입)"],
-            mainBetScenario: "시나리오 1 기반",
-            altBet: ["6(파워풀런/서승운/선행) - 9(퀸레이스/송경윤/선행/선입)", "6(파워풀런/서승운/선행) - 2(서귀레이디/진겸/선행/선입)"],
-            altBetScenario: "시나리오 2 기반",
-            highOdds: { horse: "7(성실제일/박재이/후미)", reason: "G-1F 12.8초의 폭발적인 한 방" }
-        },
-        {
-            id: 6,
-            title: "6경주 (1400M)",
-            flow: "경주 흐름: 선행 vs 추입",
-            scenario1: "`4(로드투희망/다나카/선행/선입)` 단독 선행",
-            scenario2: "선행 경합, `1(글로벌하이/박재이/선입/추입)` 추입",
-            mainBet: ["1(글로벌하이/박재이/선입/추입) - 5(선더패션/다실바/선행/선입)", "1(글로벌하이/박재이/선입/추입) - 12(플라잉더럭키/김동영/선행/선입)"],
-            mainBetScenario: "시나리오 2 기반",
-            altBet: ["4(로드투희망/다나카/선행/선입) - 1(글로벌하이/박재이/선입/추입)", "4(로드투희망/다나카/선행/선입) - 12(플라잉더럭키/김동영/선행/선입)"],
-            altBetScenario: "시나리오 1 기반",
-            highOdds: { horse: "5(선더패션/다실바/선행/선입)", reason: "G-3F 3위, G-1F 2위의 숨겨진 강자" }
-        },
-        {
-            id: 7,
-            title: "7경주 (1800M)",
-            flow: "경주 흐름: `2`번 독주 또는 혼전 (데뷔전 6두)",
-            scenario1: "`2(글로벌위크/진겸/선행/선입)` 데이터 압도/독주",
-            scenario2: "데뷔전 변수, `2(글로벌위크)` 견제",
-            mainBet: ["2(글로벌위크/진겸/선행/선입) - 10(서울드래곤/신윤섭/선행/선입)", "2(글로벌위크/진겸/선행/선입) - 5(코이누르/김동영/선행/선입)"],
-            mainBetScenario: "시나리오 1 기반",
-            altBet: ["10(서울드래곤/신윤섭/선행/선입) - 5(코이누르/김동영/선행/선입)", "10(서울드래곤/신윤섭/선행/선입) - 2(글로벌위크/진겸/선행/선입)"],
-            altBetScenario: "시나리오 2 기반",
-            highOdds: { horse: "6(탐라슈퍼/서승운/데뷔전)", reason: "1800M 데뷔 + 서승운 기수 조합" }
-        },
-        {
-            id: 8,
-            title: "8경주 (1200M)",
-            flow: "경주 흐름: 선행/선입 접전",
-            scenario1: "`8(브라이트마린/송경윤/선행/선입)` 밸런스 우세, `3(삼바스텝)`과 접전",
-            scenario2: "선행 과열, `11(플렉스엔진/진겸/추입)` 추입",
-            mainBet: ["8(브라이트마린/송경윤/선행/선입) - 3(삼바스텝/신윤섭/선행/선입)", "8(브라이트마린/송경윤/선행/선입) - 2(센세이셔널윈/박재이/선행/선입)"],
-            mainBetScenario: "시나리오 1 기반",
-            altBet: ["11(플렉스엔진/진겸/추입) - 8(브라이트마린/송경윤/선행/선입)", "11(플렉스엔진/진겸/추입) - 10(드래곤데빌/이효식/선입/추입)"],
-            altBetScenario: "시나리오 2 기반",
-            highOdds: { horse: "11(플렉스엔진/진겸/추입)", reason: "G-1F 기록이 압도적인 추입마" }
-        },
-        {
-            id: 9,
-            title: "9경주 (1600M)",
-            flow: "경주 흐름: 선입 vs 추입 (데뷔전 8두)",
-            scenario1: "`5(빅뮤지컬스타/최시대/선행/선입)` 밸런스로 버티기",
-            scenario2: "선행 과열, `11(벌마킹/진겸/추입)` 추입",
-            mainBet: ["5(빅뮤지컬스타/최시대/선행/선입) - 11(벌마킹/진겸/추입)"],
-            mainBetScenario: "시나리오 1 기반",
-            altBet: ["11(벌마킹/진겸/추입) - 6(여수슈퍼스타/서승운/선입/추입)", "11(벌마킹/진겸/추입) - 5(빅뮤지컬스타/최시대/선행/선입)"],
-            altBetScenario: "시나리오 2 기반",
-            highOdds: { horse: "2(서부비전/다나카/데뷔전)", reason: "데뷔전 마필 중 기수(다나카)가 가장 우수" }
-        }
-    ];
-
-    /* --- 제주 페이지 로직 --- */
-    function jeju_generateRaceHtml(raceId) {
-        const data = jejuRaceData[raceId];
-        if (!data) return '';
-
-        let betsHtml = data.bets.map(bet => {
-            let comboHtml = bet.combos.map(combo => `<span class="block text-gray-700 font-medium">${combo}</span>`).join('');
-            return `
-                <div class="bet-card ${bet.class} bg-white rounded-lg shadow-lg p-6 mb-4 md:mb-0">
-                    <h3>${bet.type}</h3>
-                    <div class="space-y-2">${comboHtml}</div>
-                </div>`;
-        }).join('');
-
-        return `
-            <div class="animate-fade-in max-w-7xl mx-auto">
-                <h2 class="text-3xl font-bold text-gray-900 mb-6 text-center">${data.title}</h2>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                    <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-blue-500">
-                        <h3 class="text-xl font-semibold text-blue-800 mb-2">${data.scenario1.title}</h3>
-                        <p class="text-gray-600">${data.scenario1.text}</p>
+                                <!-- 일요일 데이터 -->
+                                <tr class="hover:bg-gray-50 border-t-2 border-gray-300">
+                                    <td class="py-4 px-4 font-medium row-span-3 align-top md:align-middle" rowspan="3">
+                                        <span class="bg-yellow-100 text-yellow-800 font-bold py-1 px-3 rounded-full">일요일</span>
+                                    </td>
+                                    <td class="py-3 px-4 font-medium text-gray-500">평균</td>
+                                    <td class="py-3 px-4 text-right">6.95</td>
+                                    <td class="py-3 px-4 text-right">11.31</td>
+                                    <td class="py-3 px-4 text-right">24.33</td>
+                                    <td class="py-3 px-4 text-right">195.31</td>
+                                </tr>
+                                <tr class="bg-gray-50 hover:bg-gray-100">
+                                    <td class="py-3 px-4 font-medium text-gray-500">최소</td>
+                                    <td class="py-3 px-4 text-right text-green-700">1.7</td>
+                                    <td class="py-3 px-4 text-right text-green-700">3.2</td>
+                                    <td class="py-3 px-4 text-right text-green-700">2.2</td>
+                                    <td class="py-3 px-4 text-right text-green-700">9.6</td>
+                                </tr>
+                                <tr class="hover:bg-gray-50">
+                                    <td class="py-3 px-4 font-medium text-gray-500">최대</td>
+                                    <td class="py-3 px-4 text-right text-red-700">18.1</td>
+                                    <td class="py-3 px-4 text-right text-red-700">28.3</td>
+                                    <td class="py-3 px-4 text-right text-red-700">113.1</td>
+                                    <td class="py-3 px-4 text-right text-red-700">1092.5</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
-                    <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-amber-500">
-                        <h3 class="text-xl font-semibold text-amber-800 mb-2">${data.scenario2.title}</h3>
-                        <p class="text-gray-600">${data.scenario2.text}</p>
+                    
+                    <!-- 요일별 하단 설명 -->
+                    <div class="p-4 md:p-6 bg-gray-50 border-t border-gray-200">
+                        <h3 class="font-semibold text-lg text-gray-800 mb-2">데이터 하이라이트 (요일별)</h3>
+                        <p class="text-gray-600">
+                            - <strong class="text-indigo-600">토요일</strong>에 전반적으로 가장 높은 평균 배당률과 최대 배당(특히 삼쌍승 2954.2배)이 기록되었습니다.
+                            <br>
+                            - <strong class="text-yellow-600">일요일</strong>은 평균 배당률이 가장 낮아 비교적 안정적인 결과가 많았습니다.
+                            <br>
+                            - 최소 배당(녹색)과 최대 배당(적색)이 강조 표시되었습니다.
+                        </p>
                     </div>
-                </div>
-
-                <h3 class="text-2xl font-bold text-gray-800 mb-4 text-center">베팅 전략</h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    ${betsHtml}
                 </div>
             </div>
-        `;
-    }
 
-    function jeju_showRace(raceId) {
-        const contentArea = document.getElementById('jeju-content-area');
-        contentArea.innerHTML = jeju_generateRaceHtml(raceId);
-    }
-
-    function jeju_initialize() {
-        const raceSelect = document.getElementById('jeju-race-select');
-        let navHtml = '';
-        for (let i = 1; i <= 8; i++) {
-            const raceId = `race-${i}`;
-            const title = jejuRaceData[raceId].title.split(' (')[0]; 
-            navHtml += `
-                <option value="${raceId}">
-                    ${title}
-                </option>
-            `;
-        }
-        raceSelect.innerHTML = navHtml;
-
-        raceSelect.addEventListener('change', (event) => {
-            jeju_showRace(event.target.value);
-        });
-        
-        jeju_showRace('race-1');
-    }
-
-    /* --- 부산 페이지 로직 (Updated) --- */
-    
-    function busan_parseHorseString(str) {
-        const match = str.match(/(\d+)\((.*?)\/(.*?)\/(.*?)\)/);
-        if (match) {
-            return { num: match[1], name: match[2], jockey: match[3], style: match[4] };
-        }
-        const debutMatch = str.match(/(\d+)\((.*?)\/(.*?)\/(데뷔전)\)/);
-        if (debutMatch) {
-            return { num: debutMatch[1], name: debutMatch[2], jockey: debutMatch[3], style: debutMatch[4] };
-        }
-        return null;
-    }
-
-    function busan_formatBettingHTML(betStrings) {
-        return betStrings.map(bet => {
-            const parts = bet.split(' - ');
-            const horse1 = busan_parseHorseString(parts[0]);
-            const horse2 = parts[1] ? busan_parseHorseString(parts[1]) : null;
-
-            const horse1Text = horse1 ? `${horse1.num} (${horse1.name}/${horse1.jockey}/${horse1.style})` : parts[0];
-            const horse2Text = horse2 ? `${horse2.num} (${horse2.name}/${horse2.jockey}/${horse2.style})` : (parts[1] || '');
-
-            if (!horse2) {
-                 return `<div class="flex flex-wrap items-center">
-                            <span class="inline-block bg-amber-100 text-amber-800 font-bold py-1 px-2 rounded-md text-xs sm:text-sm mb-1">${horse1Text}</span>
-                        </div>`;
-            }
-
-            return `<div class="flex flex-wrap items-center">
-                        <span class="inline-block bg-amber-100 text-amber-800 font-bold py-1 px-2 rounded-md text-xs sm:text-sm mb-1">${horse1Text}</span> 
-                        <span class="mx-1.5 font-bold text-gray-600 mb-1">-</span> 
-                        <span class="inline-block bg-amber-100 text-amber-800 font-bold py-1 px-2 rounded-md text-xs sm:text-sm mb-1">${horse2Text}</span>
-                    </div>`;
-        }).join('');
-    }
-    
-    function busan_formatHorseHTML(horseString) {
-        const horse = busan_parseHorseString(horseString);
-        if (!horse) return `<div>${horseString}</div>`;
-        
-        const horseText = `${horse.num} (${horse.name}/${horse.jockey}/${horse.style})`;
-        return `<div><span class="inline-block bg-blue-100 text-blue-800 font-bold py-1 px-2 rounded-md text-xs sm:text-sm">${horseText}</span></div>`;
-    }
-
-
-    function busan_updateRaceView(raceId) {
-        const race = busanRaceData.find(r => r.id === raceId);
-        if (!race) return;
-        
-        const busanPage = document.getElementById('busan-page');
-        const contentArea = busanPage.querySelector('#busan-content-area');
-
-        let html = `
-            <div class="max-w-7xl mx-auto">
-                <div class="mb-6">
-                    <h2 id="race-title" class="text-3xl md:text-4xl font-bold text-gray-800 text-center">${race.title}</h2>
-                    <p id="race-flow" class="text-lg md:text-xl text-amber-600 font-medium mt-1 text-center">${race.flow}</p>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                    <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-blue-500">
-                        <h3 class="text-xl font-semibold text-blue-800 mb-2">시나리오 1</h3>
-                        <p class="text-gray-600">${race.scenario1}</p>
+            <!-- === 경마장별 요약 패널 === -->
+            <div id="tab-panel-location" class="tab-panel" style="display: none;">
+                <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <!-- 경마장별 요약 테이블 -->
+                        <table class="w-full min-w-max text-sm md:text-base text-left text-gray-700">
+                            <thead class="bg-gray-200 text-gray-600 uppercase tracking-wider">
+                                <tr>
+                                    <th class="py-3 px-4 font-semibold">경마장</th>
+                                    <th class="py-3 px-4 font-semibold text-right">단승 (평균)</th>
+                                    <th classhttps://github.com/google/gemma.cpp/releases/tag/v0.1.0-alpha="py-3 px-4 font-semibold text-right">복승 (평균)</th>
+                                    <th class="py-3 px-4 font-semibold text-right">삼복승 (평균)</th>
+                                    <th class="py-3 px-4 font-semibold text-right">삼쌍승 (평균)</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                <!-- 서울 데이터 -->
+                                <tr class="hover:bg-gray-50">
+                                    <td class="py-4 px-4 font-medium">
+                                        <span class="bg-red-100 text-red-800 font-bold py-1 px-3 rounded-full">서울</span>
+                                    </td>
+                                    <td class="py-4 px-4 text-right">8.29</td>
+                                    <td class="py-4 px-4 text-right">25.94</td>
+                                    <td class="py-4 px-4 text-right">50.86</td>
+                                    <td class="py-4 px-4 text-right font-medium">347.74</td>
+                                </tr>
+                                <!-- 부산(부경) 데이터 -->
+                                <tr class="hover:bg-gray-50">
+                                    <td class="py-4 px-4 font-medium">
+                                        <span class="bg-blue-100 text-blue-800 font-bold py-1 px-3 rounded-full">부산 (부경)</span>
+                                    </td>
+                                    <td class="py-4 px-4 text-right">5.55</td>
+                                    <td class="py-4 px-4 text-right text-blue-700 font-medium">11.87</td>
+                                    <td class="py-4 px-4 text-right text-blue-700 font-medium">27.21</td>
+                                    <td class="py-4 px-4 text-right text-blue-700 font-medium">204.03</td>
+                                </tr>
+                                <!-- 제주 데이터 -->
+                                <tr class="hover:bg-gray-50">
+                                    <td class="py-4 px-4 font-medium">
+                                        <span class="bg-green-100 text-green-800 font-bold py-1 px-3 rounded-full">제주</span>
+                                    </td>
+                                    <td class="py-4 px-4 text-right text-green-700 font-medium">4.29</td>
+                                    <td class="py-4 px-4 text-right">22.66</td>
+                                    <td class="py-4 px-4 text-right text-green-700 font-bold">59.41</td>
+                                    <td class="py-4 px-4 text-right text-green-700 font-bold">387.53</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
-                    <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-amber-500">
-                        <h3 class="text-xl font-semibold text-amber-800 mb-2">시나리오 2</h3>
-                        <p class="text-gray-600">${race.scenario2}</p>
+                    
+                    <!-- 경마장별 하단 설명 -->
+                    <div class="p-4 md:p-6 bg-gray-50 border-t border-gray-200">
+                        <h3 class="font-semibold text-lg text-gray-800 mb-2">데이터 하이라이트 (경마장별)</h3>
+                        <p class="text-gray-600">
+                            - <strong class="text-green-600">제주</strong>가 삼쌍승(387.53배) 및 삼복승(59.41배) 평균 배당이 가장 높았으며, 단승(4.29배)은 가장 낮았습니다.
+                            <br>
+                            - <strong class="text-blue-600">부산(부경)</strong>이 복승(11.87배), 삼복승(27.21배), 삼쌍승(204.03배)에서 전반적으로 가장 낮은 평균 배당률을 보였습니다.
+                            <br>
+                            - <strong class="text-red-600">서울</strong>은 단승 평균(8.29배)이 가장 높게 나타났습니다.
+                        </p>
                     </div>
                 </div>
+            </div>
+        </div>
 
-                <h3 class="text-2xl font-bold text-gray-800 mb-4 text-center">베팅 전략</h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div class="bet-card bet-card-main bg-white rounded-lg shadow-lg p-6">
-                        <h3>주력 조합 (${race.mainBetScenario})</h3>
-                        <div class="space-y-2">${busan_formatBettingHTML(race.mainBet)}</div>
-                    </div>
-                    <div class="bet-card bet-card-alt bg-white rounded-lg shadow-lg p-6">
-                        <h3>대안 조합 (${race.altBetScenario})</h3>
-                        <div class="space-y-2">${busan_formatBettingHTML(race.altBet)}</div>
-                    </div>
-                    <div class="bet-card bet-card-longshot bg-white rounded-lg shadow-lg p-6">
-                        <h3>고배당 옵션</h3>
-                        <div class="space-y-2">${busan_formatHorseHTML(race.highOdds.horse)}</div>
-                        <p class="text-sm text-gray-500 mt-2">${race.highOdds.reason}</p>
-                    </div>
-                </div>
-            </div>`;
-        
-        contentArea.innerHTML = html;
-    }
+        <!-- 페이지 푸터 -->
+        <footer class="text-center text-gray-500 mt-8 text-sm">
+            데이터는 제공된 '한주간경마성적.csv' 파일을 기반으로 분석되었습니다.
+        </footer>
+    </div>
 
-    function busan_initialize() {
-        const raceSelect = document.getElementById('busan-race-select');
-        let navHtml = '';
-        busanRaceData.forEach(race => {
-            navHtml += `
-                <option value="${race.id}">
-                    ${race.title.split(' (')[0]}
-                </option>
-            `;
+    <!-- 탭 기능 JavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            const tabPanels = document.querySelectorAll('.tab-panel');
+            
+            // 탭 스타일 클래스
+            const activeBtnClasses = ['border-blue-500', 'text-blue-600'];
+            const inactiveBtnClasses = ['border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300'];
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    // 클릭된 버튼의 ID에서 대상 패널 ID 추측
+                    const targetPanelId = button.id.replace('btn', 'panel');
+                    
+                    // 모든 버튼 비활성화
+                    tabButtons.forEach(btn => {
+                        btn.classList.remove(...activeBtnClasses);
+                        btn.classList.add(...inactiveBtnClasses);
+                        btn.removeAttribute('aria-current');
+                    });
+                    
+                    // 모든 패널 숨기기
+                    tabPanels.forEach(panel => {
+                        panel.style.display = 'none';
+                    });
+
+                    // 클릭된 버튼 활성화
+                    button.classList.add(...activeBtnClasses);
+                    button.classList.remove(...inactiveBtnClasses);
+                    button.setAttribute('aria-current', 'page');
+                    
+                    // 대상 패널 보이기
+                    const targetPanel = document.getElementById(targetPanelId);
+                    if (targetPanel) {
+                        targetPanel.style.display = 'block';
+                    }
+                });
+            });
         });
-        raceSelect.innerHTML = navHtml;
-
-        raceSelect.addEventListener('change', (event) => {
-            busan_updateRaceView(parseInt(event.target.value));
-        });
-
-        busan_updateRaceView(1);
-    }
-
-    /* --- 메인 초기화 로직 --- */
-    document.addEventListener('DOMContentLoaded', () => {
-        const navJeju = document.getElementById('nav-jeju');
-        const navBusan = document.getElementById('nav-busan');
-        const pageJeju = document.getElementById('jeju-page');
-        const pageBusan = document.getElementById('busan-page');
-
-        jeju_initialize();
-        busan_initialize();
-
-        navJeju.addEventListener('click', () => {
-            pageJeju.classList.remove('hidden');
-            pageBusan.classList.add('hidden');
-            navJeju.classList.add('active');
-            navJeju.classList.remove('inactive');
-            navBusan.classList.add('inactive');
-            navBusan.classList.remove('active');
-        });
-
-        navBusan.addEventListener('click', () => {
-            pageBusan.classList.remove('hidden');
-            pageJeju.classList.add('hidden');
-            navBusan.classList.add('active');
-            navBusan.classList.remove('inactive');
-            navJeju.classList.add('inactive');
-            navJeju.classList.remove('active');
-        });
-    });
-</script>
-
+    </script>
 </body>
 </html>
