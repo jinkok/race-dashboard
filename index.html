@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>경마 당일 정보 CSV 생성기 (v4 - 모바일 UI 개선)</title>
+    <title>경마 단승 배당률 입력기 (v6)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
@@ -20,7 +20,7 @@
             height: 24px;
             animation: spin 1s linear infinite;
         }
-        /* 입력 필드 숫자 버튼 숨기기 (선택적) */
+        /* 입력 필드 숫자 버튼 숨기기 */
         input[type=number]::-webkit-inner-spin-button,
         input[type=number]::-webkit-outer-spin-button {
             -webkit-appearance: none;
@@ -34,27 +34,27 @@
 <body class="bg-gray-100">
 
     <div class="container mx-auto p-4 sm:p-6 lg:p-8">
-        <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
-            <header class="bg-teal-600 text-white p-6">
-                <h1 class="text-2xl sm:text-3xl font-bold text-center">경마 당일 정보 CSV 생성기</h1>
-                <p class="text-center text-teal-200 mt-2">출전표를 기반으로 당일 정보를 입력하고, 분석용 CSV 파일을 만듭니다.</p>
+        <div class="max-w-3xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
+            <header class="bg-indigo-600 text-white p-6">
+                <h1 class="text-2xl sm:text-3xl font-bold text-center">단승 배당률 입력기</h1>
+                <p class="text-center text-indigo-200 mt-2">출전표를 기반으로 배당률만 입력하여 CSV를 생성합니다.</p>
             </header>
 
             <main class="p-6 space-y-8">
                 <!-- Step 1: Upload Chuljeonpyo -->
                 <section id="step1" class="step-card bg-gray-50 p-6 rounded-lg border border-gray-200">
                     <div class="flex items-center mb-4">
-                        <span class="flex items-center justify-center w-8 h-8 bg-teal-500 text-white rounded-full font-bold text-lg mr-4">1</span>
+                        <span class="flex items-center justify-center w-8 h-8 bg-indigo-500 text-white rounded-full font-bold text-lg mr-4">1</span>
                         <h2 class="text-xl font-bold text-gray-800">'출전표' 파일 업로드</h2>
                     </div>
-                    <p class="text-gray-600 mb-4 text-sm">당일 정보를 입력할 경주의 '출전표.csv' 파일을 선택해주세요.</p>
+                    <p class="text-gray-600 mb-4 text-sm">배당률을 입력할 경주의 '출전표.csv' 파일을 선택해주세요.</p>
                     <div>
                         <label for="chuljeonpyo-file" class="block text-sm font-medium text-gray-700">출전표.csv</label>
-                        <input type="file" id="chuljeonpyo-file" accept=".csv" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"/>
+                        <input type="file" id="chuljeonpyo-file" accept=".csv" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
                     </div>
                     <div id="file-status" class="mt-4 text-sm text-center"></div>
                     <div class="mt-6 text-center">
-                        <button id="load-horses-btn" class="w-full sm:w-auto bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-8 rounded-lg shadow-md transition-transform transform hover:scale-105">
+                        <button id="load-horses-btn" class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-lg shadow-md transition-transform transform hover:scale-105">
                             출전마 불러오기
                         </button>
                     </div>
@@ -63,237 +63,162 @@
                 <!-- Step 2: Input Data (Hidden Initially) -->
                 <section id="step2" class="step-card bg-gray-50 p-6 rounded-lg border border-gray-200 hidden">
                     <div class="flex items-center mb-4">
-                        <span class="flex items-center justify-center w-8 h-8 bg-teal-500 text-white rounded-full font-bold text-lg mr-4">2</span>
-                        <h2 class="text-xl font-bold text-gray-800">당일 정보 입력</h2>
+                        <span class="flex items-center justify-center w-8 h-8 bg-indigo-500 text-white rounded-full font-bold text-lg mr-4">2</span>
+                        <h2 class="text-xl font-bold text-gray-800">배당률 입력</h2>
                     </div>
-                    <p class="text-gray-600 mb-4 text-sm">먼저 경주로 정보를 입력한 후, 각 말의 금일 체중과 단승 배당률을 입력하세요.</p>
+                    <p class="text-gray-600 mb-4 text-sm">각 말의 단승 배당률을 입력하세요.</p>
                     
-                    <!-- ====[ 수정된 부분: 반응형 그리드로 변경 ]==== -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 p-4 bg-white rounded-lg border">
-                        <div>
-                            <label for="track-condition" class="block text-sm font-medium text-gray-700">주로 상태</label>
-                            <select id="track-condition" name="track-condition" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm text-sm p-2 focus:border-teal-500 focus:ring-teal-500">
-                                <option value="">-- 주로 상태 선택 --</option>
-                                <option value="건조">건조 (Dry)</option>
-                                <option value="양호">양호 (Good)</option>
-                                <option value="다습">다습 (Moist)</option>
-                                <option value="포화">포화 (Saturated)</option>
-                                <option value="불량">불량 (Bad)</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="water-content" class="block text-sm font-medium text-gray-700">함수율 (%)</label>
-                            <input type="number" step="0.1" id="water-content" name="water-content" placeholder="예: 8.5" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm text-sm p-2 focus:border-teal-500 focus:ring-teal-500">
-                        </div>
-                    </div>
-                    <!-- ====[ 수정 완료 ]==== -->
-
-                    <!-- ====[ 수정된 부분: 테이블(<table>)을 카드 리스트(<div>)로 변경 ]==== -->
-                    <div id="horse-data-list" class="space-y-4">
+                    <!-- 말 정보 카드 리스트 -->
+                    <div id="horse-data-list" class="space-y-3">
                         <!-- 자바스크립트가 이 곳에 말 정보 카드를 생성합니다. -->
                     </div>
-                    <!-- ====[ 수정 완료 ]==== -->
                 </section>
 
                 <!-- Step 3: Download CSV (Hidden Initially) -->
                 <section id="step3" class="text-center hidden pt-4">
                      <button id="generate-csv-btn" class="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-16 rounded-lg shadow-xl text-lg transition-transform transform hover:scale-105">
-                        CSV 파일 생성 및 다운로드
+                        파일 저장 (단승배당)
                     </button>
                 </section>
             </main>
         </div>
         <footer class="text-center mt-6 text-sm text-gray-500">
-            <p>&copy; 2025 Race Day Data Generator.</p>
+            <p>&copy; 2025 Race Day Odds Generator.</p>
         </footer>
     </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const fileInput = document.getElementById('chuljeonpyo-file');
-    const loadHorsesBtn = document.getElementById('load-horses-btn');
-    const generateCsvBtn = document.getElementById('generate-csv-btn');
-    const fileStatusDiv = document.getElementById('file-status');
-    // ====[ 수정된 부분: 테이블 body 대신 list 컨테이너 ]====
-    const horseDataList = document.getElementById('horse-data-list');
-    // ====[ 수정 완료 ]====
-    const step2Section = document.getElementById('step2');
-    const step3Section = document.getElementById('step3');
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const fileInput = document.getElementById('chuljeonpyo-file');
+        const loadHorsesBtn = document.getElementById('load-horses-btn');
+        const generateCsvBtn = document.getElementById('generate-csv-btn');
+        const fileStatusDiv = document.getElementById('file-status');
+        const horseDataList = document.getElementById('horse-data-list');
+        const step2Section = document.getElementById('step2');
+        const step3Section = document.getElementById('step3');
 
-    const trackConditionInput = document.getElementById('track-condition');
-    const waterContentInput = document.getElementById('water-content');
+        let horseData = [];
+        let baseFileName = '경주'; // Default filename part
 
-    // 테이블에 실시간으로 값을 반영하기 위한 이벤트 리스너
-    trackConditionInput.addEventListener('change', () => {
-        const value = trackConditionInput.options[trackConditionInput.selectedIndex].text; // "양호 (Good)"
-        document.querySelectorAll('.track-condition-cell').forEach(cell => {
-            cell.textContent = value.split(' (')[0] || ''; // "양호"
-        });
-    });
-
-    waterContentInput.addEventListener('input', () => {
-        const value = waterContentInput.value;
-        document.querySelectorAll('.water-content-cell').forEach(cell => {
-            cell.textContent = value ? `${value}%` : ''; // "8.5%"
-        });
-    });
-
-    let horseData = [];
-    let baseFileName = '경주'; // Default filename part
-
-    loadHorsesBtn.addEventListener('click', () => {
-        if (fileInput.files.length === 0) {
-            fileStatusDiv.innerHTML = `<p class="text-red-500 font-semibold">오류: '출전표.csv' 파일을 선택해주세요.</p>`;
-            return;
-        }
-
-        const file = fileInput.files[0];
-
-        const originalFileName = file.name;
-        const underscoreIndex = originalFileName.indexOf('_');
-        if (underscoreIndex !== -1) {
-            let potentialBase = originalFileName.substring(0, underscoreIndex);
-            baseFileName = potentialBase.replace(/ 제\d+일/, '').trim();
-        } else {
-            baseFileName = originalFileName.replace(/\.csv$/i, '');
-        }
-
-        fileStatusDiv.innerHTML = `<div class="flex items-center justify-center"><div class="loader mr-2"></div><p class="text-teal-600 font-semibold">파일을 읽고 있습니다...</p></div>`;
-
-        Papa.parse(file, {
-            skipEmptyLines: true,
-            beforeFirstChunk: (chunk) => {
-                const lines = chunk.split('\n');
-                const headerIndex = lines.findIndex(line => line.includes('번호▲') && line.includes('마명'));
-                if (headerIndex > -1) {
-                    return lines.slice(headerIndex).join('\n');
-                }
-                return chunk;
-            },
-            header: true,
-            complete: (results) => {
-                if (results.errors.length > 0) {
-                    fileStatusDiv.innerHTML = `<p class="text-red-500 font-semibold">파일 파싱 오류: ${results.errors[0].message}</p>`;
-                    return;
-                }
-                
-                horseData = results.data.map(row => ({
-                    number: row['번호▲'],
-                    name: row['마명']
-                })).filter(h => h.number && h.name);
-
-                if (horseData.length === 0) {
-                     fileStatusDiv.innerHTML = `<p class="text-red-500 font-semibold">오류: 출전마 정보를 찾을 수 없습니다. 파일 형식을 확인해주세요.</p>`;
-                     return;
-                }
-
-                // ====[ 수정된 부분: 함수명 변경 (의미상) ]====
-                populateHorseCards();
-                // ====[ 수정 완료 ]====
-                
-                fileStatusDiv.innerHTML = `<p class="text-green-600 font-semibold">✅ ${horseData.length}마의 출전마를 성공적으로 불러왔습니다.</p>`;
-                step2Section.classList.remove('hidden');
-                step3Section.classList.remove('hidden');
-            },
-            error: (err) => {
-                fileStatusDiv.innerHTML = `<p class="text-red-500 font-semibold">파일 읽기 오류: ${err.message}</p>`;
+        loadHorsesBtn.addEventListener('click', () => {
+            if (fileInput.files.length === 0) {
+                fileStatusDiv.innerHTML = `<p class="text-red-500 font-semibold">오류: '출전표.csv' 파일을 선택해주세요.</p>`;
+                return;
             }
-        });
-    });
 
-    // ====[ 수정된 부분: populateTable -> populateHorseCards 로 변경 및 카드 UI 생성 ]====
-    function populateHorseCards() {
-        horseDataList.innerHTML = ''; // 리스트 초기화
-        
-        // 현재 설정된 기본값 가져오기
-        const currentTrackCondition = trackConditionInput.options[trackConditionInput.selectedIndex].text.split(' (')[0] || '';
-        const currentWaterContent = waterContentInput.value ? `${waterContentInput.value}%` : '';
+            const file = fileInput.files[0];
 
-        horseData.forEach(horse => {
-            const card = `
-                <div class="bg-white p-4 rounded-lg shadow-md border border-gray-200">
-                    <!-- 카드 헤더: 번호와 마명 -->
-                    <div class="flex items-center justify-between pb-3 border-b border-gray-200">
-                        <div class="flex items-center">
-                            <span class="flex items-center justify-center w-10 h-10 bg-teal-100 text-teal-800 rounded-full font-bold text-lg">${horse.number}</span>
-                            <span class="ml-3 text-xl font-semibold text-gray-900">${horse.name}</span>
-                        </div>
-                    </div>
-
-                    <!-- 카드 바디: 입력 필드 (모바일에서 1열, sm 이상에서 2열) -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-                        
-                        <!-- 금일 체중 입력 -->
-                        <div>
-                            <label for="weight-${horse.number}" class="block text-sm font-medium text-gray-700 mb-1">금일 체중 (kg)</label>
-                            <input type="number" name="weight" id="weight-${horse.number}" data-horse-number="${horse.number}" placeholder="예: 485" class="w-full border-gray-300 rounded-md shadow-sm text-sm p-3 focus:border-teal-500 focus:ring-teal-500">
-                        </div>
-                        
-                        <!-- 단승 배당률 입력 -->
-                        <div>
-                            <label for="odds-${horse.number}" class="block text-sm font-medium text-gray-700 mb-1">단승 배당률 (배)</label>
-                            <input type="number" step="0.1" name="odds" id="odds-${horse.number}" data-horse-number="${horse.number}" placeholder="예: 5.2" class="w-full border-gray-300 rounded-md shadow-sm text-sm p-3 focus:border-teal-500 focus:ring-teal-500">
-                        </div>
-
-                        <!-- 주로 상태 (읽기 전용) -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">주로 상태</label>
-                            <span class="track-condition-cell text-sm text-gray-800 p-3 block bg-gray-100 rounded-md min-h-[46px] flex items-center">${currentTrackCondition}</span>
-                        </div>
-
-                        <!-- 함수율 (읽기 전용) -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">함수율 (%)</label>
-                            <span class="water-content-cell text-sm text-gray-800 p-3 block bg-gray-100 rounded-md min-h-[46px] flex items-center">${currentWaterContent}</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-            horseDataList.insertAdjacentHTML('beforeend', card);
-        });
-    }
-    // ====[ 수정 완료 ]====
-
-    generateCsvBtn.addEventListener('click', () => {
-        const trackCondition = trackConditionInput.value || '';
-        const waterContent = waterContentInput.value || '';
-
-        // ====[ 수정된 부분: <tr>이 아닌 horseData 배열을 기준으로 CSV 데이터 생성 ]====
-        const csvData = horseData.map(horse => {
-            // 각 말의 번호에 맞는 입력 필드를 직접 찾아서 값을 가져옵니다.
-            const weightInput = document.querySelector(`input[name="weight"][data-horse-number="${horse.number}"]`);
-            const oddsInput = document.querySelector(`input[name="odds"][data-horse-number="${horse.number}"]`);
+            // [수정됨] 파일명 처리 로직: '제88일' 등을 삭제하지 않고 그대로 유지
+            const originalFileName = file.name;
+            const underscoreIndex = originalFileName.lastIndexOf('_'); // 마지막 _ 기준
             
-            return {
-                '번호': horse.number,
-                '마명': horse.name,
-                '금일체중': weightInput ? weightInput.value : '',
-                '단승배당률': oddsInput ? oddsInput.value : '',
-                '주로상태': trackCondition,
-                '함수율': waterContent
-            };
+            if (underscoreIndex !== -1) {
+                // 예: "2025년11월22일토 제6경주 제주 제88일_출전표.csv" -> "2025년11월22일토 제6경주 제주 제88일"
+                baseFileName = originalFileName.substring(0, underscoreIndex).trim();
+            } else {
+                baseFileName = originalFileName.replace(/\.csv$/i, '');
+            }
+
+            fileStatusDiv.innerHTML = `<div class="flex items-center justify-center"><div class="loader mr-2"></div><p class="text-indigo-600 font-semibold">파일을 읽고 있습니다...</p></div>`;
+
+            Papa.parse(file, {
+                skipEmptyLines: true,
+                beforeFirstChunk: (chunk) => {
+                    const lines = chunk.split('\n');
+                    const headerIndex = lines.findIndex(line => line.includes('번호▲') && line.includes('마명'));
+                    if (headerIndex > -1) {
+                        return lines.slice(headerIndex).join('\n');
+                    }
+                    return chunk;
+                },
+                header: true,
+                complete: (results) => {
+                    if (results.errors.length > 0) {
+                        fileStatusDiv.innerHTML = `<p class="text-red-500 font-semibold">파일 파싱 오류: ${results.errors[0].message}</p>`;
+                        return;
+                    }
+                    
+                    horseData = results.data.map(row => ({
+                        number: row['번호▲'],
+                        name: row['마명']
+                    })).filter(h => h.number && h.name);
+
+                    if (horseData.length === 0) {
+                         fileStatusDiv.innerHTML = `<p class="text-red-500 font-semibold">오류: 출전마 정보를 찾을 수 없습니다. 파일 형식을 확인해주세요.</p>`;
+                         return;
+                    }
+
+                    populateHorseCards();
+                    
+                    fileStatusDiv.innerHTML = `<p class="text-green-600 font-semibold">✅ ${horseData.length}마의 출전마를 성공적으로 불러왔습니다.</p>`;
+                    step2Section.classList.remove('hidden');
+                    step3Section.classList.remove('hidden');
+                },
+                error: (err) => {
+                    fileStatusDiv.innerHTML = `<p class="text-red-500 font-semibold">파일 읽기 오류: ${err.message}</p>`;
+                }
+            });
         });
-        // ====[ 수정 완료 ]====
 
-        const csvString = Papa.unparse(csvData);
-        
-        downloadCsv(csvString);
+        function populateHorseCards() {
+            horseDataList.innerHTML = ''; // 리스트 초기화
+            
+            horseData.forEach(horse => {
+                // [수정됨] 카드 디자인: 배당률만 입력받도록 단순화
+                const card = `
+                    <div class="bg-white p-3 rounded-lg shadow-sm border border-gray-200 flex items-center justify-between">
+                        <!-- 번호와 마명 -->
+                        <div class="flex items-center flex-1">
+                            <span class="flex-shrink-0 flex items-center justify-center w-10 h-10 bg-indigo-100 text-indigo-800 rounded-full font-bold text-lg">${horse.number}</span>
+                            <span class="ml-3 text-lg font-semibold text-gray-900 truncate">${horse.name}</span>
+                        </div>
+
+                        <!-- 단승 배당률 입력 -->
+                        <div class="flex-shrink-0 w-32 sm:w-40">
+                            <div class="relative rounded-md shadow-sm">
+                                <input type="number" step="0.1" name="odds" id="odds-${horse.number}" data-horse-number="${horse.number}" placeholder="배당률" class="block w-full rounded-md border-gray-300 pl-3 pr-12 py-2 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border bg-yellow-50 text-right font-bold">
+                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                                    <span class="text-gray-500 sm:text-sm">배</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                horseDataList.insertAdjacentHTML('beforeend', card);
+            });
+        }
+
+        generateCsvBtn.addEventListener('click', () => {
+            // [수정됨] 주로상태, 함수율, 체중 제외하고 CSV 데이터 생성
+            const csvData = horseData.map(horse => {
+                const oddsInput = document.querySelector(`input[name="odds"][data-horse-number="${horse.number}"]`);
+                
+                return {
+                    '번호': horse.number,
+                    '마명': horse.name,
+                    '단승배당률': oddsInput ? oddsInput.value : ''
+                };
+            });
+
+            const csvString = Papa.unparse(csvData);
+            
+            downloadCsv(csvString);
+        });
+
+        function downloadCsv(csvString) {
+            const blob = new Blob([`\uFEFF${csvString}`], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            // [수정됨] 파일명 접미사를 _당일정보 -> _단승배당 으로 변경
+            link.setAttribute('download', `${baseFileName}_단승배당.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
     });
-
-    function downloadCsv(csvString) {
-        const blob = new Blob([`\uFEFF${csvString}`], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', `${baseFileName}_당일정보.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-});
-</script>
+    </script>
 
 </body>
 </html>
-
