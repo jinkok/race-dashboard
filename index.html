@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>경마 단승 배당률 입력기 (v6)</title>
+    <title>경마 단승 배당률 입력기 (v8)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
@@ -36,8 +36,8 @@
     <div class="container mx-auto p-4 sm:p-6 lg:p-8">
         <div class="max-w-3xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
             <header class="bg-indigo-600 text-white p-6">
-                <h1 class="text-2xl sm:text-3xl font-bold text-center">단승 배당률 입력기</h1>
-                <p class="text-center text-indigo-200 mt-2">출전표를 기반으로 배당률만 입력하여 CSV를 생성합니다.</p>
+                <h1 class="text-2xl sm:text-3xl font-bold text-center">단승 배당률 & 함수율 입력기</h1>
+                <p class="text-center text-indigo-200 mt-2">출전표를 기반으로 배당률과 함수율을 입력하여 CSV를 생성합니다.</p>
             </header>
 
             <main class="p-6 space-y-8">
@@ -64,9 +64,26 @@
                 <section id="step2" class="step-card bg-gray-50 p-6 rounded-lg border border-gray-200 hidden">
                     <div class="flex items-center mb-4">
                         <span class="flex items-center justify-center w-8 h-8 bg-indigo-500 text-white rounded-full font-bold text-lg mr-4">2</span>
-                        <h2 class="text-xl font-bold text-gray-800">배당률 입력</h2>
+                        <h2 class="text-xl font-bold text-gray-800">정보 입력</h2>
                     </div>
-                    <p class="text-gray-600 mb-4 text-sm">각 말의 단승 배당률을 입력하세요.</p>
+                    
+                    <!-- 함수율 입력 섹션 -->
+                    <div class="mb-8 p-4 bg-blue-50 rounded-lg border border-blue-100">
+                        <label for="moisture-content" class="block text-sm font-bold text-gray-700 mb-2">📢 주로 함수율 (%)</label>
+                        <div class="flex items-center">
+                            <div class="relative rounded-md shadow-sm w-full sm:w-1/3">
+                                <input type="number" id="moisture-content" placeholder="예: 3" class="block w-full rounded-md border-gray-300 pl-3 pr-12 py-3 focus:border-indigo-500 focus:ring-indigo-500 sm:text-lg border text-right font-bold text-blue-800">
+                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                                    <span class="text-gray-500 font-bold">%</span>
+                                </div>
+                            </div>
+                            <span class="ml-3 text-sm text-gray-500">파일명에 '함수율O%'로 자동 저장됩니다.</span>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-gray-200 my-6"></div>
+
+                    <p class="text-gray-600 mb-4 text-sm font-medium">각 말의 단승 배당률을 입력하세요.</p>
                     
                     <!-- 말 정보 카드 리스트 -->
                     <div id="horse-data-list" class="space-y-3">
@@ -77,7 +94,7 @@
                 <!-- Step 3: Download CSV (Hidden Initially) -->
                 <section id="step3" class="text-center hidden pt-4">
                      <button id="generate-csv-btn" class="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-16 rounded-lg shadow-xl text-lg transition-transform transform hover:scale-105">
-                        파일 저장 (단승배당)
+                        파일 저장 (파일명에 함수율 포함)
                     </button>
                 </section>
             </main>
@@ -96,6 +113,7 @@
         const horseDataList = document.getElementById('horse-data-list');
         const step2Section = document.getElementById('step2');
         const step3Section = document.getElementById('step3');
+        const moistureInput = document.getElementById('moisture-content');
 
         let horseData = [];
         let baseFileName = '경주'; // Default filename part
@@ -108,12 +126,11 @@
 
             const file = fileInput.files[0];
 
-            // [수정됨] 파일명 처리 로직: '제88일' 등을 삭제하지 않고 그대로 유지
+            // 파일명 처리 로직
             const originalFileName = file.name;
             const underscoreIndex = originalFileName.lastIndexOf('_'); // 마지막 _ 기준
             
             if (underscoreIndex !== -1) {
-                // 예: "2025년11월22일토 제6경주 제주 제88일_출전표.csv" -> "2025년11월22일토 제6경주 제주 제88일"
                 baseFileName = originalFileName.substring(0, underscoreIndex).trim();
             } else {
                 baseFileName = originalFileName.replace(/\.csv$/i, '');
@@ -153,6 +170,9 @@
                     fileStatusDiv.innerHTML = `<p class="text-green-600 font-semibold">✅ ${horseData.length}마의 출전마를 성공적으로 불러왔습니다.</p>`;
                     step2Section.classList.remove('hidden');
                     step3Section.classList.remove('hidden');
+                    
+                    // 파일 로드 후 함수율 입력란으로 포커스 이동
+                    setTimeout(() => moistureInput.focus(), 100);
                 },
                 error: (err) => {
                     fileStatusDiv.innerHTML = `<p class="text-red-500 font-semibold">파일 읽기 오류: ${err.message}</p>`;
@@ -164,7 +184,6 @@
             horseDataList.innerHTML = ''; // 리스트 초기화
             
             horseData.forEach(horse => {
-                // [수정됨] 카드 디자인: 배당률만 입력받도록 단순화
                 const card = `
                     <div class="bg-white p-3 rounded-lg shadow-sm border border-gray-200 flex items-center justify-between">
                         <!-- 번호와 마명 -->
@@ -189,7 +208,9 @@
         }
 
         generateCsvBtn.addEventListener('click', () => {
-            // [수정됨] 주로상태, 함수율, 체중 제외하고 CSV 데이터 생성
+            // 함수율 값 가져오기
+            const moistureValue = moistureInput.value.trim();
+
             const csvData = horseData.map(horse => {
                 const oddsInput = document.querySelector(`input[name="odds"][data-horse-number="${horse.number}"]`);
                 
@@ -197,21 +218,28 @@
                     '번호': horse.number,
                     '마명': horse.name,
                     '단승배당률': oddsInput ? oddsInput.value : ''
+                    // '함수율': moistureValue  <-- [제거됨] CSV 내부에는 저장하지 않음
                 };
             });
 
             const csvString = Papa.unparse(csvData);
             
-            downloadCsv(csvString);
+            // [수정됨] 파일명 생성 로직: 함수율이 있으면 파일명에 추가
+            let fileName = `${baseFileName}_단승배당`;
+            if (moistureValue) {
+                fileName += `_함수율${moistureValue}%`;
+            }
+            fileName += '.csv';
+
+            downloadCsv(csvString, fileName);
         });
 
-        function downloadCsv(csvString) {
+        function downloadCsv(csvString, fileName) {
             const blob = new Blob([`\uFEFF${csvString}`], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             const url = URL.createObjectURL(blob);
             link.setAttribute('href', url);
-            // [수정됨] 파일명 접미사를 _당일정보 -> _단승배당 으로 변경
-            link.setAttribute('download', `${baseFileName}_단승배당.csv`);
+            link.setAttribute('download', fileName);
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();
