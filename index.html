@@ -3,281 +3,417 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>경마 단승 배당률 입력기 (메타데이터 자동인식)</title>
+    <title>경마 데이터 통합 입력기 (배당률/체중)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Noto Sans KR', sans-serif; }
-        .step-card { transition: all 0.3s ease-in-out; }
         .hidden { display: none; }
         /* 테이블 스타일 */
         .custom-table th { background-color: #f3f4f6; position: sticky; top: 0; z-index: 10; }
         .custom-table td { vertical-align: middle; }
+        /* 탭 활성화 스타일 */
+        .tab-active { background-color: #2563eb; color: white; border-color: #2563eb; }
+        .tab-inactive { background-color: white; color: #4b5563; border-color: #e5e7eb; }
+        .tab-inactive:hover { background-color: #f3f4f6; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen text-gray-800">
 
-    <div class="max-w-4xl mx-auto p-4 md:p-6">
+    <div class="max-w-5xl mx-auto p-4 md:p-6">
         <!-- 헤더 -->
-        <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold text-blue-700 mb-2">🏇 경마 단승 배당률 입력기</h1>
-            <p class="text-gray-600">출전표 CSV 파일을 업로드하고 배당률과 함수율을 입력하세요.</p>
+        <div class="text-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">🏇 경마 데이터 통합 입력기</h1>
+            <p class="text-gray-600">작업하실 내용을 아래 탭에서 선택하세요.</p>
         </div>
 
-        <!-- Step 1: 파일 업로드 -->
-        <div id="step1" class="step-card bg-white p-6 rounded-lg shadow-md mb-6">
-            <h2 class="text-xl font-bold mb-4 flex items-center">
-                <span class="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm">1</span>
-                출전표 파일 선택
-            </h2>
-            <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors bg-gray-50">
-                <input type="file" id="csvFileInput" accept=".csv" class="hidden">
-                <label for="csvFileInput" class="cursor-pointer flex flex-col items-center justify-center">
-                    <svg class="w-12 h-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                    </svg>
-                    <span class="text-lg font-medium text-gray-700">여기를 클릭하여 CSV 파일 업로드</span>
-                    <span class="text-sm text-gray-500 mt-1">또는 파일을 여기로 드래그하세요</span>
-                </label>
-                <div id="fileNameDisplay" class="mt-4 text-sm font-semibold text-blue-600 hidden"></div>
-            </div>
+        <!-- 탭 메뉴 -->
+        <div class="flex mb-6 border-b-2 border-gray-200">
+            <button id="tabOdds" class="flex-1 py-3 px-6 text-lg font-bold border-b-2 rounded-t-lg transition-colors tab-active">
+                ① 배당률 입력 (출전표)
+            </button>
+            <button id="tabWeight" class="flex-1 py-3 px-6 text-lg font-bold border-b-2 rounded-t-lg transition-colors tab-inactive">
+                ② 체중 입력 (체중현황)
+            </button>
         </div>
 
-        <!-- Step 2: 데이터 입력 (초기에는 숨김) -->
-        <div id="step2" class="step-card bg-white p-6 rounded-lg shadow-md mb-6 hidden">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold flex items-center">
-                    <span class="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm">2</span>
-                    배당률 및 함수율 입력
+        <!-- ========================================== -->
+        <!-- [View 1] 배당률 입력 페이지 -->
+        <!-- ========================================== -->
+        <div id="viewOdds" class="block">
+            <!-- Step 1: 파일 업로드 -->
+            <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                <h2 class="text-xl font-bold mb-4 text-blue-700 flex items-center">
+                    <span class="bg-blue-100 text-blue-700 rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm border border-blue-200">1</span>
+                    출전표 파일 업로드
                 </h2>
-                <div class="flex items-center space-x-2">
-                    <label for="moistureInput" class="font-bold text-gray-700">함수율(%):</label>
-                    <input type="number" id="moistureInput" placeholder="예: 3" class="border border-gray-300 rounded px-3 py-1 w-24 text-right focus:ring-2 focus:ring-blue-500 outline-none">
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 transition-colors bg-gray-50">
+                    <input type="file" id="oddsFileInput" accept=".csv" class="hidden">
+                    <label for="oddsFileInput" class="cursor-pointer block">
+                        <span class="block text-lg font-medium text-gray-700 mb-1">출전표 CSV 선택</span>
+                        <span class="text-sm text-gray-400">클릭하거나 파일을 드래그하세요</span>
+                    </label>
+                    <div id="oddsFileName" class="mt-2 text-sm font-semibold text-blue-600 hidden"></div>
                 </div>
             </div>
 
-            <div class="overflow-x-auto bg-white border border-gray-200 rounded-lg max-h-[500px] overflow-y-auto">
-                <table class="min-w-full divide-y divide-gray-200 custom-table text-sm">
-                    <thead>
-                        <tr>
-                            <th class="px-4 py-3 text-center font-bold text-gray-600 w-16">번호</th>
-                            <th class="px-4 py-3 text-left font-bold text-gray-600">마명</th>
-                            <th class="px-4 py-3 text-center font-bold text-gray-600">기수</th>
-                            <th class="px-4 py-3 text-center font-bold text-blue-600 w-32">단승 배당률</th>
-                        </tr>
-                    </thead>
-                    <tbody id="horseTableBody" class="divide-y divide-gray-200">
-                        <!-- 자바스크립트로 데이터 로드됨 -->
-                    </tbody>
-                </table>
+            <!-- Step 2: 데이터 입력 -->
+            <div id="oddsStep2" class="bg-white p-6 rounded-lg shadow-md mb-6 hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-blue-700 flex items-center">
+                        <span class="bg-blue-100 text-blue-700 rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm border border-blue-200">2</span>
+                        배당률 및 함수율
+                    </h2>
+                    <div class="flex items-center space-x-2">
+                        <label for="moistureInput" class="font-bold text-gray-700">함수율(%):</label>
+                        <input type="number" id="moistureInput" placeholder="3" class="border border-gray-300 rounded px-3 py-1 w-20 text-right focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto bg-white border border-gray-200 rounded-lg max-h-[500px] overflow-y-auto">
+                    <table class="min-w-full divide-y divide-gray-200 custom-table text-sm">
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-3 text-center font-bold text-gray-600 w-16">번호</th>
+                                <th class="px-4 py-3 text-left font-bold text-gray-600">마명</th>
+                                <th class="px-4 py-3 text-center font-bold text-gray-600">기수</th>
+                                <th class="px-4 py-3 text-center font-bold text-blue-600 w-32">단승 배당률</th>
+                            </tr>
+                        </thead>
+                        <tbody id="oddsTableBody" class="divide-y divide-gray-200"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Step 3: 다운로드 -->
+            <div id="oddsStep3" class="bg-white p-6 rounded-lg shadow-md mb-6 hidden">
+                <button id="oddsDownloadBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow transition-colors flex items-center justify-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    배당률 포함 CSV 저장
+                </button>
             </div>
         </div>
 
-        <!-- Step 3: 다운로드 (초기에는 숨김) -->
-        <div id="step3" class="step-card bg-white p-6 rounded-lg shadow-md mb-6 hidden">
-            <button id="downloadBtn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-lg shadow transition-colors flex items-center justify-center text-lg">
-                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                </svg>
-                수정된 CSV 파일 다운로드
-            </button>
+        <!-- ========================================== -->
+        <!-- [View 2] 체중 입력 페이지 -->
+        <!-- ========================================== -->
+        <div id="viewWeight" class="hidden">
+            <!-- Step 1: 파일 업로드 -->
+            <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                <h2 class="text-xl font-bold mb-4 text-green-700 flex items-center">
+                    <span class="bg-green-100 text-green-700 rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm border border-green-200">1</span>
+                    체중현황 파일 업로드
+                </h2>
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-green-500 transition-colors bg-gray-50">
+                    <input type="file" id="weightFileInput" accept=".csv" class="hidden">
+                    <label for="weightFileInput" class="cursor-pointer block">
+                        <span class="block text-lg font-medium text-gray-700 mb-1">체중현황 CSV 선택</span>
+                        <span class="text-sm text-gray-400">클릭하거나 파일을 드래그하세요</span>
+                    </label>
+                    <div id="weightFileName" class="mt-2 text-sm font-semibold text-green-600 hidden"></div>
+                </div>
+            </div>
+
+            <!-- Step 2: 데이터 입력 -->
+            <div id="weightStep2" class="bg-white p-6 rounded-lg shadow-md mb-6 hidden">
+                <h2 class="text-xl font-bold mb-4 text-green-700 flex items-center">
+                    <span class="bg-green-100 text-green-700 rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm border border-green-200">2</span>
+                    체중 및 증감 입력
+                </h2>
+
+                <div class="overflow-x-auto bg-white border border-gray-200 rounded-lg max-h-[500px] overflow-y-auto">
+                    <table class="min-w-full divide-y divide-gray-200 custom-table text-sm">
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-3 text-center font-bold text-gray-600 w-16">번호</th>
+                                <th class="px-4 py-3 text-left font-bold text-gray-600">마명</th>
+                                <th class="px-4 py-3 text-center font-bold text-green-700 w-32">금일체중</th>
+                                <th class="px-4 py-3 text-center font-bold text-red-600 w-32">증감(+/-)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="weightTableBody" class="divide-y divide-gray-200"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Step 3: 다운로드 -->
+            <div id="weightStep3" class="bg-white p-6 rounded-lg shadow-md mb-6 hidden">
+                <button id="weightDownloadBtn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow transition-colors flex items-center justify-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    체중/증감 포함 CSV 저장
+                </button>
+            </div>
         </div>
+
     </div>
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        const fileInput = document.getElementById('csvFileInput');
-        const fileNameDisplay = document.getElementById('fileNameDisplay');
-        const horseTableBody = document.getElementById('horseTableBody');
-        const downloadBtn = document.getElementById('downloadBtn');
-        const moistureInput = document.getElementById('moistureInput');
-        
-        // 전역 변수로 데이터 저장
-        let originalMetaData = []; // 헤더 윗부분 (경주 날짜 등)
-        let originalHeader = [];   // 실제 헤더 (번호, 마명...)
-        let parsedData = [];       // 실제 데이터 행들
-        let originalFileName = ""; // 원본 파일명
-        let headerRowIndex = 0;    // 헤더가 발견된 줄 번호
+        // --- 탭 전환 로직 ---
+        const tabOdds = document.getElementById('tabOdds');
+        const tabWeight = document.getElementById('tabWeight');
+        const viewOdds = document.getElementById('viewOdds');
+        const viewWeight = document.getElementById('viewWeight');
 
-        // 1. 파일 업로드 처리
-        fileInput.addEventListener('change', (event) => {
-            const file = event.target.files[0];
+        function switchTab(mode) {
+            if (mode === 'odds') {
+                viewOdds.classList.remove('hidden');
+                viewWeight.classList.add('hidden');
+                tabOdds.className = "flex-1 py-3 px-6 text-lg font-bold border-b-2 rounded-t-lg transition-colors tab-active";
+                tabWeight.className = "flex-1 py-3 px-6 text-lg font-bold border-b-2 rounded-t-lg transition-colors tab-inactive";
+            } else {
+                viewOdds.classList.add('hidden');
+                viewWeight.classList.remove('hidden');
+                tabOdds.className = "flex-1 py-3 px-6 text-lg font-bold border-b-2 rounded-t-lg transition-colors tab-inactive";
+                tabWeight.className = "flex-1 py-3 px-6 text-lg font-bold border-b-2 rounded-t-lg transition-colors tab-active";
+            }
+        }
+
+        tabOdds.addEventListener('click', () => switchTab('odds'));
+        tabWeight.addEventListener('click', () => switchTab('weight'));
+
+
+        // ==========================================
+        // [로직 1] 배당률 입력 관련
+        // ==========================================
+        let oddsData = {
+            meta: [], header: [], rows: [], fileName: "", headerIndex: 0
+        };
+
+        const oddsFileInput = document.getElementById('oddsFileInput');
+        const oddsTableBody = document.getElementById('oddsTableBody');
+        
+        oddsFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
             if (!file) return;
 
-            originalFileName = file.name.replace('.csv', ''); // 확장자 제거
-            fileNameDisplay.textContent = `선택된 파일: ${file.name}`;
-            fileNameDisplay.classList.remove('hidden');
+            document.getElementById('oddsFileName').textContent = file.name;
+            document.getElementById('oddsFileName').classList.remove('hidden');
+            oddsData.fileName = file.name.replace('.csv', '');
 
             const reader = new FileReader();
-            
-            reader.onload = function(e) {
-                const csvText = e.target.result;
-                
-                // 줄 단위로 분리
-                const lines = csvText.split(/\r\n|\n/);
-                
-                // "번호"와 "마명"이 포함된 줄을 찾아서 헤더로 인식 (핵심 수정 사항)
-                headerRowIndex = lines.findIndex(line => 
-                    (line.includes('번호') || line.includes('No')) && line.includes('마명')
-                );
+            reader.onload = function(evt) {
+                const lines = evt.target.result.split(/\r\n|\n/);
+                // "번호"와 "마명"이 있는 줄 찾기
+                let hIndex = lines.findIndex(l => (l.includes('번호') || l.includes('No')) && l.includes('마명'));
+                if(hIndex === -1) hIndex = 0;
 
-                if (headerRowIndex === -1) {
-                    // 헤더를 못 찾은 경우 첫 줄을 헤더로 가정하거나 에러 처리
-                    headerRowIndex = 0; 
-                    alert('데이터 형식을 자동으로 인식하지 못했습니다. 표준 형식이 맞는지 확인해주세요.');
-                }
-
-                // 메타데이터(헤더 윗부분) 저장
-                originalMetaData = lines.slice(0, headerRowIndex);
+                oddsData.headerIndex = hIndex;
+                oddsData.meta = lines.slice(0, hIndex);
                 
-                // 실제 데이터 파싱 (헤더 포함 아랫부분만)
-                // join('\n')으로 다시 합쳐서 PapaParse에 넘김
-                const dataPart = lines.slice(headerRowIndex).join('\n');
-                
+                const dataPart = lines.slice(hIndex).join('\n');
                 Papa.parse(dataPart, {
-                    header: true,
-                    skipEmptyLines: true,
-                    complete: function(results) {
-                        originalHeader = results.meta.fields;
-                        parsedData = results.data;
-                        renderTable(parsedData);
-                        
-                        // UI 표시
-                        document.getElementById('step2').classList.remove('hidden');
-                        document.getElementById('step3').classList.remove('hidden');
-                    },
-                    error: function(err) {
-                        console.error(err);
-                        alert("CSV 파일을 읽는 중 오류가 발생했습니다.");
+                    header: true, skipEmptyLines: true,
+                    complete: function(res) {
+                        oddsData.header = res.meta.fields;
+                        oddsData.rows = res.data;
+                        renderOddsTable(oddsData.rows);
+                        document.getElementById('oddsStep2').classList.remove('hidden');
+                        document.getElementById('oddsStep3').classList.remove('hidden');
                     }
                 });
             };
-
-            reader.readAsText(file, 'UTF-8'); // 한글 깨짐 방지 시 EUC-KR 고려 가능하나, 보통 UTF-8 권장
+            reader.readAsText(file, 'UTF-8');
         });
 
-        // 2. 테이블 렌더링
-        function renderTable(data) {
-            horseTableBody.innerHTML = '';
-            
-            data.forEach((row, index) => {
-                // 데이터 정제 (키 이름에 특수문자가 있을 수 있으므로 포함 여부로 찾기)
-                const horseNumKey = Object.keys(row).find(k => k.includes('번호'));
-                const horseNameKey = Object.keys(row).find(k => k.includes('마명'));
+        function renderOddsTable(rows) {
+            oddsTableBody.innerHTML = '';
+            rows.forEach((row, idx) => {
+                const numKey = Object.keys(row).find(k => k.includes('번호'));
+                const nameKey = Object.keys(row).find(k => k.includes('마명'));
                 const jockeyKey = Object.keys(row).find(k => k.includes('기수'));
 
-                const horseNum = row[horseNumKey] || (index + 1);
-                const horseName = row[horseNameKey] || '';
+                const num = row[numKey] || (idx+1);
+                const name = row[nameKey] || '';
                 const jockey = row[jockeyKey] || '';
-
-                // 데이터가 비어있는 행은 건너뜀 (CSV 끝부분 등)
-                if(!horseName && !horseNum) return;
+                if(!name && !num) return;
 
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-blue-50 transition-colors";
-                
                 tr.innerHTML = `
-                    <td class="px-4 py-2 text-center font-bold text-gray-700">${horseNum}</td>
-                    <td class="px-4 py-2 text-gray-800 font-medium">${horseName}</td>
+                    <td class="px-4 py-2 text-center font-bold text-gray-700">${num}</td>
+                    <td class="px-4 py-2 text-gray-800 font-medium">${name}</td>
                     <td class="px-4 py-2 text-center text-gray-600 text-sm">${jockey}</td>
                     <td class="px-4 py-2 text-center">
-                        <input type="number" step="0.1" name="odds" 
-                            data-horse-num="${horseNum}" 
-                            class="w-24 text-center border border-gray-300 rounded-md py-1 px-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm font-bold text-blue-700"
-                            placeholder="0.0">
+                        <input type="number" step="0.1" data-id="${num}" class="odds-input w-24 text-center border border-gray-300 rounded p-1 font-bold text-blue-700 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="0.0">
                     </td>
                 `;
-                horseTableBody.appendChild(tr);
+                oddsTableBody.appendChild(tr);
             });
         }
 
-        // 3. CSV 다운로드 처리
-        downloadBtn.addEventListener('click', () => {
-            const moisture = moistureInput.value.trim();
-            const inputs = document.querySelectorAll('input[name="odds"]');
-            
-            // 배당률 맵 생성 (마번 -> 배당률)
-            const oddsMap = {};
-            inputs.forEach(input => {
-                const num = input.getAttribute('data-horse-num');
-                const val = input.value;
-                if(val) oddsMap[num] = val;
+        document.getElementById('oddsDownloadBtn').addEventListener('click', () => {
+            const moisture = document.getElementById('moistureInput').value.trim();
+            const inputs = document.querySelectorAll('.odds-input');
+            const map = {};
+            inputs.forEach(inp => map[inp.dataset.id] = inp.value);
+
+            const newRows = oddsData.rows.map(row => {
+                const numKey = Object.keys(row).find(k => k.includes('번호'));
+                return { ...row, '단승배당률': map[row[numKey]] || '' };
             });
 
-            // 데이터 업데이트
-            const updatedData = parsedData.map(row => {
-                const horseNumKey = Object.keys(row).find(k => k.includes('번호'));
-                const num = row[horseNumKey];
+            const csvBody = Papa.unparse(newRows, { quotes: false, columns: [...oddsData.header, '단승배당률'] });
+            const metaStr = oddsData.meta.length > 0 ? oddsData.meta.join('\n') + '\n' : '';
+            
+            let fname = `${oddsData.fileName}_단승배당`;
+            if(moisture) fname += `_함수율${moisture}%`;
+            downloadFile(metaStr + csvBody, fname + '.csv');
+        });
+
+
+        // ==========================================
+        // [로직 2] 체중 입력 관련
+        // ==========================================
+        let weightData = {
+            meta: [], header: [], rows: [], fileName: "", headerIndex: 0
+        };
+
+        const weightFileInput = document.getElementById('weightFileInput');
+        const weightTableBody = document.getElementById('weightTableBody');
+
+        weightFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            document.getElementById('weightFileName').textContent = file.name;
+            document.getElementById('weightFileName').classList.remove('hidden');
+            weightData.fileName = file.name.replace('.csv', '');
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const lines = evt.target.result.split(/\r\n|\n/);
+                let hIndex = lines.findIndex(l => (l.includes('번호') || l.includes('No')) && l.includes('마명'));
+                if(hIndex === -1) hIndex = 0;
+
+                weightData.headerIndex = hIndex;
+                weightData.meta = lines.slice(0, hIndex);
+
+                const dataPart = lines.slice(hIndex).join('\n');
+                Papa.parse(dataPart, {
+                    header: true, skipEmptyLines: true,
+                    complete: function(res) {
+                        weightData.header = res.meta.fields;
+                        weightData.rows = res.data;
+                        renderWeightTable(weightData.rows);
+                        document.getElementById('weightStep2').classList.remove('hidden');
+                        document.getElementById('weightStep3').classList.remove('hidden');
+                    }
+                });
+            };
+            reader.readAsText(file, 'UTF-8');
+        });
+
+        function renderWeightTable(rows) {
+            weightTableBody.innerHTML = '';
+            rows.forEach((row, idx) => {
+                const numKey = Object.keys(row).find(k => k.includes('번호'));
+                const nameKey = Object.keys(row).find(k => k.includes('마명'));
                 
-                // 기존 행 복사
+                // 기존 값 불러오기 (CSV에 이미 값이 있을 경우)
+                const weightKey = Object.keys(row).find(k => k.includes('체중') && !k.includes('증감')); // '금일체중' 등
+                const changeKey = Object.keys(row).find(k => k.includes('증감'));
+
+                const num = row[numKey] || (idx+1);
+                const name = row[nameKey] || '';
+                if(!name && !num) return;
+
+                const currentWeight = row[weightKey] || '';
+                const currentChange = row[changeKey] || '';
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-green-50 transition-colors";
+                tr.innerHTML = `
+                    <td class="px-4 py-2 text-center font-bold text-gray-700">${num}</td>
+                    <td class="px-4 py-2 text-gray-800 font-medium">${name}</td>
+                    <td class="px-4 py-2 text-center">
+                        <input type="number" data-id="${num}" value="${currentWeight}" class="weight-val w-28 text-center border border-gray-300 rounded p-1 font-bold text-green-700 focus:ring-2 focus:ring-green-500 outline-none" placeholder="체중">
+                    </td>
+                    <td class="px-4 py-2 text-center">
+                        <input type="number" data-id="${num}" value="${currentChange}" class="weight-chg w-24 text-center border border-gray-300 rounded p-1 font-bold text-red-600 focus:ring-2 focus:ring-red-500 outline-none" placeholder="+/-">
+                    </td>
+                `;
+                weightTableBody.appendChild(tr);
+            });
+        }
+
+        document.getElementById('weightDownloadBtn').addEventListener('click', () => {
+            const wInputs = document.querySelectorAll('.weight-val');
+            const cInputs = document.querySelectorAll('.weight-chg');
+            
+            const wMap = {};
+            const cMap = {};
+            
+            wInputs.forEach(inp => wMap[inp.dataset.id] = inp.value);
+            cInputs.forEach(inp => cMap[inp.dataset.id] = inp.value);
+
+            const newRows = weightData.rows.map(row => {
+                const numKey = Object.keys(row).find(k => k.includes('번호'));
+                const num = row[numKey];
+                
+                // 원본 CSV의 키 이름 찾기
+                const weightKey = Object.keys(row).find(k => k.includes('체중') && !k.includes('증감')) || '금일체중';
+                const changeKey = Object.keys(row).find(k => k.includes('증감')) || '증감';
+
                 let newRow = { ...row };
-                
-                // '단승배당률' 컬럼 추가 또는 갱신
-                newRow['단승배당률'] = oddsMap[num] || ''; 
+                newRow[weightKey] = wMap[num] || '';
+                newRow[changeKey] = cMap[num] || '';
                 return newRow;
             });
 
-            // 1) 데이터 부분을 다시 CSV 문자열로 변환
-            const csvBodyString = Papa.unparse(updatedData, {
-                quotes: false, // 필요시 true
-                columns: [...originalHeader, '단승배당률'] // 헤더 순서 유지하며 끝에 추가
-            });
-
-            // 2) 원본 메타데이터(상단 3줄 등)와 합치기
-            // 메타데이터 부분은 그대로 텍스트로 복원
-            const metaString = originalMetaData.length > 0 ? originalMetaData.join('\n') + '\n' : '';
+            // 헤더에 없으면 추가 (혹시 모를 경우 대비)
+            let finalHeader = [...weightData.header];
+            const weightKey = finalHeader.find(k => k.includes('체중') && !k.includes('증감')) || '금일체중';
+            const changeKey = finalHeader.find(k => k.includes('증감')) || '증감';
             
-            // 최종 CSV 내용
-            const finalCsvContent = metaString + csvBodyString;
+            if(!finalHeader.includes(weightKey)) finalHeader.push(weightKey);
+            if(!finalHeader.includes(changeKey)) finalHeader.push(changeKey);
 
-            // 파일명 생성
-            let saveFileName = `${originalFileName}_단승배당포함`;
-            if (moisture) {
-                saveFileName += `_함수율${moisture}%`;
-            }
-            saveFileName += '.csv';
+            const csvBody = Papa.unparse(newRows, { quotes: false, columns: finalHeader });
+            const metaStr = weightData.meta.length > 0 ? weightData.meta.join('\n') + '\n' : '';
 
-            downloadFile(finalCsvContent, saveFileName);
+            downloadFile(metaStr + csvBody, `${weightData.fileName}_체중입력완료.csv`);
         });
 
+        // 공통 다운로드 함수
         function downloadFile(content, fileName) {
-            // 한글 깨짐 방지용 BOM 추가
             const blob = new Blob(["\uFEFF" + content], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a");
             const url = URL.createObjectURL(blob);
-            
             link.setAttribute("href", url);
             link.setAttribute("download", fileName);
             link.style.visibility = 'hidden';
-            
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
         }
 
-        // 드래그 앤 드롭 지원
-        const dropZone = document.querySelector('label[for="csvFileInput"]').parentElement;
-        
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('border-blue-500', 'bg-blue-50');
-        });
+        // 드래그 앤 드롭 (공통 클래스 처리 불가로 개별 처리)
+        setupDragDrop('oddsFileInput', 'bg-blue-50', 'border-blue-500');
+        setupDragDrop('weightFileInput', 'bg-green-50', 'border-green-500');
 
-        dropZone.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('border-blue-500', 'bg-blue-50');
-        });
+        function setupDragDrop(inputId, bgClass, borderClass) {
+            const input = document.getElementById(inputId);
+            const dropZone = input.parentElement;
 
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('border-blue-500', 'bg-blue-50');
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                fileInput.files = files;
-                fileInput.dispatchEvent(new Event('change'));
-            }
-        });
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add(borderClass, bgClass);
+            });
+            dropZone.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove(borderClass, bgClass);
+            });
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove(borderClass, bgClass);
+                if (e.dataTransfer.files.length > 0) {
+                    input.files = e.dataTransfer.files;
+                    input.dispatchEvent(new Event('change'));
+                }
+            });
+        }
     });
     </script>
 </body>
