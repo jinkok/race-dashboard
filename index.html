@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>경마 데이터 통합 입력기 (Smart OCR)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <!-- Tesseract.js CDN -->
+    <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
+    <!-- heic2any CDN: 아이폰 HEIC 이미지 변환용 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/heic2any/0.0.3/heic2any.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; }
+        .hidden { display: none; }
+        .custom-table th { background-color: #f3f4f6; position: sticky; top: 0; z-index: 10; }
+        .custom-table td { vertical-align: middle; }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #16a34a; /* Green for this unified view */
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen text-gray-800">
+
+    <div class="max-w-6xl mx-auto p-4 md:p-6">
+        <!-- 헤더 -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">🏇 경마 통합 데이터 입력기</h1>
+            <p class="text-gray-600">체중현황 파일을 기준으로 체중, 증감, 배당을 한 번에 입력하세요.</p>
+        </div>
+
+        <!-- 메인 컨테이너 -->
+        <div id="mainContainer" class="block">
+            
+            <!-- Step 1: 파일 업로드 -->
+            <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                <h2 class="text-xl font-bold mb-4 text-green-700 flex items-center">
+                    <span class="bg-green-100 text-green-700 rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm border border-green-200">1</span>
+                    체중현황 파일 업로드 (CSV)
+                </h2>
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-green-500 transition-colors bg-gray-50">
+                    <input type="file" id="weightFileInput" accept=".csv" class="hidden">
+                    <label for="weightFileInput" class="cursor-pointer block">
+                        <svg class="mx-auto h-12 w-12 text-gray-400 mb-3" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <span class="block text-lg font-medium text-gray-700 mb-1">체중현황 CSV 파일 선택</span>
+                        <span class="text-sm text-gray-500">클릭하여 파일을 업로드하세요</span>
+                    </label>
+                    <div id="weightFileName" class="mt-4 text-base font-semibold text-green-600 hidden bg-green-50 inline-block px-4 py-1 rounded-full border border-green-200"></div>
+                </div>
+            </div>
+
+            <!-- Step 2: 데이터 입력 -->
+            <div id="weightStep2" class="bg-white p-6 rounded-lg shadow-md mb-6 hidden">
+                <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-6 gap-4">
+                    <h2 class="text-xl font-bold text-green-700 flex items-center">
+                        <span class="bg-green-100 text-green-700 rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm border border-green-200">2</span>
+                        데이터 입력 (체중 / 증감 / 배당)
+                    </h2>
+                    
+                    <div class="flex flex-wrap items-center gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200 w-full xl:w-auto">
+                        <div class="flex items-center mr-4">
+                            <input type="checkbox" id="weightUsePreprocess" checked class="w-5 h-5 text-green-600 rounded border-gray-300 focus:ring-green-500">
+                            <label for="weightUsePreprocess" class="ml-2 text-sm font-bold text-gray-700 cursor-pointer">고대비 필터 (인식률↑)</label>
+                        </div>
+                        
+                        <!-- 체중 OCR 버튼 -->
+                        <div class="relative">
+                            <input type="file" id="weightImageInput" accept="image/*, .heic, .heif" class="hidden">
+                            <button onclick="document.getElementById('weightImageInput').click()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded shadow flex items-center text-sm font-bold transition-colors">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path></svg>
+                                📷 체중/증감 인식
+                            </button>
+                        </div>
+
+                        <!-- 배당 OCR 버튼 -->
+                        <div class="relative">
+                            <input type="file" id="weightOddsImageInput" accept="image/*, .heic, .heif" class="hidden">
+                            <button onclick="document.getElementById('weightOddsImageInput').click()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded shadow flex items-center text-sm font-bold transition-colors">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                📷 배당 인식
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- OCR 진행상태 표시 -->
+                <div id="weightOcrStatus" class="hidden mb-4 bg-green-50 p-4 rounded border border-green-200 text-sm text-green-800 animate-pulse">
+                    <div class="flex items-center mb-2">
+                        <div class="loader mr-3"></div>
+                        <span id="weightOcrMsg" class="font-bold text-lg">이미지 분석 중...</span>
+                    </div>
+                    <p class="text-green-600 ml-9">잠시만 기다려주세요. 사진이 클수록 시간이 걸릴 수 있습니다.</p>
+                </div>
+
+                <div class="overflow-x-auto bg-white border border-gray-200 rounded-lg max-h-[600px] overflow-y-auto shadow-inner">
+                    <table class="min-w-full divide-y divide-gray-200 custom-table text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-center font-extrabold text-gray-600 w-16 border-b-2">번호</th>
+                                <th class="px-4 py-3 text-left font-extrabold text-gray-600 border-b-2">마명</th>
+                                <th class="px-4 py-3 text-center font-extrabold text-green-700 w-32 border-b-2 bg-green-50">체중</th>
+                                <th class="px-4 py-3 text-center font-extrabold text-red-600 w-28 border-b-2 bg-red-50">증감(+/-)</th>
+                                <th class="px-4 py-3 text-center font-extrabold text-blue-700 w-32 border-b-2 bg-blue-50">배당(단승)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="weightTableBody" class="divide-y divide-gray-200 bg-white"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Step 3: 다운로드 -->
+            <div id="weightStep3" class="bg-white p-6 rounded-lg shadow-md mb-6 hidden">
+                <div class="flex flex-col items-center justify-center">
+                    <button id="weightDownloadBtn" class="w-full md:w-2/3 bg-gray-800 hover:bg-gray-900 text-white font-bold py-4 rounded-xl shadow-lg transition-transform transform hover:-translate-y-0.5 flex items-center justify-center text-lg">
+                        <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        완료된 파일 다운로드 (체중/증감 업데이트 + 배당 추가)
+                    </button>
+                    <p class="mt-2 text-sm text-gray-500">기존 체중 데이터는 수정되고, 배당률은 맨 오른쪽 열에 추가됩니다.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        
+        // ==========================================
+        // [HEIC File Handling]
+        // ==========================================
+        async function checkAndConvertHEIC(file, statusElId, msgElId) {
+            const statusEl = document.getElementById(statusElId);
+            const msgEl = document.getElementById(msgElId);
+
+            if (file.type === "image/heic" || file.type === "image/heif" || file.name.toLowerCase().endsWith(".heic")) {
+                statusEl.classList.remove('hidden');
+                msgEl.textContent = "아이폰 이미지(HEIC) 변환 중...";
+                
+                try {
+                    const convertedBlob = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.8 });
+                    return Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+                } catch (error) {
+                    console.error("HEIC conversion failed:", error);
+                    alert("HEIC 변환에 실패했습니다.");
+                    statusEl.classList.add('hidden');
+                    return null;
+                }
+            }
+            return file;
+        }
+
+        // ==========================================
+        // [Advanced Image Preprocessing]
+        // ==========================================
+        function preprocessImage(file, callback) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    const scaleFactor = 2; 
+                    canvas.width = img.width * scaleFactor;
+                    canvas.height = img.height * scaleFactor;
+                    
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const data = imageData.data;
+                    
+                    for (let i = 0; i < data.length; i += 4) {
+                        const brightness = 0.34 * data[i] + 0.5 * data[i + 1] + 0.16 * data[i + 2];
+                        const threshold = brightness < 140 ? 0 : 255;
+                        data[i] = threshold;     // R
+                        data[i + 1] = threshold; // G
+                        data[i + 2] = threshold; // B
+                    }
+                    ctx.putImageData(imageData, 0, 0);
+                    
+                    canvas.toBlob((blob) => {
+                        callback(blob);
+                    }, 'image/png');
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // ==========================================
+        // [OCR Core Function]
+        // ==========================================
+        async function runOCR(imageFile, statusElementId, msgElementId, usePreprocess, whitelistChars, callback) {
+            const statusEl = document.getElementById(statusElementId);
+            const msgEl = document.getElementById(msgElementId);
+            
+            statusEl.classList.remove('hidden');
+            msgEl.textContent = "이미지 전처리 중...";
+
+            const executeTesseract = async (blobToProcess) => {
+                msgEl.textContent = "OCR 엔진 초기화 및 분석 중...";
+                try {
+                    const { data: { text } } = await Tesseract.recognize(
+                        blobToProcess,
+                        'eng',
+                        {
+                            tessedit_char_whitelist: whitelistChars,
+                            logger: m => {
+                                if(m.status === 'recognizing text') {
+                                    msgEl.textContent = `글자 인식 중... ${(m.progress * 100).toFixed(0)}%`;
+                                }
+                            }
+                        }
+                    );
+                    msgEl.textContent = "완료! 데이터를 적용합니다.";
+                    setTimeout(() => statusEl.classList.add('hidden'), 1500);
+                    console.log("OCR Raw Text:", text);
+                    callback(text);
+                } catch (error) {
+                    console.error(error);
+                    msgEl.textContent = "오류 발생: 인식을 실패했습니다.";
+                    alert("OCR 오류입니다.");
+                    statusEl.classList.add('hidden');
+                }
+            };
+
+            if (usePreprocess) {
+                preprocessImage(imageFile, (processedBlob) => {
+                    executeTesseract(processedBlob);
+                });
+            } else {
+                executeTesseract(imageFile);
+            }
+        }
+
+        // ==========================================
+        // [통합 로직] 체중 + 배당
+        // ==========================================
+        let weightData = { meta: [], header: [], rows: [], fileName: "", headerIndex: 0 };
+        const weightFileInput = document.getElementById('weightFileInput');
+        const weightTableBody = document.getElementById('weightTableBody');
+        const weightImageInput = document.getElementById('weightImageInput');
+        const weightOddsImageInput = document.getElementById('weightOddsImageInput');
+
+        weightFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            document.getElementById('weightFileName').textContent = file.name;
+            document.getElementById('weightFileName').classList.remove('hidden');
+            weightData.fileName = file.name.replace('.csv', '');
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const lines = evt.target.result.split(/\r\n|\n/);
+                // 헤더 찾기 (번호, 마명 필수)
+                let hIndex = lines.findIndex(l => (l.includes('번호') || l.includes('No')) && l.includes('마명'));
+                if(hIndex === -1) hIndex = 0;
+                weightData.headerIndex = hIndex;
+                weightData.meta = lines.slice(0, hIndex);
+                const dataPart = lines.slice(hIndex).join('\n');
+                Papa.parse(dataPart, {
+                    header: true, skipEmptyLines: true,
+                    complete: function(res) {
+                        weightData.header = res.meta.fields;
+                        weightData.rows = res.data;
+                        renderWeightTable(weightData.rows);
+                        document.getElementById('weightStep2').classList.remove('hidden');
+                        document.getElementById('weightStep3').classList.remove('hidden');
+                    }
+                });
+            };
+            reader.readAsText(file, 'UTF-8');
+        });
+
+        // [체중 OCR 트리거]
+        weightImageInput.addEventListener('change', async (e) => {
+            let file = e.target.files[0];
+            if(!file) return;
+            file = await checkAndConvertHEIC(file, 'weightOcrStatus', 'weightOcrMsg');
+            if(!file) return;
+
+            const usePre = document.getElementById('weightUsePreprocess').checked;
+            const whitelist = '0123456789+-\n '; 
+
+            runOCR(file, 'weightOcrStatus', 'weightOcrMsg', usePre, whitelist, (text) => {
+                const lines = text.split('\n');
+                const wInputs = document.querySelectorAll('.weight-val');
+                let matchCount = 0;
+
+                wInputs.forEach(wInput => {
+                    const horseNum = wInput.dataset.id;
+                    const cInput = document.querySelector(`.weight-chg[data-id="${horseNum}"]`);
+                    
+                    for(let line of lines) {
+                        let cleanLine = line.trim();
+                        // 마번으로 시작하는 라인 찾기
+                        if (cleanLine.startsWith(horseNum)) {
+                            // 패턴: [마번] ... [체중3자리:300~699] ...
+                            const weightMatch = cleanLine.match(/\b([3-6]\d{2})\b/);
+                            if (weightMatch) {
+                                wInput.value = weightMatch[1];
+                                wInput.classList.add('bg-green-100', 'ring-2', 'ring-green-400');
+                                
+                                // 체중 뒤에 있는 문자열에서 증감(+/-숫자) 찾기
+                                const afterWeight = cleanLine.substring(cleanLine.indexOf(weightMatch[1]) + 3);
+                                const changeMatch = afterWeight.match(/([+-]?\d{1,2})\b/);
+                                
+                                if (changeMatch) {
+                                    cInput.value = changeMatch[1];
+                                    cInput.classList.add('bg-green-100', 'ring-2', 'ring-green-400');
+                                }
+                                matchCount++;
+                                break;
+                            }
+                        }
+                    }
+                });
+                if(matchCount === 0) alert("인식된 데이터가 없습니다. 이미지를 확인해주세요.");
+                else alert(`${matchCount}마리의 체중 정보가 업데이트되었습니다.`);
+            });
+            weightImageInput.value = '';
+        });
+
+        // [배당 OCR 트리거]
+        weightOddsImageInput.addEventListener('change', async (e) => {
+            let file = e.target.files[0];
+            if(!file) return;
+            file = await checkAndConvertHEIC(file, 'weightOcrStatus', 'weightOcrMsg');
+            if(!file) return;
+
+            const usePre = document.getElementById('weightUsePreprocess').checked;
+            // 배당은 소수점 필수
+            const whitelist = '0123456789.\n '; 
+
+            runOCR(file, 'weightOcrStatus', 'weightOcrMsg', usePre, whitelist, (text) => {
+                const lines = text.split('\n');
+                const oInputs = document.querySelectorAll('.weight-odds-val');
+                let matchCount = 0;
+
+                oInputs.forEach(input => {
+                    const horseNum = input.dataset.id;
+                    for(let line of lines) {
+                        let cleanLine = line.trim();
+                        // 배당 OCR 패턴: [마번] [공백] [배당률(소수점)]
+                        // 예: "1 3.5", "10 12.3"
+                        const regex = new RegExp(`^${horseNum}\\s+(\\d+\\.\\d+)`);
+                        const match = cleanLine.match(regex);
+                        if (match) {
+                            input.value = match[1];
+                            input.classList.add('bg-blue-100', 'ring-2', 'ring-blue-400');
+                            matchCount++;
+                            break;
+                        }
+                    }
+                });
+                if(matchCount === 0) alert("인식된 배당 데이터가 없습니다.");
+                else alert(`${matchCount}마리의 배당 정보가 추가되었습니다.`);
+            });
+            weightOddsImageInput.value = '';
+        });
+
+        function renderWeightTable(rows) {
+            weightTableBody.innerHTML = '';
+            rows.forEach((row, idx) => {
+                const numKey = Object.keys(row).find(k => k.includes('번호'));
+                const nameKey = Object.keys(row).find(k => k.includes('마명'));
+                
+                // 기존 체중/증감 컬럼 찾기 (없으면 공란)
+                const weightKey = Object.keys(row).find(k => k.includes('체중') && !k.includes('증감'));
+                const changeKey = Object.keys(row).find(k => k.includes('증감'));
+
+                const num = row[numKey] || (idx+1);
+                const name = row[nameKey] || '';
+                if(!name && !num) return; // 유효하지 않은 행 스킵
+
+                const currentWeight = row[weightKey] || '';
+                const currentChange = row[changeKey] || '';
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-50 transition-colors";
+                tr.innerHTML = `
+                    <td class="px-4 py-3 text-center font-bold text-gray-700">${num}</td>
+                    <td class="px-4 py-3 text-gray-800 font-medium">${name}</td>
+                    <td class="px-4 py-3 text-center">
+                        <input type="number" data-id="${num}" value="${currentWeight}" class="weight-val w-28 text-center border border-gray-300 rounded-md p-2 font-bold text-green-700 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-shadow" placeholder="체중">
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <input type="text" data-id="${num}" value="${currentChange}" class="weight-chg w-24 text-center border border-gray-300 rounded-md p-2 font-bold text-red-600 focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-shadow" placeholder="+/-">
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <input type="number" step="0.1" data-id="${num}" class="weight-odds-val w-28 text-center border border-blue-300 rounded-md p-2 font-bold text-blue-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow" placeholder="0.0">
+                    </td>
+                `;
+                weightTableBody.appendChild(tr);
+            });
+        }
+
+        document.getElementById('weightDownloadBtn').addEventListener('click', () => {
+            const wInputs = document.querySelectorAll('.weight-val');
+            const cInputs = document.querySelectorAll('.weight-chg');
+            const oInputs = document.querySelectorAll('.weight-odds-val'); 
+            
+            const wMap = {}, cMap = {}, oMap = {};
+            wInputs.forEach(inp => wMap[inp.dataset.id] = inp.value);
+            cInputs.forEach(inp => cMap[inp.dataset.id] = inp.value);
+            oInputs.forEach(inp => oMap[inp.dataset.id] = inp.value);
+
+            const newRows = weightData.rows.map(row => {
+                const numKey = Object.keys(row).find(k => k.includes('번호'));
+                const num = row[numKey];
+                
+                // 기존 컬럼명을 최대한 유지하되 없으면 기본값 사용
+                const weightKey = Object.keys(row).find(k => k.includes('체중') && !k.includes('증감')) || '금일체중';
+                const changeKey = Object.keys(row).find(k => k.includes('증감')) || '증감';
+                
+                let newRow = { ...row };
+                
+                // 값 업데이트
+                newRow[weightKey] = wMap[num] || '';
+                newRow[changeKey] = cMap[num] || '';
+                
+                // 배당은 무조건 새로 추가/덮어쓰기
+                newRow['단승배당률'] = oMap[num] || ''; 
+                
+                return newRow;
+            });
+
+            // 헤더 재구성
+            let finalHeader = [...weightData.header];
+            const weightKey = finalHeader.find(k => k.includes('체중') && !k.includes('증감')) || '금일체중';
+            const changeKey = finalHeader.find(k => k.includes('증감')) || '증감';
+            
+            // 기존 헤더에 없으면 추가 (보통 파일에 있겠지만 안전장치)
+            if(!finalHeader.includes(weightKey)) finalHeader.push(weightKey);
+            if(!finalHeader.includes(changeKey)) finalHeader.push(changeKey);
+            
+            // "단승배당률" 컬럼 처리
+            // 이미 존재한다면 위치를 맨 뒤로 옮기거나 그대로 둘 수 있지만, 
+            // 요청사항("맨 오른쪽에 추가")에 따라 기존꺼 지우고 맨 뒤에 붙임
+            finalHeader = finalHeader.filter(h => h !== '단승배당률'); 
+            finalHeader.push('단승배당률');
+
+            const csvBody = Papa.unparse(newRows, { quotes: false, columns: finalHeader });
+            const metaStr = weightData.meta.length > 0 ? weightData.meta.join('\n') + '\n' : '';
+            downloadFile(metaStr + csvBody, `${weightData.fileName}_통합완료.csv`);
+        });
+
+        function downloadFile(content, fileName) {
+            const blob = new Blob(["\uFEFF" + content], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", fileName);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        setupDragDrop('weightFileInput', 'bg-green-50', 'border-green-500');
+
+        function setupDragDrop(inputId, bgClass, borderClass) {
+            const input = document.getElementById(inputId);
+            const dropZone = input.parentElement;
+            dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add(borderClass, bgClass); });
+            dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); dropZone.classList.remove(borderClass, bgClass); });
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault(); dropZone.classList.remove(borderClass, bgClass);
+                if (e.dataTransfer.files.length > 0) { input.files = e.dataTransfer.files; input.dispatchEvent(new Event('change')); }
+            });
+        }
+    });
+    </script>
+</body>
+</html>
