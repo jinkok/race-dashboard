@@ -8,6 +8,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <!-- Tesseract.js CDN -->
     <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
+    <!-- heic2any CDN: 아이폰 HEIC 이미지 변환용 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/heic2any/0.0.3/heic2any.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Noto Sans KR', sans-serif; }
@@ -36,7 +38,7 @@
         <!-- 헤더 -->
         <div class="text-center mb-6">
             <h1 class="text-3xl font-bold text-gray-800 mb-2">🏇 경마 데이터 통합 입력기 (Smart OCR)</h1>
-            <p class="text-gray-600">고대비 필터를 적용하여 이미지 인식률을 대폭 높였습니다.</p>
+            <p class="text-gray-600">아이폰 HEIC/스크린샷 및 고대비 필터 지원으로 인식률 최적화</p>
         </div>
 
         <!-- 탭 메뉴 -->
@@ -86,7 +88,8 @@
 
                         <!-- OCR 버튼 -->
                         <div class="relative">
-                            <input type="file" id="oddsImageInput" accept="image/*" class="hidden">
+                            <!-- accept에 .heic, .heif 추가 -->
+                            <input type="file" id="oddsImageInput" accept="image/*, .heic, .heif" class="hidden">
                             <button onclick="document.getElementById('oddsImageInput').click()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded shadow flex items-center text-sm font-bold transition-colors">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                                 📷 배당률 인식
@@ -106,7 +109,7 @@
                         <div class="loader mr-3"></div>
                         <span id="oddsOcrMsg" class="font-bold">이미지 분석 중...</span>
                     </div>
-                    <p class="text-xs text-blue-600 ml-9">팁: 그림자가 없도록 밝은 곳에서 촬영하고, 숫자가 잘 보이게 찍어주세요.</p>
+                    <p class="text-xs text-blue-600 ml-9">팁: 아이폰 사진(HEIC)이나 스크린샷도 바로 업로드 가능합니다.</p>
                 </div>
 
                 <div class="overflow-x-auto bg-white border border-gray-200 rounded-lg max-h-[500px] overflow-y-auto">
@@ -168,7 +171,8 @@
                         </div>
                         <!-- OCR 버튼 -->
                         <div class="relative">
-                            <input type="file" id="weightImageInput" accept="image/*" class="hidden">
+                            <!-- accept에 .heic, .heif 추가 -->
+                            <input type="file" id="weightImageInput" accept="image/*, .heic, .heif" class="hidden">
                             <button onclick="document.getElementById('weightImageInput').click()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow flex items-center text-sm font-bold transition-colors">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                                 📷 체중 인식
@@ -235,6 +239,38 @@
 
         tabOdds.addEventListener('click', () => switchTab('odds'));
         tabWeight.addEventListener('click', () => switchTab('weight'));
+
+        // ==========================================
+        // [HEIC File Handling]
+        // 아이폰/아이패드 HEIC 파일을 Blob(JPEG)으로 변환
+        // ==========================================
+        async function checkAndConvertHEIC(file, statusElId, msgElId) {
+            const statusEl = document.getElementById(statusElId);
+            const msgEl = document.getElementById(msgElId);
+
+            // 파일 타입이 heic/heif 이거나 확장자가 .heic일 경우
+            if (file.type === "image/heic" || file.type === "image/heif" || file.name.toLowerCase().endsWith(".heic")) {
+                statusEl.classList.remove('hidden');
+                msgEl.textContent = "아이폰 이미지(HEIC) 변환 중...";
+                
+                try {
+                    const convertedBlob = await heic2any({
+                        blob: file,
+                        toType: "image/jpeg",
+                        quality: 0.8
+                    });
+                    // heic2any는 단일 파일일 경우 Blob, 다중일 경우 Blob[]을 반환하지만 여기선 단일
+                    return Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+                } catch (error) {
+                    console.error("HEIC conversion failed:", error);
+                    alert("HEIC 변환에 실패했습니다. PC에서 지원하지 않는 형식일 수 있습니다.");
+                    statusEl.classList.add('hidden');
+                    return null;
+                }
+            }
+            // 일반 이미지(JPG, PNG 등)는 그대로 반환
+            return file;
+        }
 
         // ==========================================
         // [Advanced Image Preprocessing]
@@ -371,15 +407,19 @@
         });
 
         // 배당률 OCR 트리거
-        oddsImageInput.addEventListener('change', (e) => {
-            if(!e.target.files[0]) return;
+        oddsImageInput.addEventListener('change', async (e) => {
+            let file = e.target.files[0];
+            if(!file) return;
             
+            // HEIC 체크 및 변환
+            file = await checkAndConvertHEIC(file, 'oddsOcrStatus', 'oddsOcrMsg');
+            if(!file) return;
+
             const usePre = document.getElementById('oddsUsePreprocess').checked;
             // 배당률은 숫자(0-9)와 소수점(.)만 필요 (줄바꿈 포함)
-            // 마번도 숫자이므로 같이 인식됨
             const whitelist = '0123456789.\n '; 
 
-            runOCR(e.target.files[0], 'oddsOcrStatus', 'oddsOcrMsg', usePre, whitelist, (text) => {
+            runOCR(file, 'oddsOcrStatus', 'oddsOcrMsg', usePre, whitelist, (text) => {
                 const lines = text.split('\n');
                 const inputs = document.querySelectorAll('.odds-input');
                 let matchCount = 0;
@@ -387,14 +427,9 @@
                 inputs.forEach(input => {
                     const horseNum = input.dataset.id;
                     
-                    // 전처리를 하면 '마명' 텍스트는 사라지고 "1 1.5" 처럼 숫자만 남을 가능성이 높음
-                    // 따라서 숫자만 있는 라인에서 [마번] [배당률] 패턴을 찾음
-                    
                     for(let line of lines) {
                         let cleanLine = line.trim();
                         // 1. 마번으로 시작하는지?
-                        // "1 3.5" 또는 "1 3.5" (공백 불확실)
-                        // 정규식: 시작(^) + 마번 + 공백하나이상 + 소수점숫자
                         const regex = new RegExp(`^${horseNum}\\s+(\\d+\\.\\d+)`);
                         const match = cleanLine.match(regex);
                         
@@ -491,13 +526,19 @@
         });
 
         // 체중 OCR 트리거
-        weightImageInput.addEventListener('change', (e) => {
-            if(!e.target.files[0]) return;
+        weightImageInput.addEventListener('change', async (e) => {
+            let file = e.target.files[0];
+            if(!file) return;
+
+            // HEIC 체크 및 변환
+            file = await checkAndConvertHEIC(file, 'weightOcrStatus', 'weightOcrMsg');
+            if(!file) return;
+
             const usePre = document.getElementById('weightUsePreprocess').checked;
             // 체중은 숫자, +, - 가 필요
             const whitelist = '0123456789+-\n '; 
 
-            runOCR(e.target.files[0], 'weightOcrStatus', 'weightOcrMsg', usePre, whitelist, (text) => {
+            runOCR(file, 'weightOcrStatus', 'weightOcrMsg', usePre, whitelist, (text) => {
                 const lines = text.split('\n');
                 const wInputs = document.querySelectorAll('.weight-val');
                 let matchCount = 0;
@@ -510,9 +551,6 @@
                         let cleanLine = line.trim();
                         if (cleanLine.startsWith(horseNum)) {
                             // 패턴: [마번] [체중3자리] [증감]
-                            // 예: 1 480 +5  또는 1 480 5
-                            
-                            // 300~600대 체중 찾기
                             const weightMatch = cleanLine.match(/\b([3-6]\d{2})\b/);
                             if (weightMatch) {
                                 wInput.value = weightMatch[1];
@@ -520,7 +558,6 @@
                                 
                                 // 체중 뒤에 있는 나머지 문자열에서 증감 찾기
                                 const afterWeight = cleanLine.substring(cleanLine.indexOf(weightMatch[1]) + 3);
-                                // +숫자, -숫자, 혹은 그냥 숫자 찾기 (최대 2자리)
                                 const changeMatch = afterWeight.match(/([+-]?\d{1,2})\b/);
                                 
                                 if (changeMatch) {
