@@ -141,7 +141,7 @@
                         <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                         통합 파일 다운로드
                     </button>
-                    <p class="mt-2 text-sm text-gray-500 text-center">파일명 형식: <strong>[원본명]_체중현황_배당_함수율[N]%.csv</strong></p>
+                    <p class="mt-2 text-sm text-gray-500 text-center">파일명 형식: <strong>[원본명]_배당_함수율[N]%.csv</strong></p>
                 </div>
             </div>
         </div>
@@ -470,24 +470,19 @@
             const metaStr = weightData.meta.length > 0 ? weightData.meta.join('\n') + '\n' : '';
             
             // ===============================================
-            // [파일명 생성 로직 수정]
+            // [파일명 생성 로직 수정] - 배당과 함수율만 추가
             // ===============================================
             let baseName = weightData.fileName;
             
             // 1. 기존 함수율 태그 제거 (업데이트 상황 고려, 중복 방지)
             baseName = baseName.replace(/_함수율\d+%?/g, '');
 
-            // 2. '체중현황' 중복 방지 체크 후 추가
-            if (!baseName.includes('체중현황')) {
-                baseName += "_체중현황";
-            }
-
-            // 3. '배당' 중복 방지 체크 후 추가
+            // 2. '배당' 중복 방지 체크 후 추가
             if (!baseName.includes('배당')) {
                 baseName += "_배당";
             }
 
-            // 4. 새 함수율 추가
+            // 3. 새 함수율 추가
             const moistureSuffix = moistureVal ? `_함수율${moistureVal}%` : '';
             const finalFileName = `${baseName}${moistureSuffix}.csv`;
 
