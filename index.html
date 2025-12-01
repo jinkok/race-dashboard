@@ -35,7 +35,7 @@
         <!-- 헤더 -->
         <div class="text-center mb-8">
             <h1 class="text-3xl font-bold text-gray-800 mb-2">🏇 경마 통합 데이터 입력기</h1>
-            <p class="text-gray-600">체중현황 파일을 기준으로 체중, 증감, 배당을 한 번에 입력하세요.</p>
+            <p class="text-gray-600">체중현황 파일을 기준으로 체중, 증감, 배당을 입력하고 함수율을 지정하세요.</p>
         </div>
 
         <!-- 메인 컨테이너 -->
@@ -121,12 +121,27 @@
 
             <!-- Step 3: 다운로드 -->
             <div id="weightStep3" class="bg-white p-6 rounded-lg shadow-md mb-6 hidden">
-                <div class="flex flex-col items-center justify-center">
-                    <button id="weightDownloadBtn" class="w-full md:w-2/3 bg-gray-800 hover:bg-gray-900 text-white font-bold py-4 rounded-xl shadow-lg transition-transform transform hover:-translate-y-0.5 flex items-center justify-center text-lg">
+                <h2 class="text-xl font-bold mb-4 text-green-700 flex items-center">
+                    <span class="bg-green-100 text-green-700 rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm border border-green-200">3</span>
+                    최종 파일 설정 및 다운로드
+                </h2>
+
+                <div class="flex flex-col items-center justify-center gap-4">
+                    <!-- 함수율 입력 필드 추가 -->
+                    <div class="w-full md:w-2/3 bg-blue-50 p-4 rounded-lg border border-blue-200 flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div class="flex items-center gap-2">
+                            <span class="text-2xl">💧</span>
+                            <label for="moistureInput" class="font-bold text-blue-800 text-lg whitespace-nowrap">함수율 입력(%):</label>
+                        </div>
+                        <input type="number" id="moistureInput" class="flex-grow p-3 border-2 border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg font-bold text-center text-blue-900" placeholder="예: 5 (숫자만 입력)">
+                        <span class="text-sm text-blue-600 font-medium">* 파일명에 자동 포함됩니다.</span>
+                    </div>
+
+                    <button id="weightDownloadBtn" class="w-full md:w-2/3 bg-gray-800 hover:bg-gray-900 text-white font-bold py-4 rounded-xl shadow-lg transition-transform transform hover:-translate-y-0.5 flex items-center justify-center text-lg mt-2">
                         <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                        완료된 파일 다운로드 (체중/증감 업데이트 + 배당 추가)
+                        통합 파일 다운로드
                     </button>
-                    <p class="mt-2 text-sm text-gray-500">기존 체중 데이터는 수정되고, 배당률은 맨 오른쪽 열에 추가됩니다.</p>
+                    <p class="mt-2 text-sm text-gray-500 text-center">파일명 형식: <strong>[원본명]_체중현황_배당_함수율[N]%.csv</strong></p>
                 </div>
             </div>
         </div>
@@ -408,6 +423,12 @@
             const wInputs = document.querySelectorAll('.weight-val');
             const cInputs = document.querySelectorAll('.weight-chg');
             const oInputs = document.querySelectorAll('.weight-odds-val'); 
+            const moistureInput = document.getElementById('moistureInput');
+            const moistureVal = moistureInput.value.trim();
+
+            if (!moistureVal) {
+                if(!confirm("함수율이 입력되지 않았습니다. 함수율 없이 진행하시겠습니까?")) return;
+            }
             
             const wMap = {}, cMap = {}, oMap = {};
             wInputs.forEach(inp => wMap[inp.dataset.id] = inp.value);
@@ -439,19 +460,38 @@
             const weightKey = finalHeader.find(k => k.includes('체중') && !k.includes('증감')) || '금일체중';
             const changeKey = finalHeader.find(k => k.includes('증감')) || '증감';
             
-            // 기존 헤더에 없으면 추가 (보통 파일에 있겠지만 안전장치)
             if(!finalHeader.includes(weightKey)) finalHeader.push(weightKey);
             if(!finalHeader.includes(changeKey)) finalHeader.push(changeKey);
             
-            // "단승배당률" 컬럼 처리
-            // 이미 존재한다면 위치를 맨 뒤로 옮기거나 그대로 둘 수 있지만, 
-            // 요청사항("맨 오른쪽에 추가")에 따라 기존꺼 지우고 맨 뒤에 붙임
             finalHeader = finalHeader.filter(h => h !== '단승배당률'); 
             finalHeader.push('단승배당률');
 
             const csvBody = Papa.unparse(newRows, { quotes: false, columns: finalHeader });
             const metaStr = weightData.meta.length > 0 ? weightData.meta.join('\n') + '\n' : '';
-            downloadFile(metaStr + csvBody, `${weightData.fileName}_통합완료.csv`);
+            
+            // ===============================================
+            // [파일명 생성 로직 수정]
+            // ===============================================
+            let baseName = weightData.fileName;
+            
+            // 1. 기존 함수율 태그 제거 (업데이트 상황 고려, 중복 방지)
+            baseName = baseName.replace(/_함수율\d+%?/g, '');
+
+            // 2. '체중현황' 중복 방지 체크 후 추가
+            if (!baseName.includes('체중현황')) {
+                baseName += "_체중현황";
+            }
+
+            // 3. '배당' 중복 방지 체크 후 추가
+            if (!baseName.includes('배당')) {
+                baseName += "_배당";
+            }
+
+            // 4. 새 함수율 추가
+            const moistureSuffix = moistureVal ? `_함수율${moistureVal}%` : '';
+            const finalFileName = `${baseName}${moistureSuffix}.csv`;
+
+            downloadFile(metaStr + csvBody, finalFileName);
         });
 
         function downloadFile(content, fileName) {
