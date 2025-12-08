@@ -82,7 +82,7 @@
             return (
                 <div className="w-full flex flex-col gap-1">
                 <div className="flex justify-between text-xs text-gray-500">
-                    <span className="font-medium text-slate-700">총 {count}회</span>
+                    <span className="font-medium text-slate-700">총 {count || 0}회</span>
                     {jockeyCount > 0 && (
                     <span className="text-blue-600 font-bold flex items-center gap-0.5">
                         <User className="w-3 h-3" /> 기수 {jockeyCount}회
@@ -263,9 +263,9 @@
 
                 if (searchTerm) {
                 entries = entries.filter(item => 
-                    item.name.includes(searchTerm) || 
-                    item.connections.jockey.name.includes(searchTerm) ||
-                    item.connections.trainer.name.includes(searchTerm)
+                    (item.name || "").includes(searchTerm) || 
+                    (item.connections?.jockey?.name || "").includes(searchTerm) ||
+                    (item.connections?.trainer?.name || "").includes(searchTerm)
                 );
                 }
 
@@ -276,9 +276,18 @@
                     switch(sortConfig.key) {
                     case 'entry_number': aValue = a.entry_number; bValue = b.entry_number; break;
                     case 'name': aValue = a.name; bValue = b.name; break;
-                    case 'speedIndex': aValue = parseFloat(a.analysis.speed_index) || 0; bValue = parseFloat(b.analysis.speed_index) || 0; break;
-                    case 'rating': aValue = a.profile.rating; bValue = b.profile.rating; break;
-                    case 'training_total': aValue = a.status.training_total; bValue = b.status.training_total; break;
+                    case 'speedIndex': 
+                        aValue = parseFloat(a.analysis?.speed_index) || 0; 
+                        bValue = parseFloat(b.analysis?.speed_index) || 0; 
+                        break;
+                    case 'rating': 
+                        aValue = a.profile?.rating; 
+                        bValue = b.profile?.rating; 
+                        break;
+                    case 'training_total': 
+                        aValue = a.status?.training_total; 
+                        bValue = b.status?.training_total; 
+                        break;
                     default: aValue = 0; bValue = 0;
                     }
 
@@ -317,22 +326,22 @@
                     <div>
                         <div className="flex items-center gap-2 mb-2">
                         <span className="bg-slate-800 text-white px-3 py-1 rounded-full text-xs font-bold tracking-wider">
-                            {data.race_header?.location || data.meta.location} {data.race_header?.race_number || data.meta.race_number}R
+                            {data.race_header?.location || data.meta?.location} {data.race_header?.race_number || data.meta?.race_number}R
                         </span>
                         <span className="text-slate-500 text-sm font-medium flex items-center gap-1">
-                            <Calendar className="w-4 h-4" /> {data.race_header?.date || data.meta.date}
+                            <Calendar className="w-4 h-4" /> {data.race_header?.date || data.meta?.date}
                         </span>
                         </div>
                         <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-1">
-                        {data.race_info.class_name}
+                        {data.race_info?.class_name || "등급 정보 없음"}
                         </h1>
                         <div className="flex flex-wrap gap-2 text-sm text-slate-500 mb-2">
-                        {data.race_info.conditions.map((cond, idx) => (
+                        {data.race_info?.conditions?.map((cond, idx) => (
                             <span key={idx} className="bg-slate-100 px-2 py-1 rounded text-xs">{cond}</span>
                         ))}
                         </div>
                         <div className="text-xs text-blue-600 font-medium">
-                        ※ {data.race_info.class_name} 우승마 평균기록(기준): {data.race_info.benchmark_time_1800} (스피드지수 100)
+                        ※ {data.race_info?.class_name} 우승마 평균기록(기준): {data.race_info?.benchmark_time_1800} (스피드지수 100)
                         </div>
                     </div>
                     
@@ -344,7 +353,7 @@
                         <RefreshCw className="w-4 h-4" /> 다른 파일 열기
                         </button>
                         <div className="text-right hidden md:block">
-                        <div className="text-3xl font-bold text-blue-600">{data.race_info.start_time}</div>
+                        <div className="text-3xl font-bold text-blue-600">{data.race_info?.start_time}</div>
                         <div className="text-sm text-slate-400">발주 시각</div>
                         </div>
                     </div>
@@ -390,10 +399,21 @@
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                         {processedEntries.map((horse) => {
-                            const displayRecords = horse.records.recent_history.filter(r => {
-                            const type = r.race_class || '';
-                            return !type.includes('주') && !type.includes('연습');
+                            // Safe data access using optional chaining
+                            const recentHistory = horse.records?.recent_history || [];
+                            const displayRecords = recentHistory.filter(r => {
+                                const type = r.race_class || '';
+                                return !type.includes('주') && !type.includes('연습');
                             });
+                            
+                            // Destructure safely with fallbacks
+                            const profile = horse.profile || {};
+                            const status = horse.status || {};
+                            const analysis = horse.analysis || {};
+                            const connections = horse.connections || { jockey: {}, trainer: {} };
+                            const alerts = horse.alerts || { medical: [], steward: [] };
+                            const medicalAlerts = alerts.medical || [];
+                            const stewardAlerts = alerts.steward || [];
 
                             return (
                             <tr 
@@ -405,42 +425,42 @@
                                 <td className="p-4">
                                 <div className="font-bold text-blue-700 hover:text-blue-900 hover:underline text-base flex items-center flex-wrap gap-1 cursor-pointer">
                                     {horse.name}
-                                    <ChangeBadge type={horse.status.change_type} />
+                                    <ChangeBadge type={status.change_type} />
                                 </div>
                                 <div className="text-xs text-slate-500 mt-1">
-                                    {horse.profile.origin} · {horse.profile.gender} · {horse.profile.age}세 · {horse.status.race_cycle}만 출전
+                                    {profile.origin} · {profile.gender} · {profile.age}세 · {status.race_cycle}만 출전
                                 </div>
                                 </td>
                                 <td className="p-4 text-center">
-                                <RunningStyleBadge style={horse.analysis.running_style} />
+                                <RunningStyleBadge style={analysis.running_style} />
                                 </td>
                                 <td className="p-4 text-center">
-                                <SpeedIndexBadge index={horse.analysis.speed_index} />
+                                <SpeedIndexBadge index={analysis.speed_index} />
                                 </td>
                                 <td className="p-4 text-center">
-                                <span className="font-mono font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded">{horse.profile.rating}</span>
+                                <span className="font-mono font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded">{profile.rating || '-'}</span>
                                 <div className="mt-1">
-                                    <DiffValue current={horse.profile.rating} prev={horse.records.recent_history[0]?.rating} />
+                                    <DiffValue current={profile.rating} prev={recentHistory[0]?.rating} />
                                 </div>
                                 </td>
                                 <td className="p-4 text-center">
                                 <div className="flex flex-col items-center gap-1">
                                     <div className="font-medium flex items-center">
-                                    {horse.connections.jockey.name}
-                                    <WinRateBadge rate={horse.connections.jockey.nov_win_rate} />
+                                    {connections.jockey?.name || '-'}
+                                    <WinRateBadge rate={connections.jockey?.nov_win_rate} />
                                     </div>
                                     <div className="text-xs text-slate-400 flex items-center">
-                                    {horse.connections.trainer.name}
-                                    <WinRateBadge rate={horse.connections.trainer.nov_win_rate} />
+                                    {connections.trainer?.name || '-'}
+                                    <WinRateBadge rate={connections.trainer?.nov_win_rate} />
                                     </div>
                                 </div>
                                 </td>
                                 <td className="p-4 text-center text-slate-600">
-                                <div className="font-bold">{horse.profile.burden_weight}kg</div>
-                                <DiffValue current={horse.profile.burden_weight} prev={horse.records.recent_history[0]?.burden_weight} />
+                                <div className="font-bold">{profile.burden_weight}kg</div>
+                                <DiffValue current={profile.burden_weight} prev={recentHistory[0]?.burden_weight} />
                                 </td>
                                 <td className="p-4 text-center">
-                                <BodyWeightValue weight={horse.status.body_weight} change={horse.status.body_weight_change} />
+                                <BodyWeightValue weight={status.body_weight} change={status.body_weight_change} />
                                 </td>
                                 <td className="p-4">
                                 <div className="flex gap-2 justify-center">
@@ -450,27 +470,27 @@
                                 </div>
                                 </td>
                                 <td className="p-4">
-                                <TrainingBar count={horse.status.training_total} jockeyCount={horse.status.jockey_training_count} />
+                                <TrainingBar count={status.training_total} jockeyCount={status.jockey_training_count} />
                                 </td>
                                 <td className="p-4 text-center">
                                 <div className="flex justify-center gap-2">
-                                    {horse.alerts.medical.length > 0 && (
+                                    {medicalAlerts.length > 0 && (
                                     <div className="group relative">
                                         <AlertTriangle className="w-5 h-5 text-red-500" />
                                         <span className="absolute bottom-full left-1/2 -translate-x-1/2 bg-black text-white text-xs p-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10 mb-1">
-                                        {horse.alerts.medical[0].detail}
+                                        {medicalAlerts[0].detail}
                                         </span>
                                     </div>
                                     )}
-                                    {horse.alerts.steward.length > 0 && (
+                                    {stewardAlerts.length > 0 && (
                                         <div className="group relative">
                                         <Info className="w-5 h-5 text-amber-500" />
                                         <span className="absolute bottom-full right-0 bg-black text-white text-xs p-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10 mb-1 w-48 truncate">
-                                            {horse.alerts.steward[0].note}
+                                            {stewardAlerts[0].note}
                                         </span>
                                         </div>
                                     )}
-                                    {horse.alerts.medical.length === 0 && horse.alerts.steward.length === 0 && (
+                                    {medicalAlerts.length === 0 && stewardAlerts.length === 0 && (
                                     <span className="text-slate-200 text-xs">-</span>
                                     )}
                                 </div>
@@ -494,27 +514,27 @@
                                 {selectedHorse.entry_number}
                             </span>
                             <h2 className="text-2xl font-bold text-slate-900">{selectedHorse.name} 상세 분석</h2>
-                            <ChangeBadge type={selectedHorse.status.change_type} />
+                            <ChangeBadge type={selectedHorse.status?.change_type} />
                             </div>
                             <div className="flex flex-wrap items-center gap-4 mt-2">
                             <p className="text-slate-500 text-sm">
-                                부: {selectedHorse.profile.sire} | 장구: {selectedHorse.status.equipment}
+                                부: {selectedHorse.profile?.sire} | 장구: {selectedHorse.status?.equipment}
                             </p>
                             <div className="flex items-center gap-1 text-sm font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
                                 <Zap className="w-4 h-4 text-yellow-500" />
-                                예상 각질: {selectedHorse.analysis.running_style || '정보 부족'}
+                                예상 각질: {selectedHorse.analysis?.running_style || '정보 부족'}
                             </div>
                             <div className="flex items-center gap-1 text-sm font-medium text-slate-700 bg-yellow-50 border border-yellow-200 px-2 py-0.5 rounded">
                                 <Trophy className="w-4 h-4 text-yellow-600" />
-                                총 상금: {selectedHorse.profile.total_prize}
+                                총 상금: {selectedHorse.profile?.total_prize}
                             </div>
                             <div className="flex items-center gap-1 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
                                 <Gauge className="w-4 h-4 text-blue-600" />
-                                스피드 지수: {selectedHorse.analysis.speed_index}
+                                스피드 지수: {selectedHorse.analysis?.speed_index}
                             </div>
                             <div className="flex items-center gap-1 text-sm font-medium text-slate-700 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded">
                                 <Scale className="w-4 h-4 text-slate-500" />
-                                마체중: {selectedHorse.status.body_weight}kg ({selectedHorse.status.body_weight_change > 0 ? '+' : ''}{selectedHorse.status.body_weight_change})
+                                마체중: {selectedHorse.status?.body_weight}kg ({selectedHorse.status?.body_weight_change > 0 ? '+' : ''}{selectedHorse.status?.body_weight_change})
                             </div>
                             </div>
                         </div>
@@ -549,7 +569,7 @@
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {selectedHorse.records.recent_history.slice(0, 5).map((rec, i) => (
+                                    {(selectedHorse.records?.recent_history || []).slice(0, 5).map((rec, i) => (
                                     <tr key={i} className="hover:bg-white">
                                         <td className="py-2 text-slate-600">{rec.date}</td>
                                         <td className="py-2">{rec.distance}M</td>
@@ -572,13 +592,13 @@
                             </div>
                             </div>
 
-                            {selectedHorse.alerts.steward.length > 0 && (
+                            {(selectedHorse.alerts?.steward || []).length > 0 && (
                             <div className="bg-amber-50 p-4 rounded-xl border border-amber-100">
                                 <h3 className="font-bold flex items-center gap-2 mb-3 text-amber-800">
                                 <AlertTriangle className="w-4 h-4" /> 심판 위원 지적 사항 (Trip Notes)
                                 </h3>
                                 <ul className="space-y-2">
-                                {selectedHorse.alerts.steward.map((note, i) => (
+                                {(selectedHorse.alerts?.steward || []).map((note, i) => (
                                     <li key={i} className="text-sm text-amber-900 bg-white/50 p-2 rounded">
                                     <span className="font-bold text-amber-700 text-xs mr-2 border border-amber-200 bg-white px-1 rounded">{note.date}</span>
                                     {note.note}
@@ -594,9 +614,9 @@
                             <h3 className="font-bold flex items-center gap-2 mb-3 text-slate-800">
                                 <Activity className="w-4 h-4 text-red-500" /> 마체 상태
                             </h3>
-                            {selectedHorse.alerts.medical.length > 0 ? (
+                            {(selectedHorse.alerts?.medical || []).length > 0 ? (
                                 <div className="space-y-2">
-                                {selectedHorse.alerts.medical.map((item, idx) => (
+                                {(selectedHorse.alerts?.medical || []).map((item, idx) => (
                                     <div key={idx} className="bg-red-50 text-red-700 p-3 rounded-lg text-sm font-medium border border-red-100 flex flex-col">
                                         <span className="text-xs text-red-400 mb-1">{item.date}</span>
                                         <span>⚠️ {item.detail}</span>
@@ -617,11 +637,11 @@
                             <div className="flex justify-between items-end mb-2">
                                 <span className="text-sm text-slate-500">총 훈련 / 기수 직조</span>
                                 <div className="text-right">
-                                <span className="text-2xl font-bold text-slate-800">{selectedHorse.status.training_total}회</span>
-                                <span className="text-sm text-blue-600 ml-2">({selectedHorse.status.jockey_training_count}회)</span>
+                                <span className="text-2xl font-bold text-slate-800">{selectedHorse.status?.training_total || 0}회</span>
+                                <span className="text-sm text-blue-600 ml-2">({selectedHorse.status?.jockey_training_count || 0}회)</span>
                                 </div>
                             </div>
-                            {selectedHorse.training_logs.sessions && selectedHorse.training_logs.sessions.length > 0 ? (
+                            {selectedHorse.training_logs?.sessions && selectedHorse.training_logs.sessions.length > 0 ? (
                                 <div className="space-y-2 mt-4">
                                     <div className="text-xs font-semibold text-slate-400 uppercase">최근 세션</div>
                                     {selectedHorse.training_logs.sessions.slice(0,3).map((ses, idx) => (
@@ -642,7 +662,7 @@
                 )}
 
                 <footer className="mt-12 text-center text-slate-400 text-xs pb-8">
-                    데이터 기준: {data.race_header?.date || data.meta.date} {data.race_header?.location || data.meta.location} 경마장 | 제공된 JSON 데이터를 기반으로 생성됨
+                    데이터 기준: {data.race_header?.date || data.meta?.date} {data.race_header?.location || data.meta?.location} 경마장 | 제공된 JSON 데이터를 기반으로 생성됨
                 </footer>
                 </div>
             );
