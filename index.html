@@ -1,0 +1,601 @@
+import React, { useState, useMemo } from 'react';
+import { Trophy, Clock, Info, Star, DollarSign, Activity, Zap, Users, History as HistoryIcon, Dna, ThumbsUp, AlertTriangle, Quote } from 'lucide-react';
+
+// --- DATA ---
+// Updated with Expert Commentary, Picks, and Dark Horses based on user input
+const raceData = [
+  {
+    id: 1,
+    name: "부경 1경주",
+    time: "11:15",
+    distance: "1400m",
+    grade: "국6등급",
+    type: "별정A",
+    prize: "3,000만원",
+    avgRecord: "1:29.4",
+    expertComment: "주행심사 우승 후, (2) 파워트리는 두 번의 출전에서 모두 인기 1위였음에도 불구하고 1200m에서 선입 전개를 펼치며 2위와 3위에 그쳤습니다. 이번에 게이트 이점을 안고 다시 선두권에 나설 수 있으며, 늘어난 거리가 유리하게 작용해 우승을 노릴 수 있습니다. (1) 리치원은 데뷔전에서 5위를 기록한 후, 11월 14일 동 거리(1400m)로 거리를 늘려 2위로 향상된 모습을 보였습니다. 당시 우승마에게는 크게 패했지만, 몇몇 경쟁마들을 확실히 제압했으며 해당 거리 경험이 큰 도움이 될 것입니다. (9) 원플러스원은 11월 23일 동 거리 경주에서 대부분의 구간을 이끌며 상당히 향상된 2위를 기록했습니다. 외곽 게이트의 불리함이 있지만 다시 입상권에 들 수 있습니다.",
+    expertPicks: [2, 1, 9, 8],
+    expertDarkHorses: [3, 6],
+    horses: [
+      { no: 1, name: "리치원", weight: 56, age: "2세(한/수)", rating: "-", jockey: "송경윤", jockeyRate: "17.2%", trainer: "강은석", trainerRank: "[15위]", history: "2전 0/1", winRate: 50.0, recent: ["2위 1400m", "5위 1200m", "8위 주행심사"] },
+      { no: 2, name: "파워트리", weight: 56, age: "2세(한/수)", rating: "-", jockey: "진겸", jockeyRate: "21.5%", trainer: "임금만", trainerRank: "[7위]", history: "2전 0/1", winRate: 50.0, recent: ["1위 주행심사", "2위 1200m", "3위 1200m"] },
+      { no: 3, name: "비케이엘더", weight: 54, age: "2세(한/암)", rating: "-", jockey: "모준호", jockeyRate: "12.9%", trainer: "강형곤", trainerRank: "[17위]", history: "3전 0/0", winRate: 0.0, recent: ["5위 1200m", "8위 1200m", "10위 1000m"] },
+      { no: 4, name: "나이스파워", weight: 54, age: "2세(한/암)", rating: "-", jockey: "다나카", jockeyRate: "20.1%", trainer: "김도현", trainerRank: "[10위]", history: "4전 0/0", winRate: 0.0, recent: ["5위 1200m", "10위 1200m", "7위 1200m"] },
+      { no: 5, name: "위대한약속", weight: 55, age: "3세(한/암)", rating: "-", jockey: "전진구", jockeyRate: "11.3%", trainer: "권승주", trainerRank: "[11위]", history: "8전 0/0", winRate: 0.0, recent: ["12위 1400m", "12위 1400m", "8위 1400m"] },
+      { no: 6, name: "드르쿰다", weight: 57, age: "3세(한/거)", rating: "-", jockey: "김동영", jockeyRate: "18.0%", trainer: "윤영훈", trainerRank: "[20위]", history: "12전 0/0", winRate: 0.0, recent: ["3위 1400m", "4위 1400m", "8위 1300m"] },
+      { no: 7, name: "월드볼드맨", weight: 56, age: "2세(한/수)", rating: "-", jockey: "김어수", jockeyRate: "13.1%", trainer: "임성실", trainerRank: "[8위]", history: "3전 0/0", winRate: 0.0, recent: ["9위 1200m", "8위 1400m", "7위 1000m"] },
+      { no: 8, name: "글로리윈드", weight: 51, age: "3세(한/암)", rating: "-", jockey: "손경민", jockeyRate: "13.3%", trainer: "구영준", trainerRank: "[21위]", history: "12전 0/1", winRate: 8.3, recent: ["3위 1600m", "4위 1400m", "4위 주행심사"] },
+      { no: 9, name: "원플러스원", weight: 56, age: "2세(한/수)", rating: "-", jockey: "이성재", jockeyRate: "15.8%", trainer: "양영남", trainerRank: "[24위]", history: "2전 0/1", winRate: 50.0, recent: ["2위 1400m", "12위 1200m", "-"] },
+    ],
+    picks: {
+      winRate: ["1 리치원(50%)", "2 파워트리(50%)", "9 원플러스원(50%)", "8 글로리윈드(8.3%)"],
+      money: ["2 파워트리", "1 리치원", "9 원플러스원", "8 글로리윈드"],
+      genetic: ["2 파워트리", "1 리치원", "5 위대한약속", "9 원플러스원"],
+      speedStart: ["2 파워트리(13.5)", "4 나이스파워(13.8)", "9 원플러스원(13.9)", "1 리치원(14.0)"],
+      speedEnd: ["9 원플러스원(13.7)", "3 비케이엘더(13.9)", "2 파워트리(14.0)", "1 리치원(14.1)"]
+    }
+  },
+  {
+    id: 2,
+    name: "부경 2경주",
+    time: "12:20",
+    distance: "1200m",
+    grade: "국6등급",
+    type: "별정A",
+    prize: "4,500만원",
+    avgRecord: "1:16.2",
+    expertComment: "12마리 중 5마리가 데뷔전을 치르는 2세 미승리마 경주입니다. (3) 파피베이브는 11월 21일 동 거리 데뷔전에서 후미에서 추입하며 3위를 기록했습니다. 실전 경험을 통해 더 나아졌을 것이며 여기서 우승 확률이 가장 높습니다. (8) 판타스틱보스 역시 11월 7일 데뷔전에서 중위권에서 치고 나오며 3위를 기록했습니다. 서승운 기수가 계속 기승하며 다시 많은 인기를 모을 것입니다. (1) 대로의빛은 11월 28일 동 거리 데뷔전에서 줄곧 선두권을 유지하며 3위를 기록, 앞선 두 말과 함께 데뷔전 3위 트리오를 완성합니다. 좋은 게이트 이점으로 다시 선행에 나서 끈기 있게 버틸 수 있습니다.",
+    expertPicks: [3, 8, 1, 5],
+    expertDarkHorses: [7, 10],
+    horses: [
+      { no: 1, name: "대로의빛", weight: 54, age: "2세(한/암)", rating: "-", jockey: "이성재", jockeyRate: "15.8%", trainer: "장세한", trainerRank: "[22위]", winRate: 0.0, recent: ["3위 1200m", "8위 주행심사", "-"] },
+      { no: 2, name: "드림블루", weight: 54, age: "2세(한/암)", rating: "-", jockey: "신윤섭", jockeyRate: "11.9%", trainer: "임성실", trainerRank: "[8위]", winRate: 0.0, recent: ["4위 주행심사", "9위 1200m", "2위 주행심사"] },
+      { no: 3, name: "파피베이브", weight: 54, age: "2세(한/암)", rating: "-", jockey: "진겸", jockeyRate: "21.5%", trainer: "백광열", trainerRank: "[4위]", winRate: 0.0, recent: ["2위 주행심사", "3위 1200m", "-"] },
+      { no: 4, name: "패스트윈드", weight: 56, age: "2세(한/수)", rating: "-", jockey: "송경윤", jockeyRate: "17.2%", trainer: "민장기", trainerRank: "[9위]", winRate: 0.0, recent: ["5위 주행심사", "-", "-"] },
+      { no: 5, name: "보령더퀸", weight: 54, age: "2세(한/암)", rating: "-", jockey: "김어수", jockeyRate: "13.1%", trainer: "김길중", trainerRank: "[19위]", winRate: 0.0, recent: ["6위 1200m", "6위 주행심사", "-"] },
+      { no: 6, name: "천다이아", weight: 54, age: "2세(한/암)", rating: "-", jockey: "유광희", jockeyRate: "9.4%", trainer: "손병직", trainerRank: "[25위]", winRate: 0.0, recent: ["6위 주행심사", "-", "-"] },
+      { no: 7, name: "판타스틱산타", weight: 56, age: "2세(한/수)", rating: "-", jockey: "전진구", jockeyRate: "11.3%", trainer: "토마스", trainerRank: "[2위]", winRate: 0.0, recent: ["6위 주행심사", "-", "-"] },
+      { no: 8, name: "판타스틱보스", weight: 56, age: "2세(한/수)", rating: "-", jockey: "서승운", jockeyRate: "31.7%", trainer: "임금만", trainerRank: "[7위]", winRate: 0.0, recent: ["3위 1200m", "3위 주행심사", "-"] },
+      { no: 9, name: "태평플렉스", weight: 54, age: "2세(한/암)", rating: "-", jockey: "모준호", jockeyRate: "12.9%", trainer: "하무선", trainerRank: "[23위]", winRate: 0.0, recent: ["7위 주행심사", "-", "-"] },
+      { no: 10, name: "원더풀라라", weight: 54, age: "2세(한/암)", rating: "-", jockey: "다나카", jockeyRate: "20.1%", trainer: "라이스", trainerRank: "[5위]", winRate: 0.0, recent: ["3위 주행심사", "-", "-"] },
+      { no: 11, name: "키스더레인", weight: 56, age: "2세(한/수)", rating: "-", jockey: "박재이", jockeyRate: "19.3%", trainer: "문현철", trainerRank: "[1위]", winRate: 0.0, recent: ["4위 주행심사", "8위 1200m", "6위 1200m"] },
+      { no: 12, name: "히어더원", weight: 56, age: "2세(한/수)", rating: "-", jockey: "서강주", jockeyRate: "15.4%", trainer: "권승주", trainerRank: "[11위]", winRate: 0.0, recent: ["6위 1200m", "5위 주행심사", "-"] },
+    ],
+    picks: {
+      winRate: ["1 대로의빛", "3 파피베이브", "8 판타스틱보스", "11 키스더레인"],
+      money: ["1 대로의빛", "3 파피베이브", "8 판타스틱보스", "5 보령더퀸"],
+      genetic: ["3 파피베이브", "8 판타스틱보스", "1 대로의빛", "11 키스더레인"],
+      speedStart: ["1 대로의빛(13.7)", "3 파피베이브(13.8)", "8 판타스틱보스(13.9)", "4 패스트윈드(14.0)"],
+      speedEnd: ["3 파피베이브(13.8)", "5 보령더퀸(13.9)", "1 대로의빛(14.0)", "12 히어더원(14.1)"]
+    }
+  },
+  {
+    id: 3,
+    name: "부경 3경주",
+    time: "13:25",
+    distance: "1300m",
+    grade: "국6등급",
+    type: "별정A",
+    prize: "3,000만원",
+    avgRecord: "1:22.5",
+    expertComment: "매우 약한 편성의 미승리 경주입니다. (2) 용비샤크는 지난 경주에서 부진했으나(대부분의 출전마가 그랬지만), 경주 후 약간의 파행이 확인되었으므로 참작할 여지가 있습니다. 훈련 공백이 며칠에 불과했고, 2위와 5위를 기록했던 이전 성적을 고려할 때 다시 기회를 줄 만합니다. (3) 캐럿킹은 두 달여 만의 복귀전이었던 2주 전 1200m 경주에서 향상된 3위를 기록했습니다. 컨디션이 올라왔을 때 바로 출전하며, 좋은 게이트에서 경쟁력을 보일 수 있습니다. (4) 다이아엑스는 10전 동안 비교적 꾸준한 모습을 보여주었으며, 이 정도 편성이라면 최소한 입상은 노려야 합니다. (6) 라모라이드와 (5) 컴온글로리는 특별히 인상적이지는 않으나, 이 편성에서는 근소한 차이로 경쟁할 수 있습니다.",
+    expertPicks: [2, 3, 4, 6],
+    expertDarkHorses: [5, 1],
+    horses: [
+      { no: 1, name: "조이오브런", weight: 57, age: "3세(한/수)", rating: "-", jockey: "박재이", jockeyRate: "19.3%", trainer: "김혜선", trainerRank: "[28위]", winRate: 0.0, recent: ["5위 주행심사", "5위 주행심사", "9위 주행심사"] },
+      { no: 2, name: "용비샤크", weight: 56, age: "2세(한/수)", rating: "-", jockey: "다나카", jockeyRate: "20.1%", trainer: "김도현", trainerRank: "[10위]", winRate: 25.0, recent: ["2위 1000m", "2위 주행심사", "10위 1400m"] },
+      { no: 3, name: "캐럿킹", weight: 56, age: "2세(한/수)", rating: "-", jockey: "유광희", jockeyRate: "9.4%", trainer: "김길중", trainerRank: "[19위]", winRate: 0.0, recent: ["3위 1200m", "6위 주행심사", "11위 1400m"] },
+      { no: 4, name: "다이아엑스", weight: 57, age: "3세(한/거)", rating: "-", jockey: "조창욱", jockeyRate: "17.1%", trainer: "안우성", trainerRank: "[3위]", winRate: 10.0, recent: ["4위 1400m", "5위 1300m", "8위 1400m"] },
+      { no: 5, name: "컴온글로리", weight: 55, age: "3세(한/암)", rating: "-", jockey: "김동영", jockeyRate: "18.0%", trainer: "윤영훈", trainerRank: "[20위]", winRate: 7.1, recent: ["3위 주행심사", "4위 1300m", "8위 1400m"] },
+      { no: 6, name: "라모라이드", weight: 51, age: "3세(한/암)", rating: "-", jockey: "손경민", jockeyRate: "13.3%", trainer: "이정표", trainerRank: "[26위]", winRate: 0.0, recent: ["4위 1300m", "5위 1300m", "10위 1400m"] },
+      { no: 7, name: "크루엘라", weight: 51, age: "3세(한/암)", rating: "-", jockey: "남정혁", jockeyRate: "7.4%", trainer: "구영준", trainerRank: "[21위]", winRate: 0.0, recent: ["3위 1400m", "4위 1400m", "9위 1300m"] },
+      { no: 8, name: "벌교빌런", weight: 55, age: "3세(한/암)", rating: "-", jockey: "송경윤", jockeyRate: "17.2%", trainer: "강은석", trainerRank: "[15위]", winRate: 0.0, recent: ["4위 주행심사", "6위 1200m", "12위 1200m"] },
+      { no: 9, name: "파이널히트", weight: 57, age: "3세(한/수)", rating: "-", jockey: "이성재", jockeyRate: "15.8%", trainer: "권승주", trainerRank: "[11위]", winRate: 9.1, recent: ["2위 1300m", "4위 1400m", "12위 1400m"] },
+      { no: 10, name: "파이널리위너", weight: 56, age: "2세(한/거)", rating: "-", jockey: "전진구", jockeyRate: "11.3%", trainer: "토마스", trainerRank: "[2위]", winRate: 0.0, recent: ["8위 주행심사", "9위 1200m", "7위 주행심사"] },
+      { no: 11, name: "닥터카라", weight: 55, age: "3세(한/암)", rating: "-", jockey: "서강주", jockeyRate: "15.4%", trainer: "백광열", trainerRank: "[4위]", winRate: 6.3, recent: ["9위 1400m", "7위 1400m", "12위 1600m"] },
+    ],
+    picks: {
+      winRate: ["2 용비샤크(25%)", "4 다이아엑스(10%)", "9 파이널히트(9%)", "5 컴온글로리(7%)"],
+      money: ["2 용비샤크", "4 다이아엑스", "3 캐럿킹", "9 파이널히트"],
+      genetic: ["2 용비샤크", "9 파이널히트", "4 다이아엑스", "3 캐럿킹"],
+      speedStart: ["2 용비샤크(13.8)", "8 벌교빌런(13.9)", "3 캐럿킹(14.0)", "1 조이오브런(14.1)"],
+      speedEnd: ["5 컴온글로리(14.0)", "7 크루엘라(14.1)", "9 파이널히트(14.2)", "2 용비샤크(14.3)"]
+    }
+  },
+  {
+    id: 4,
+    name: "부경 4경주",
+    time: "14:15",
+    distance: "1400m",
+    grade: "국5등급",
+    type: "핸디캡",
+    prize: "4,500만원",
+    avgRecord: "1:28.5",
+    expertComment: "(5) 토함산드래곤은 아직 3위 밖으로 밀려난 적이 없으며, 지난 10월 1300m 국6등급 경주에서 선행으로 우승을 차지했습니다. 11월 28일 승급전이자 첫 1400m 도전에서 선입권 전개 후 3위를 기록했으며, 이번에는 우승을 노립니다. (6) 비케이스피릿은 11월 23일 1200m 미승리전에서 선행으로 여유 있게 우승한 뒤 승급했습니다. 감량 이점이 있고 다시 선두권에 나설 것이며, 이 등급에서도 충분히 통할 전력입니다. (11) 청춘은자유 역시 11월 7일 1200m에서 손쉬운 우승을 거두고 승급했습니다. 데뷔 후 3위, 2위를 거쳐 우승을 차지했으며, 3kg 감량 이점까지 있어 이 등급에서도 좋은 활약이 기대됩니다. (4) 금성과 (3) 스키타이도 많은 지지를 받을 경쟁마들입니다.",
+    expertPicks: [5, 6, 11, 4],
+    expertDarkHorses: [3, 10],
+    horses: [
+      { no: 1, name: "제트캐시", weight: 52, age: "6세(한/수)", rating: "[R23]", jockey: "김동영", jockeyRate: "18.0%", trainer: "하무선", trainerRank: "[23위]", winRate: 7.8, recent: ["4위 1600m", "5위 1400m", "12위 1800m"] },
+      { no: 2, name: "원웨이로드", weight: 53.5, age: "4세(한/거)", rating: "[R28]", jockey: "이성재", jockeyRate: "15.8%", trainer: "민장기", trainerRank: "[9위]", winRate: 8.3, recent: ["4위 1200m", "4위 주행심사", "5위 1600m"] },
+      { no: 3, name: "스키타이", weight: 53.5, age: "3세(한/암)", rating: "[R32]", jockey: "송경윤", jockeyRate: "17.2%", trainer: "박재호", trainerRank: "[18위]", winRate: 36.4, recent: ["4위 1400m", "2위 1400m", "3위 1400m"] },
+      { no: 4, name: "금성", weight: 52, age: "2세(한/수)", rating: "[R27]", jockey: "서승운", jockeyRate: "31.7%", trainer: "김도현", trainerRank: "[10위]", winRate: 50.0, recent: ["2위 1300m", "5위 1200m", "2위 1000m"] },
+      { no: 5, name: "토함산드래곤", weight: 56, age: "2세(한/수)", rating: "[R35]", jockey: "최시대", jockeyRate: "24.7%", trainer: "백광열", trainerRank: "[4위]", winRate: 75.0, recent: ["2위 1000m", "2위 주행심사", "1위 1200m"] },
+      { no: 6, name: "비케이스피릿", weight: 52, age: "2세(한/암)", rating: "[R30]", jockey: "다실바", jockeyRate: "29.4%", trainer: "강형곤", trainerRank: "[17위]", winRate: 33.3, recent: ["4위 1200m", "4위 주행심사", "6위 1000m"] },
+      { no: 7, name: "베스트보이", weight: 55.5, age: "4세(한/거)", rating: "[R32]", jockey: "김어수", jockeyRate: "13.1%", trainer: "구영준", trainerRank: "[21위]", winRate: 4.3, recent: ["1위 1200m", "6위 1200m", "9위 1400m"] },
+      { no: 8, name: "나인티플러스", weight: 57, age: "3세(한/거)", rating: "[R35]", jockey: "박재이", jockeyRate: "19.3%", trainer: "라이스", trainerRank: "[5위]", winRate: 50.0, recent: ["1위 1200m", "2위 1600m", "2위 1200m"] },
+      { no: 9, name: "골드마스크", weight: 52, age: "4세(한/암)", rating: "[R26]", jockey: "조창욱", jockeyRate: "17.1%", trainer: "조응", trainerRank: "[27위]", winRate: 8.7, recent: ["2위 1600m", "7위 1600m", "11위 1200m"] },
+      { no: 10, name: "홀리니케", weight: 53, age: "2세(한/수)", rating: "[R29]", jockey: "전진구", jockeyRate: "11.3%", trainer: "권승주", trainerRank: "[11위]", winRate: 33.3, recent: ["1위 1400m", "5위 1300m", "7위 1400m"] },
+      { no: 11, name: "청춘은자유", weight: 53, age: "2세(한/수)", rating: "[R29]", jockey: "진겸", jockeyRate: "21.5%", trainer: "이정표", trainerRank: "[26위]", winRate: 66.7, recent: ["2위 1200m", "1위 1200m", "2위 1000m"] },
+      { no: 12, name: "불의신전", weight: 54, age: "3세(한/수)", rating: "[R29]", jockey: "서강주", jockeyRate: "15.4%", trainer: "토마스", trainerRank: "[2위]", winRate: 33.3, recent: ["6위 1200m", "7위 1200m", "10위 1300m"] },
+    ],
+    picks: {
+      winRate: ["5 토함산드래곤(75%)", "11 청춘은자유(66%)", "4 금성(50%)", "8 나인티플러스(50%)"],
+      money: ["11 청춘은자유", "5 토함산드래곤", "6 비케이스피릿", "8 나인티플러스"],
+      genetic: ["7 베스트보이", "2 원웨이로드", "1 제트캐시", "5 토함산드래곤"],
+      speedStart: ["11 청춘은자유(13.2)", "7 베스트보이(13.4)", "5 토함산드래곤(13.6)", "2 원웨이로드(13.7)"],
+      speedEnd: ["11 청춘은자유(13.7)", "6 비케이스피릿(13.9)", "5 토함산드래곤(14.0)", "4 금성(14.2)"]
+    }
+  },
+  {
+    id: 5,
+    name: "부경 5경주",
+    time: "15:05",
+    distance: "1200m",
+    grade: "국5등급",
+    type: "핸디캡",
+    prize: "4,500만원",
+    avgRecord: "1:14.8",
+    expertComment: "(6) 윈드로즈는 10월 말 두 달 만에 복귀한 이후 1300m에서 두 번 연속 선두권 전개로 2위를 기록했습니다. 이번에도 선행을 나설 것이며 끝까지 버텨 우승할 수 있습니다. (2) 해운대파워는 데뷔전 승리가 유일하지만, 이후 두 번 전 동 거리 동 등급에서 아슬아슬한 2위, 11월 23일 윈드로즈 뒤에서 4위를 하는 등 계속해서 근소한 승부를 펼치고 있습니다. 좋은 게이트에서 선두권에 가담해 위협적인 상대가 될 것입니다. (7) 식스히어로는 11월 21일 동 등급 동 거리에서 외곽 게이트의 불리함을 딛고 3위를 기록했으며 다시 입상권에 도전합니다. (5) 러너스하이와 (3) 워너비위드유도 고려해야 할 대상입니다.",
+    expertPicks: [6, 2, 7, 5],
+    expertDarkHorses: [3, 4],
+    horses: [
+      { no: 1, name: "서부이글", weight: 51, age: "3세(한/거)", rating: "[R25]", jockey: "남정혁", jockeyRate: "7.4%", trainer: "조응", trainerRank: "[27위]", winRate: 7.7, recent: ["6위 1600m", "10위 1600m", "11위 1300m"] },
+      { no: 2, name: "해운대파워", weight: 57, age: "3세(한/거)", rating: "[R35]", jockey: "진겸", jockeyRate: "21.5%", trainer: "이상영", trainerRank: "[14위]", winRate: 50.0, recent: ["1위 1200m", "2위 1200m", "2위 1200m"] },
+      { no: 3, name: "워너비위드유", weight: 52, age: "4세(한/암)", rating: "[R27]", jockey: "김동영", jockeyRate: "18.0%", trainer: "김혜선", trainerRank: "[28위]", winRate: 16.7, recent: ["3위 1200m", "3위 1400m", "6위 1200m"] },
+      { no: 4, name: "골든포인트", weight: 56, age: "6세(한/거)", rating: "[R33]", jockey: "김어수", jockeyRate: "13.1%", trainer: "윤영훈", trainerRank: "[20위]", winRate: 6.4, recent: ["4위 1200m", "9위 1400m", "3위 1200m"] },
+      { no: 5, name: "러너스하이", weight: 53.5, age: "2세(한/수)", rating: "[R30]", jockey: "이성재", jockeyRate: "15.8%", trainer: "방동식", trainerRank: "[13위]", winRate: 33.3, recent: ["4위 1200m", "7위 1200m", "6위 주행심사"] },
+      { no: 6, name: "윈드로즈", weight: 55, age: "3세(한/암)", rating: "[R35]", jockey: "다실바", jockeyRate: "29.4%", trainer: "구영준", trainerRank: "[21위]", winRate: 57.1, recent: ["1위 1300m", "2위 1300m", "2위 1300m"] },
+      { no: 7, name: "식스히어로", weight: 57, age: "3세(한/수)", rating: "[R35]", jockey: "다나카", jockeyRate: "20.1%", trainer: "권승주", trainerRank: "[11위]", winRate: 16.7, recent: ["1위 1200m", "2위 주행심사", "3위 1200m"] },
+      { no: 8, name: "최강루이스", weight: 52.5, age: "3세(한/거)", rating: "[R26]", jockey: "모준호", jockeyRate: "12.9%", trainer: "손병직", trainerRank: "[25위]", winRate: 28.6, recent: ["2위 1200m", "2위 1200m", "9위 1200m"] },
+      { no: 9, name: "짝사랑", weight: 54, age: "3세(한/암)", rating: "[R33]", jockey: "전진구", jockeyRate: "11.3%", trainer: "박재이", trainerRank: "[18위]", winRate: 30.0, recent: ["1위 1200m", "2위 1200m", "12위 1800m"] },
+      { no: 10, name: "태양으뜸", weight: 52.5, age: "5세(한/암)", rating: "[R30]", jockey: "서강주", jockeyRate: "15.4%", trainer: "장세한", trainerRank: "[22위]", winRate: 7.5, recent: ["9위 1200m", "12위 1200m", "11위 1200m"] },
+      { no: 11, name: "벌교프란체", weight: 52, age: "4세(한/수)", rating: "[R23]", jockey: "신윤섭", jockeyRate: "11.9%", trainer: "하무선", trainerRank: "[23위]", winRate: 7.7, recent: ["3위 주행심사", "11위 1200m", "12위 1200m"] },
+      { no: 12, name: "일루전", weight: 52, age: "3세(한/암)", rating: "[R25]", jockey: "최시대", jockeyRate: "24.7%", trainer: "박재호", trainerRank: "[18위]", winRate: 14.3, recent: ["2위 1300m", "2위 1300m", "4위 1300m"] },
+    ],
+    picks: {
+      winRate: ["6 윈드로즈(57%)", "2 해운대파워(50%)", "5 러너스하이(33%)", "9 짝사랑(30%)"],
+      money: ["5 러너스하이", "6 윈드로즈", "9 짝사랑", "2 해운대파워"],
+      genetic: ["10 태양으뜸", "4 골든포인트", "12 일루전", "6 윈드로즈"],
+      speedStart: ["6 윈드로즈(13.5)", "9 짝사랑(13.7)", "2 해운대파워(13.8)", "5 러너스하이(13.9)"],
+      speedEnd: ["5 러너스하이(13.7)", "2 해운대파워(13.8)", "6 윈드로즈(13.9)", "9 짝사랑(14.1)"]
+    }
+  },
+  {
+    id: 6,
+    name: "부경 6경주",
+    time: "15:55",
+    distance: "1300m",
+    grade: "국5등급",
+    type: "핸디캡",
+    prize: "4,500만원",
+    avgRecord: "1:21.8",
+    expertComment: "(1) 서귀레이디는 4개월 공백 후 10월 1200m 3위, 11월 7일 이 거리에서 2위를 기록했습니다. 서승운 기수가 처음 기승하며 이번이 우승 기회입니다. (6) 글로벌하이는 11월 7일 동 등급 1400m에서 선행으로 우승했습니다. 9개월 공백 후 두 번째 경주였으며, 부담중량이 2.5kg 늘었지만 상승세가 이어질 수 있습니다. (7) 정문파피아노는 11월 23일 1400m 두 번째 출전 만에 선입 전개로 우승했습니다. 승급전에 거리도 약간 줄었지만, 부담중량이 3kg이나 줄어 경쟁력이 있습니다. 몇 달 만에 복귀하지만 주행심사 모습이 좋았던 (4) 로드투에이스와 (5) 아리드래곤도 노려볼 만합니다.",
+    expertPicks: [1, 6, 7, 4],
+    expertDarkHorses: [5, 9],
+    horses: [
+      { no: 1, name: "서귀레이디", weight: 54, age: "3세(한/암)", rating: "[R33]", jockey: "서승운", jockeyRate: "31.7%", trainer: "김혜선", trainerRank: "[28위]", winRate: 33.3, recent: ["1위 주행심사", "2위 1300m", "3위 1200m"] },
+      { no: 2, name: "가온보스", weight: 57, age: "4세(미/거)", rating: "[R35]", jockey: "박재이", jockeyRate: "19.3%", trainer: "민장기", trainerRank: "[9위]", winRate: 0.0, recent: ["4위 1200m", "9위 1400m", "6위 1400m"] },
+      { no: 3, name: "감동의돌파", weight: 52, age: "3세(한/암)", rating: "[R28]", jockey: "이성재", jockeyRate: "15.8%", trainer: "권승주", trainerRank: "[11위]", winRate: 11.1, recent: ["1위 1300m", "3위 1200m", "12위 1300m"] },
+      { no: 4, name: "로드투에이스", weight: 57, age: "3세(한/거)", rating: "[R35]", jockey: "진겸", jockeyRate: "21.5%", trainer: "장세한", trainerRank: "[22위]", winRate: 60.0, recent: ["2위 1300m", "2위 1200m", "3위 1200m"] },
+      { no: 5, name: "아리드래곤", weight: 53.5, age: "3세(한/암)", rating: "[R32]", jockey: "모준호", jockeyRate: "12.9%", trainer: "유현명", trainerRank: "[6위]", winRate: 100.0, recent: ["3위 주행심사", "1위 1400m", "1위 주행심사"] },
+      { no: 6, name: "글로벌하이", weight: 57, age: "3세(한/수)", rating: "[R35]", jockey: "다나카", jockeyRate: "20.1%", trainer: "박재호", trainerRank: "[18위]", winRate: 50.0, recent: ["1위 1300m", "6위 1300m", "2위 1200m"] },
+      { no: 7, name: "정문파피아노", weight: 53, age: "2세(한/수)", rating: "[R29]", jockey: "다실바", jockeyRate: "29.4%", trainer: "라이스", trainerRank: "[5위]", winRate: 50.0, recent: ["1위 1400m", "3위 1200m", "3위 주행심사"] },
+      { no: 8, name: "동남돌풍", weight: 53.5, age: "3세(한/수)", rating: "[R28]", jockey: "서강주", jockeyRate: "15.4%", trainer: "윤영훈", trainerRank: "[20위]", winRate: 25.0, recent: ["1위 1300m", "2위 1300m", "3위 1300m"] },
+      { no: 9, name: "무적이", weight: 52.5, age: "2세(한/수)", rating: "[R28]", jockey: "최시대", jockeyRate: "24.7%", trainer: "권승주", trainerRank: "[11위]", winRate: 40.0, recent: ["2위 1400m", "2위 1200m", "6위 1300m"] },
+      { no: 10, name: "랙트리", weight: 53.5, age: "3세(한/암)", rating: "[R32]", jockey: "송경윤", jockeyRate: "17.2%", trainer: "임금만", trainerRank: "[7위]", winRate: 18.2, recent: ["1위 1600m", "11위 1600m", "7위 1400m"] },
+      { no: 11, name: "팁탈", weight: 53.5, age: "3세(한/수)", rating: "[R28]", jockey: "조창욱", jockeyRate: "17.1%", trainer: "김길중", trainerRank: "[19위]", winRate: 16.7, recent: ["4위 주행심사", "4위 1300m", "10위 1800m"] },
+      { no: 12, name: "벌교의봄", weight: 52, age: "3세(한/거)", rating: "[R23]", jockey: "김어수", jockeyRate: "13.1%", trainer: "이상영", trainerRank: "[14위]", winRate: 0.0, recent: ["4위 1600m", "4위 1600m", "5위 1400m"] },
+    ],
+    picks: {
+      winRate: ["5 아리드래곤(100%)", "4 로드투에이스(60%)", "6 글로벌하이(50%)", "7 정문파피아노(50%)"],
+      money: ["6 글로벌하이", "7 정문파피아노", "1 서귀레이디", "4 로드투에이스"],
+      genetic: ["5 아리드래곤", "1 서귀레이디", "7 정문파피아노", "6 글로벌하이"],
+      speedStart: ["9 무적이(13.8)", "4 로드투에이스(13.9)", "5 아리드래곤(14.0)", "6 글로벌하이(14.1)"],
+      speedEnd: ["1 서귀레이디(13.3)", "5 아리드래곤(13.4)", "7 정문파피아노(13.5)", "4 로드투에이스(13.6)"]
+    }
+  },
+  {
+    id: 7,
+    name: "부경 7경주",
+    time: "16:45",
+    distance: "1600m",
+    grade: "국4등급",
+    type: "핸디캡",
+    prize: "6,000만원",
+    avgRecord: "1:41.0",
+    expertComment: "(1) 플래시파크는 11월 14일 동 등급 동 거리에서 선두권 뒤를 따르다 일찍 선두로 치고 나오며 여유 있게 우승, 오늘의 경쟁마 몇몇을 이겼습니다. 부담중량이 2kg 늘었지만 다시 우승 후보입니다. (11) 운주챌린지는 해당 경주에서 선입 전개로 3위를 기록했습니다. 마일(1600m) 우승 경험이 있고 외곽 게이트가 약간 아쉽지만, 부담중량 이점이 생겨 위협적인 상대입니다. (8) 글로벌위크는 최근 1800m를 뛰다 거리를 줄였습니다. 마일 우승 기록이 있는 말로, 프랑코 기수가 처음 기승하여 관심을 가져볼 만합니다. 승급마 (5) 빅뱅클래스와 (9) 상임볼트도 입상 가능권입니다.",
+    expertPicks: [1, 11, 8, 5],
+    expertDarkHorses: [9, 10],
+    horses: [
+      { no: 1, name: "플래시파크", weight: 54, age: "3세(한/수)", rating: "[R42]", jockey: "서승운", jockeyRate: "31.7%", trainer: "최기홍", trainerRank: "[16위]", winRate: 33.3, recent: ["1위 1600m", "4위 1800m", "5위 1600m"] },
+      { no: 2, name: "즐거운동행", weight: 53, age: "3세(한/암)", rating: "[R44]", jockey: "진겸", jockeyRate: "21.5%", trainer: "이상영", trainerRank: "[14위]", winRate: 20.0, recent: ["1위 1400m", "4위 주행심사", "3위 1600m"] },
+      { no: 3, name: "브라운팰컨", weight: 54.5, age: "4세(한/암)", rating: "[R47]", jockey: "송경윤", jockeyRate: "17.2%", trainer: "임금만", trainerRank: "[7위]", winRate: 20.0, recent: ["1위 1600m", "5위 1600m", "6위 1600m"] },
+      { no: 4, name: "삼바스텝", weight: 52, age: "5세(한/암)", rating: "[R36]", jockey: "모준호", jockeyRate: "12.9%", trainer: "조응", trainerRank: "[27위]", winRate: 7.3, recent: ["3위 1200m", "10위 1200m", "8위 1200m"] },
+      { no: 5, name: "빅뱅클래스", weight: 52, age: "3세(한/수)", rating: "[R37]", jockey: "서강주", jockeyRate: "15.4%", trainer: "장세한", trainerRank: "[22위]", winRate: 57.1, recent: ["2위 1400m", "1위 1400m", "2위 1400m"] },
+      { no: 6, name: "투투플라잉", weight: 52, age: "5세(한/암)", rating: "[R37]", jockey: "전진구", jockeyRate: "11.3%", trainer: "조응", trainerRank: "[27위]", winRate: 12.7, recent: ["10위 1800m", "6위 1600m", "5위 1800m"] },
+      { no: 7, name: "닥터캐슬", weight: 55.5, age: "3세(한/수)", rating: "[R45]", jockey: "박재이", jockeyRate: "19.3%", trainer: "백광열", trainerRank: "[4위]", winRate: 41.7, recent: ["7위 1800m", "1위 1800m", "2위 1800m"] },
+      { no: 8, name: "글로벌위크", weight: 56.5, age: "5세(한/거)", rating: "[R47]", jockey: "다실바", jockeyRate: "29.4%", trainer: "박재호", trainerRank: "[18위]", winRate: 23.5, recent: ["1위 1600m", "3위 1800m", "3위 1800m"] },
+      { no: 9, name: "상임볼트", weight: 56.5, age: "4세(한/수)", rating: "[R47]", jockey: "김어수", jockeyRate: "13.1%", trainer: "김길중", trainerRank: "[19위]", winRate: 22.2, recent: ["1위 1300m", "2위 1300m", "3위 1600m"] },
+      { no: 10, name: "블랙볼트", weight: 56, age: "5세(한/수)", rating: "[R46]", jockey: "다나카", jockeyRate: "20.1%", trainer: "장세한", trainerRank: "[22위]", winRate: 21.2, recent: ["4위 1600m", "3위 1600m", "11위 1600m"] },
+      { no: 11, name: "운주챌린지", weight: 54, age: "4세(한/암)", rating: "[R46]", jockey: "최시대", jockeyRate: "24.7%", trainer: "권승주", trainerRank: "[11위]", winRate: 45.5, recent: ["1위 주행심사", "2위 1600m", "2위 1400m"] },
+      { no: 12, name: "불의통치", weight: 52, age: "4세(한/수)", rating: "[R37]", jockey: "이성재", jockeyRate: "15.8%", trainer: "이정표", trainerRank: "[26위]", winRate: 30.8, recent: ["2위 1400m", "2위 1400m", "4위 1400m"] },
+    ],
+    picks: {
+      winRate: ["5 빅뱅클래스(57%)", "11 운주챌린지(45%)", "7 닥터캐슬(41%)", "1 플래시파크(33%)"],
+      money: ["1 플래시파크", "7 닥터캐슬", "9 상임볼트", "11 운주챌린지"],
+      genetic: ["4 삼바스텝", "11 운주챌린지", "8 글로벌위크", "5 빅뱅클래스"],
+      speedStart: ["4 삼바스텝(13.8)", "8 글로벌위크(13.9)", "11 운주챌린지(14.0)", "1 플래시파크(14.1)"],
+      speedEnd: ["7 닥터캐슬(13.7)", "9 상임볼트(13.8)", "5 빅뱅클래스(13.9)", "11 운주챌린지(14.0)"]
+    }
+  },
+  {
+    id: 8,
+    name: "부경 8경주",
+    time: "17:35",
+    distance: "1800m",
+    grade: "국3등급",
+    type: "핸디캡",
+    prize: "7,500만원",
+    avgRecord: "1:56.2",
+    expertComment: "(2) 트리플신화는 최근 두 경주를 연승 중인데, 11월 7일 처음 뛰어본 1800m에서도 중위권 전개 후 좋은 추입을 보여주며 우승했습니다. 승급전이지만 부담중량이 3.5kg이나 줄어 3연승도 불가능하지 않습니다. (12) 탐라슈퍼 역시 최근 1800m에서 우승, 2위, 3위를 기록하며 승급했습니다. 무려 5.5kg의 감량 이점이 있고 외곽 게이트도 문제없어 보이며 프랑코 기수가 기승합니다. (5) 여수슈퍼스타는 지난번 1600m에서 처음으로 3위 밖으로 밀려나며 부진했습니다. 1800m 첫 도전이지만 서승운 기수가 계속 기승하며 다시 기회를 줄 만합니다. (10) 대호나라와 (11) 서부비전이 그 외 주요 입상 후보입니다.",
+    expertPicks: [2, 12, 5, 10],
+    expertDarkHorses: [11, 6],
+    horses: [
+      { no: 1, name: "모르페우스", weight: 54.5, age: "4세(한/수)", rating: "[R57]", jockey: "진겸", jockeyRate: "21.5%", trainer: "백광열", trainerRank: "[4위]", winRate: 30.4, recent: ["1위 1800m", "10위 1400m", "11위 1400m"] },
+      { no: 2, name: "트리플신화", weight: 54, age: "3세(한/수)", rating: "[R56]", jockey: "박재이", jockeyRate: "19.3%", trainer: "김도현", trainerRank: "[10위]", winRate: 42.9, recent: ["1위 1800m", "1위 1600m", "1위 1300m"] },
+      { no: 3, name: "더베스트에버", weight: 52.5, age: "5세(한/거)", rating: "[R53]", jockey: "송경윤", jockeyRate: "17.2%", trainer: "안우성", trainerRank: "[3위]", winRate: 28.6, recent: ["2위 1800m", "4위 1800m", "9위 1800m"] },
+      { no: 4, name: "콩코드파크", weight: 52, age: "4세(한/수)", rating: "[R51]", jockey: "서강주", jockeyRate: "15.4%", trainer: "백광열", trainerRank: "[4위]", winRate: 19.0, recent: ["1위 1800m", "11위 1600m", "8위 1400m"] },
+      { no: 5, name: "여수슈퍼스타", weight: 52, age: "3세(한/암)", rating: "[R52]", jockey: "서승운", jockeyRate: "31.7%", trainer: "강은석", trainerRank: "[15위]", winRate: 71.4, recent: ["1위 1300m", "2위 1600m", "2위 1600m"] },
+      { no: 6, name: "영광의프린스", weight: 54, age: "4세(한/거)", rating: "[R56]", jockey: "모준호", jockeyRate: "12.9%", trainer: "토마스", trainerRank: "[2위]", winRate: 25.0, recent: ["4위 1800m", "4위 1800m", "7위 1800m"] },
+      { no: 7, name: "페가콘", weight: 52, age: "5세(한/거)", rating: "[R51]", jockey: "김동영", jockeyRate: "18.0%", trainer: "장세한", trainerRank: "[22위]", winRate: 17.2, recent: ["3위 주행심사", "8위 주행심사", "8위 1600m"] },
+      { no: 8, name: "라온더마스커", weight: 54, age: "3세(한/수)", rating: "[R56]", jockey: "다나카", jockeyRate: "20.1%", trainer: "권승주", trainerRank: "[11위]", winRate: 45.5, recent: ["1위 1800m", "2위 1600m", "10위 1800m"] },
+      { no: 9, name: "솔레다드", weight: 52, age: "5세(한/암)", rating: "[R52]", jockey: "이성재", jockeyRate: "15.8%", trainer: "박재호", trainerRank: "[18위]", winRate: 21.9, recent: ["3위 1800m", "5위 1600m", "10위 1600m"] },
+      { no: 10, name: "대호나라", weight: 52, age: "5세(한/암)", rating: "[R53]", jockey: "김어수", jockeyRate: "13.1%", trainer: "강은석", trainerRank: "[15위]", winRate: 17.6, recent: ["3위 1800m", "4위 1800m", "5위 1800m"] },
+      { no: 11, name: "서부비전", weight: 57.5, age: "4세(한/수)", rating: "[R63]", jockey: "신윤섭", jockeyRate: "11.9%", trainer: "라이스", trainerRank: "[5위]", winRate: 31.0, recent: ["1위 1600m", "2위 1800m", "7위 1800m"] },
+      { no: 12, name: "탐라슈퍼", weight: 52, age: "3세(한/거)", rating: "[R51]", jockey: "다실바", jockeyRate: "29.4%", trainer: "문현철", trainerRank: "[1위]", winRate: 42.9, recent: ["2위 1800m", "3위 1800m", "4위 1200m"] },
+    ],
+    picks: {
+      winRate: ["5 여수슈퍼스타(71%)", "8 라온더마스커(45%)", "2 트리플신화(43%)", "12 탐라슈퍼(42%)"],
+      money: ["2 트리플신화", "5 여수슈퍼스타", "12 탐라슈퍼", "11 서부비전"],
+      genetic: ["7 페가콘", "3 더베스트에버", "4 콩코드파크", "1 모르페우스"],
+      speedStart: ["1 모르페우스(13.8)", "8 라온더마스커(13.9)", "2 트리플신화(14.0)", "11 서부비전(14.0)"],
+      speedEnd: ["12 탐라슈퍼(13.5)", "2 트리플신화(13.7)", "5 여수슈퍼스타(13.8)", "8 라온더마스커(13.9)"]
+    }
+  },
+  {
+    id: 9,
+    name: "부경 9경주",
+    time: "18:00",
+    distance: "1200m",
+    grade: "혼3등급",
+    type: "핸디캡",
+    prize: "7,500만원",
+    avgRecord: "1:13.9",
+    expertComment: "(8) 잇츠오케이는 최근 2연승을 달리며 통산 7전 4승을 기록 중입니다. 10월 동 거리에서 선입 전개로 멋지게 우승한 뒤 승급했는데, 가벼운 부담중량 덕분에 여기서도 충분히 통할 것입니다. (6) 파차마마는 지난번 1400m로 거리를 늘렸을 때는 부진했지만, 5전 3승 2위 2회를 기록한 주력 거리로 돌아와 위협적인 모습을 보일 것입니다. (5) 골든에어와 (10) 은빛대로는 11월 14일 동 등급 동 거리 경주에서 맞붙어 각각 2위와 3위를 기록했으며, 둘 다 다시 입상권을 노립니다. (2) 스카이질주는 입상 가능성이 있습니다.",
+    expertPicks: [8, 6, 5, 10],
+    expertDarkHorses: [2, 3],
+    horses: [
+      { no: 1, name: "절대보스", weight: 52.5, age: "5세(한/거)", rating: "[R53]", jockey: "김동영", jockeyRate: "18.0%", trainer: "민장기", trainerRank: "[9위]", winRate: 18.2, recent: ["5위 1200m", "5위 1200m", "10위 1200m"] },
+      { no: 2, name: "스카이질주", weight: 55.5, age: "4세(한/수)", rating: "[R59]", jockey: "송경윤", jockeyRate: "17.2%", trainer: "김도현", trainerRank: "[10위]", winRate: 35.3, recent: ["1위 1600m", "1위 1600m", "2위 주행심사"] },
+      { no: 3, name: "유림세상", weight: 56, age: "3세(한/수)", rating: "[R60]", jockey: "다나카", jockeyRate: "20.1%", trainer: "하무선", trainerRank: "[23위]", winRate: 42.9, recent: ["1위 1200m", "1위 1200m", "4위 1200m"] },
+      { no: 4, name: "금아에미넌트", weight: 55.5, age: "3세(미/거)", rating: "[R59]", jockey: "전진구", jockeyRate: "11.3%", trainer: "유현명", trainerRank: "[6위]", winRate: 37.5, recent: ["12위 1400m", "4위 1400m", "7위 1200m"] },
+      { no: 5, name: "골든에어", weight: 53.5, age: "4세(한/수)", rating: "[R55]", jockey: "신윤섭", jockeyRate: "11.9%", trainer: "최기홍", trainerRank: "[16위]", winRate: 24.0, recent: ["1위 주행심사", "2위 1200m", "2위 1200m"] },
+      { no: 6, name: "파차마마", weight: 52, age: "3세(한/암)", rating: "[R51]", jockey: "다실바", jockeyRate: "29.4%", trainer: "임성실", trainerRank: "[8위]", winRate: 62.5, recent: ["1위 1200m", "2위 1200m", "2위 1200m"] },
+      { no: 7, name: "벌마의엔젤", weight: 58, age: "3세(한/수)", rating: "[R64]", jockey: "최시대", jockeyRate: "24.7%", trainer: "백광열", trainerRank: "[4위]", winRate: 35.7, recent: ["2위 1200m", "4위 1600m", "10위 1600m"] },
+      { no: 8, name: "잇츠오케이", weight: 52, age: "3세(한/암)", rating: "[R51]", jockey: "박재이", jockeyRate: "19.3%", trainer: "토마스", trainerRank: "[2위]", winRate: 57.1, recent: ["1위 1200m", "1위 1200m", "4위 1200m"] },
+      { no: 9, name: "로드투파티", weight: 52, age: "4세(한/거)", rating: "[R48]", jockey: "이성재", jockeyRate: "15.8%", trainer: "구민성", trainerRank: "[12위]", winRate: 25.0, recent: ["9위 1400m", "4위 1400m", "2위 1400m"] },
+      { no: 10, name: "은빛대로", weight: 55, age: "3세(한/수)", rating: "[R58]", jockey: "서승운", jockeyRate: "31.7%", trainer: "토마스", trainerRank: "[2위]", winRate: 44.4, recent: ["1위 1200m", "3위 1200m", "9위 1400m"] },
+      { no: 11, name: "논스톱듀티", weight: 52, age: "4세(한/암)", rating: "[R56]", jockey: "진겸", jockeyRate: "21.5%", trainer: "이상영", trainerRank: "[14위]", winRate: 28.6, recent: ["4위 1400m", "6위 1400m", "2위 1400m"] },
+      { no: 12, name: "신천퍼스트", weight: 51, age: "4세(한/수)", rating: "[R53]", jockey: "이홍락", jockeyRate: "10.6%", trainer: "강형곤", trainerRank: "[17위]", winRate: 27.3, recent: ["1위 1200m", "8위 1200m", "6위 주행심사"] },
+    ],
+    picks: {
+      winRate: ["6 파차마마(62%)", "8 잇츠오케이(57%)", "10 은빛대로(44%)", "3 유림세상(42%)"],
+      money: ["8 잇츠오케이", "6 파차마마", "9 로드투파티", "10 은빛대로"],
+      genetic: ["9 로드투파티", "1 절대보스", "12 신천퍼스트", "6 파차마마"],
+      speedStart: ["6 파차마마(13.4)", "3 유림세상(13.6)", "8 잇츠오케이(13.7)", "10 은빛대로(13.8)"],
+      speedEnd: ["9 로드투파티(13.0)", "11 논스톱듀티(13.2)", "8 잇츠오케이(13.3)", "6 파차마마(13.4)"]
+    }
+  },
+];
+
+const horseColors = {
+  1: "bg-white border-2 border-gray-300 text-black",
+  2: "bg-yellow-400 text-black",
+  3: "bg-red-500 text-white",
+  4: "bg-black text-white",
+  5: "bg-blue-500 text-white",
+  6: "bg-green-500 text-white",
+  7: "bg-amber-800 text-white",
+  8: "bg-pink-400 text-white",
+  9: "bg-purple-600 text-white",
+  10: "bg-cyan-300 text-black",
+  11: "bg-white border-2 border-blue-500 text-blue-900",
+  12: "bg-yellow-400 border-2 border-red-500 text-red-900"
+};
+
+const RaceView = ({ race }) => {
+  return (
+    <div className="pb-20">
+      {/* Race Header */}
+      <div className="bg-blue-600 text-white p-6 rounded-b-3xl shadow-lg mb-6">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center">
+            <div className="mb-4 md:mb-0 text-center md:text-left">
+                <h2 className="text-3xl font-bold flex items-center gap-2">
+                    {race.name}
+                    <span className="text-sm bg-white/20 px-3 py-1 rounded-full">{race.grade}</span>
+                </h2>
+                <div className="opacity-90 mt-2 flex items-center justify-center md:justify-start gap-4 flex-wrap">
+                    <span className="flex items-center"><Clock size={16} className="mr-1"/> {race.time} 출발</span>
+                    <span className="flex items-center"><Info size={16} className="mr-1"/> {race.distance}</span>
+                    <span className="flex items-center"><Trophy size={16} className="mr-1 text-yellow-300"/> 상금: {race.prize}</span>
+                    <span className="flex items-center"><Activity size={16} className="mr-1"/> {race.type}</span>
+                    <span className="flex items-center bg-blue-700 px-2 py-0.5 rounded-lg border border-blue-500"><HistoryIcon size={16} className="mr-1 text-green-300"/> 평균기록: {race.avgRecord}</span>
+                </div>
+            </div>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4">
+        {/* AI Analysis / Top Picks Grid */}
+        <div className="mb-8">
+            <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                <Activity className="mr-2 text-blue-600" /> 
+                Easy Race 분석
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                <div className="bg-white rounded-xl shadow-sm border border-yellow-100 p-4">
+                    <div className="flex items-center mb-3">
+                        <div className="p-2 bg-yellow-100 rounded-lg mr-3">
+                            <Star className="w-5 h-5 text-yellow-600" fill="currentColor"/>
+                        </div>
+                        <span className="font-bold text-gray-800 text-sm">복승률 TOP 4</span>
+                    </div>
+                    <ul className="space-y-1">
+                        {race.picks.winRate.map((pick, i) => (
+                            <li key={i} className="text-xs font-medium text-gray-600 bg-gray-50 p-2 rounded flex justify-between">
+                                <span>{pick}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm border border-green-100 p-4">
+                    <div className="flex items-center mb-3">
+                         <div className="p-2 bg-green-100 rounded-lg mr-3">
+                            <DollarSign className="w-5 h-5 text-green-600"/>
+                        </div>
+                        <span className="font-bold text-gray-800 text-sm">상금 수득 TOP</span>
+                    </div>
+                    <ul className="space-y-1">
+                        {race.picks.money.map((pick, i) => (
+                            <li key={i} className="text-xs font-medium text-gray-600 bg-gray-50 p-2 rounded flex justify-between">
+                                <span>{pick}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm border border-pink-100 p-4">
+                    <div className="flex items-center mb-3">
+                         <div className="p-2 bg-pink-100 rounded-lg mr-3">
+                            <Dna className="w-5 h-5 text-pink-600"/>
+                        </div>
+                        <span className="font-bold text-gray-800 text-sm">유전 능력</span>
+                    </div>
+                    <ul className="space-y-1">
+                        {race.picks.genetic && race.picks.genetic.map((pick, i) => (
+                            <li key={i} className="text-xs font-medium text-gray-600 bg-gray-50 p-2 rounded flex justify-between">
+                                <span>{pick}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm border border-purple-100 p-4">
+                    <div className="flex items-center mb-3">
+                         <div className="p-2 bg-purple-100 rounded-lg mr-3">
+                            <Zap className="w-5 h-5 text-purple-600"/>
+                        </div>
+                        <span className="font-bold text-gray-800 text-sm">초반 스피드</span>
+                    </div>
+                     <ul className="space-y-1">
+                        {race.picks.speedStart && race.picks.speedStart.map((pick, i) => (
+                            <li key={i} className="text-xs font-medium text-gray-600 bg-gray-50 p-2 rounded flex justify-between">
+                                <span>{pick}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm border border-blue-100 p-4">
+                    <div className="flex items-center mb-3">
+                         <div className="p-2 bg-blue-100 rounded-lg mr-3">
+                            <HistoryIcon className="w-5 h-5 text-blue-600"/>
+                        </div>
+                        <span className="font-bold text-gray-800 text-sm">후반 스피드</span>
+                    </div>
+                     <ul className="space-y-1">
+                        {race.picks.speedEnd && race.picks.speedEnd.map((pick, i) => (
+                            <li key={i} className="text-xs font-medium text-gray-600 bg-gray-50 p-2 rounded flex justify-between">
+                                <span>{pick}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        {/* Expert Commentary Section */}
+        {race.expertComment && (
+            <div className="mb-8 bg-blue-50 border border-blue-100 rounded-xl p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-blue-800 mb-3 flex items-center">
+                    <Quote className="mr-2 text-blue-600" size={20} fill="currentColor" />
+                    전문가 관전평
+                </h3>
+                <p className="text-gray-700 leading-relaxed text-sm md:text-base">
+                    {race.expertComment}
+                </p>
+            </div>
+        )}
+
+        {/* Horse List Table */}
+        <div>
+            <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                <Users className="mr-2 text-blue-600" />
+                출전마 리스트
+            </h3>
+            <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
+                <div className="overflow-x-auto">
+                    <table className="w-full min-w-[800px]">
+                        <thead className="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">번호/마명/등급</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">제원</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">기수 (승률) / 조교사 (순위)</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">복승률/통산전적</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">최근 성적 (좌측이 최근)</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                            {race.horses.map((horse) => {
+                                const isPick = race.expertPicks?.includes(horse.no);
+                                const isDarkHorse = race.expertDarkHorses?.includes(horse.no);
+                                
+                                return (
+                                <tr key={horse.no} className={`transition-colors ${isPick ? 'bg-red-50 hover:bg-red-100' : isDarkHorse ? 'bg-yellow-50 hover:bg-yellow-100' : 'hover:bg-blue-50/50'}`}>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="flex items-center">
+                                            <div className="relative mr-4">
+                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shadow-sm ${horseColors[horse.no] || 'bg-gray-200'} ${isPick ? 'ring-2 ring-red-500 ring-offset-2' : isDarkHorse ? 'ring-2 ring-yellow-500 ring-offset-2' : ''}`}>
+                                                    {horse.no}
+                                                </div>
+                                                {isPick && (
+                                                    <div className="absolute -top-2 -right-2 bg-white rounded-full p-0.5 shadow-sm border border-red-200">
+                                                        <ThumbsUp size={14} className="text-red-500" fill="currentColor"/>
+                                                    </div>
+                                                )}
+                                                {isDarkHorse && (
+                                                    <div className="absolute -top-2 -right-2 bg-white rounded-full p-0.5 shadow-sm border border-yellow-200">
+                                                        <AlertTriangle size={14} className="text-yellow-600" fill="currentColor"/>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center">
+                                                    <div className="text-lg font-bold text-gray-900 mr-2">{horse.name}</div>
+                                                    {isPick && <span className="text-[10px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded border border-red-200">추천</span>}
+                                                    {isDarkHorse && <span className="text-[10px] font-bold bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded border border-yellow-200">복병</span>}
+                                                </div>
+                                                <div className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded inline-block mt-1">{horse.rating}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="text-sm text-gray-900 font-medium">{horse.weight}kg</div>
+                                        <div className="text-xs text-gray-500">{horse.age || "-"}</div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="text-sm font-medium text-gray-900">
+                                            {horse.jockey} <span className="text-blue-600 text-xs">({horse.jockeyRate})</span>
+                                        </div>
+                                        <div className="text-xs text-gray-500 mt-1">
+                                            {horse.trainer} <span className="font-semibold text-gray-600">{horse.trainerRank}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="flex items-center">
+                                            <div className="text-sm font-bold text-blue-600 mr-2">{horse.winRate}%</div>
+                                        </div>
+                                        <div className="text-xs text-gray-500">{horse.history || "-"}</div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex space-x-1">
+                                            {horse.recent && horse.recent.map((record, idx) => (
+                                                <span key={idx} className={`px-2 py-1 rounded text-xs font-medium border ${
+                                                    record.includes('1위') ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 
+                                                    record.includes('2위') ? 'bg-gray-100 text-gray-800 border-gray-300' : 
+                                                    record.includes('3위') ? 'bg-orange-50 text-orange-800 border-orange-200' :
+                                                    'bg-white text-gray-400 border-gray-100'
+                                                }`}>
+                                                    {record}
+                                                </span>
+                                            ))}
+                                            {!horse.recent && <span className="text-xs text-gray-400">-</span>}
+                                        </div>
+                                    </td>
+                                </tr>
+                            )})}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default function App() {
+  const [currentRaceId, setCurrentRaceId] = useState(1);
+
+  const currentRace = useMemo(() => 
+    raceData.find(r => r.id === currentRaceId), 
+    [currentRaceId]
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-50 font-sans mx-auto shadow-sm overflow-hidden relative">
+      {/* App Header */}
+      <header className="bg-white px-6 py-4 flex justify-between items-center border-b border-gray-200 sticky top-0 z-20 shadow-sm">
+        <div className="flex items-center">
+            <div className="bg-blue-600 text-white text-sm font-bold px-3 py-1 rounded mr-3">Easy Race</div>
+            <h1 className="font-bold text-xl text-gray-800">2025.12.19 (금) 렛츠런파크 부산경남</h1>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="h-full overflow-y-auto">
+        {/* Race Navigation */}
+        <div className="bg-white border-b border-gray-200 sticky top-16 z-10 shadow-sm">
+            <div className="max-w-6xl mx-auto flex overflow-x-auto py-4 px-4 no-scrollbar space-x-3">
+                {raceData.map((race) => (
+                    <button
+                        key={race.id}
+                        onClick={() => setCurrentRaceId(race.id)}
+                        className={`flex-shrink-0 px-6 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap border ${
+                            currentRaceId === race.id 
+                            ? "bg-blue-600 text-white border-blue-600 shadow-md transform scale-105" 
+                            : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                        }`}
+                    >
+                        {race.id}경주
+                    </button>
+                ))}
+            </div>
+        </div>
+        
+        {/* Race Content */}
+        <RaceView race={currentRace} />
+      </main>
+      
+      {/* Bottom Disclaimer */}
+      <footer className="bg-white border-t border-gray-200 py-6 mt-10">
+          <div className="max-w-6xl mx-auto px-6 text-center text-sm text-gray-400">
+            <p className="mb-2">렛츠런파크 부산경남 | 본 정보는 참고용이며, 실제 경주 결과와 다를 수 있습니다.</p>
+            <p>도박중독예방 1336 | 건전한 경마 문화를 함께 만들어갑시다.</p>
+          </div>
+      </footer>
+    </div>
+  );
+}
