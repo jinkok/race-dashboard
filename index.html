@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Race Mate - 경마 예상 대시보드</title>
+    <title>경마 분석 대시보드 - 모자색 적용 버전</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
@@ -13,20 +13,21 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800;900&display=swap');
-        body { font-family: 'Pretendard', sans-serif; }
+        @import url('https://fonts.googleapis.com/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        body { 
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            letter-spacing: -0.01em;
+        }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        .card-shadow { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05); }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900">
+<body class="bg-gray-50 text-gray-900">
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // 아이콘 래퍼 컴포넌트
-        const LucideIcon = ({ name, size = 24, className = "" }) => {
+        const LucideIcon = ({ name, size = 20, className = "" }) => {
             useEffect(() => {
                 if (window.lucide) {
                     window.lucide.createIcons();
@@ -37,43 +38,52 @@
 
         const racingData = {
             seoul: [
-                { id: 1, class: "국6등급", dist: "1200M", prize: "3,200만", title: "2세 미승리마 경주", selections: ["3", "1", "7", "4"], horseNames: ["래피드선더", "포에버길", "천지탱크", "레전드매치"], nextBest: ["8", "10"], fastStart: ["1", "2", "3", "4"], desc: "신마 (3) 래피드선더에 기대를 겁니다. 주행심사 당시 준수한 기록으로 우승했습니다. (1) 포에버길은 데뷔전 경험이 자산이 될 것이며, (7) 천지탱크는 추입력이 돋보입니다." },
-                { id: 2, class: "국4등급", dist: "1200M", prize: "5,400만", title: "2세 외산마 경주", selections: ["2", "3", "10", "7"], horseNames: ["정상히어로", "짜릿한행복", "드림리메인", "K N 빅뱅"], nextBest: ["8", "4"], fastStart: ["2", "3", "7", "10"], desc: "(2) 정상히어로가 강력한 우승 후보입니다. (3) 짜릿한행복 역시 선입 전개 후 좋은 기록을 냈습니다. 신마 (10) 드림리메인의 선행력도 주목해야 합니다." },
-                { id: 3, class: "국6등급", dist: "1300M", prize: "3,200만", title: "2세 미승리마", selections: ["5", "7", "10", "4"], horseNames: ["명브레이싱", "청산무사", "엑스텐", "판타스틱브로"], nextBest: ["6", "8"], fastStart: ["1", "5", "7", "9"], desc: "(5) 명브레이싱은 직전 준우승으로 기량이 향상되었습니다. (7) 청산무사는 조재로 기수 복귀로 반격을 노리며, (10) 엑스텐도 잠재력이 충분합니다." },
-                { id: 4, class: "국6등급", dist: "1700M", prize: "2,200만", title: "장거리 도전", selections: ["6", "1", "10", "5"], horseNames: ["미스터카라", "세라드", "머니포시즌", "골든메이커"], nextBest: ["8", "4"], fastStart: ["1", "2", "3", "6"], desc: "(6) 미스터카라는 직전 선행 작전으로 최고 성적을 냈습니다. (1) 세라드는 거리 증량과 마이아 기수의 호흡이 변수이며, (10) 머니포시즌은 거리 적응을 마쳤습니다." },
-                { id: 5, class: "국5등급", dist: "1200M", prize: "3,200만", title: "핸디캡 경주", selections: ["6", "3", "5", "7"], horseNames: ["제너럴윈드", "스톰트루퍼", "분당쓰나미", "타이거K"], nextBest: ["8", "10"], fastStart: ["3", "6", "9", "10"], desc: "(6) 제너럴윈드는 데뷔전 선행 우승으로 100% 승률 유지 중입니다. (3) 스톰트루퍼는 강력한 선행 경쟁자이며, (5) 분당쓰나미도 이변을 노립니다." },
-                { id: 6, class: "국5등급", dist: "1300M", prize: "3,200만", title: "박태종 기수 은퇴 경주", selections: ["1", "11", "10", "6"], horseNames: ["미라클삭스", "아파르트", "싹다나은", "컴플리트디바"], special: true, nextBest: ["2", "9"], fastStart: ["6", "7", "10", "11"], desc: "한국 경마의 전설 박태종 기수의 마지막 질주. (1) 미라클삭스는 최근 연속 2위로 우승권에 근접해 있습니다. 감동의 피날레를 기대합니다." },
-                { id: 7, class: "혼4등급", dist: "1400M", prize: "4,300만", title: "핸디캡 경주", selections: ["2", "7", "1", "10"], horseNames: ["자이언트보스", "글로리영광", "글로벌서브", "서클에이"], nextBest: ["5", "11"], fastStart: ["1", "2", "6", "11"], desc: "(2) 자이언트보스는 3연승 저력이 있는 마필입니다. (7) 글로리영광은 상승세이며, (1) 글로벌서브는 안쪽에서 선행을 시도할 것입니다." },
-                { id: 8, class: "혼4등급", dist: "1700M", prize: "4,300만", title: "장거리 핸디캡", selections: ["6", "5", "2", "9"], horseNames: ["최강스피드", "어썸퀸", "탐라최강자", "브라이트위너"], nextBest: ["4", "10"], fastStart: ["1", "4", "5", "10"], desc: "(6) 최강스피드는 최근 추입력이 돋보입니다. (5) 어썸퀸은 직전 부진을 씻고 상위권 입상을 노리며, (2) 탐라최강자도 안정적입니다." },
-                { id: 9, class: "혼3등급", dist: "1800M", prize: "5,400만", title: "스테이어 경주", selections: ["5", "10", "2", "4"], horseNames: ["최강골드", "이클립스블랙", "누리천왕", "금빛천하"], nextBest: ["9", "1"], fastStart: ["2", "4", "5", "9"], desc: "(5) 최강골드는 1800M에서 4전 3승의 강자입니다. 선행 후 버티기가 가능합니다." },
-                { id: 10, class: "혼3등급", dist: "1400M", prize: "5,400만", title: "대형 신예의 등장", selections: ["4", "3", "1", "5"], horseNames: ["그대만있다면", "드리머위즈", "마이티에버", "엘도라도놀부"], nextBest: ["8", "9"], fastStart: ["4", "9", "10", "11"], desc: "과천시장배 우승마 (4) 그대만있다면이 1400M에 도전합니다. 잠재력이 매우 뛰어난 마필입니다." },
-                { id: 11, class: "국2등급", dist: "1200M", prize: "6,500만", title: "최종 메인 경주", selections: ["1", "9", "2", "6"], horseNames: ["학산스피드", "벌교베리타스", "페어스카이", "베스트마야"], nextBest: ["8", "3"], fastStart: ["1", "2", "3", "11"], desc: "(1) 학산스피드는 1번 게이트의 이점을 살려 선행 우승을 노립니다. (9) 벌교베리타스는 강력한 추입마입니다." }
+                { id: 1, startTime: "10:35", class: "국6등급", dist: "1200M", prize: "4,500만", title: "2세 미승리마 경주", selections: ["3", "1", "7", "4"], horseNames: ["래피드선더", "포에버길", "천지탱크", "레전드매치"], nextBest: ["8", "10"], fastStart: ["1", "2", "3", "4"], desc: "신마 (3) 래피드선더에 기대를 겁니다. 주행심사 당시 준수한 기록으로 우승했습니다. (1) 포에버길은 데뷔전 경험이 자산이 될 것이며, (7) 천지탱크는 추입력이 돋보입니다." },
+                { id: 2, startTime: "11:00", class: "혼4등급", dist: "1200M", prize: "7,500만", title: "2세 외산마 경주", selections: ["2", "3", "10", "7"], horseNames: ["정상히어로", "짜릿한행복", "드림리메인", "K N 빅뱅"], nextBest: ["8", "4"], fastStart: ["2", "3", "7", "10"], desc: "(2) 정상히어로가 강력한 우승 후보입니다. (3) 짜릿한행복 역시 선입 전개 후 좋은 기록을 냈습니다. 신마 (10) 드림리메인의 선행력도 주목해야 합니다." },
+                { id: 3, startTime: "11:25", class: "국6등급", dist: "1300M", prize: "4,500만", title: "2세 미승리마", selections: ["5", "7", "10", "4"], horseNames: ["명브레이싱", "청산무사", "엑스텐", "판타스틱브로"], nextBest: ["6", "8"], fastStart: ["1", "5", "7", "9"], desc: "(5) 명브레이싱은 직전 준우승으로 기량이 향상되었습니다. (7) 청산무사는 조재로 기수 복귀로 반격을 노리며, (10) 엑스텐도 잠재력이 충분합니다." },
+                { id: 4, startTime: "12:45", class: "국6등급", dist: "1700M", prize: "3,000만", title: "장거리 도전", selections: ["6", "1", "10", "5"], horseNames: ["미스터카라", "세라드", "머니포시즌", "골든메이커"], nextBest: ["8", "4"], fastStart: ["1", "2", "3", "6"], desc: "(6) 미스터카라는 직전 선행 작전으로 최고 성적을 냈습니다. (1) 세라드는 거리 증량과 마이아 기수의 호흡이 변수이며, (10) 머니포시즌은 거리 적응을 마쳤습니다." },
+                { id: 5, startTime: "13:35", class: "국5등급", dist: "1200M", prize: "4,500만", title: "핸디캡 경주", selections: ["6", "3", "5", "7"], horseNames: ["제너럴윈드", "스톰트루퍼", "분당쓰나미", "타이거K"], nextBest: ["8", "10"], fastStart: ["3", "6", "9", "10"], desc: "(6) 제너럴윈드는 데뷔전 선행 우승으로 100% 승률 유지 중입니다. (3) 스톰트루퍼는 강력한 선행 경쟁자이며, (5) 분당쓰나미도 이변을 노립니다." },
+                { id: 6, startTime: "14:25", class: "국5등급", dist: "1300M", prize: "4,500만", title: "박태종 기수 은퇴 경주", selections: ["1", "11", "10", "6"], horseNames: ["미라클삭스", "아파르트", "싹다나은", "컴플리트디바"], special: true, nextBest: ["2", "9"], fastStart: ["6", "7", "10", "11"], desc: "한국 경마의 전설 박태종 기수의 마지막 질주. (1) 미라클삭스는 최근 연속 2위로 우승권에 근접해 있습니다. 감동의 피날레를 기대합니다." },
+                { id: 7, startTime: "15:15", class: "혼4등급", dist: "1400M", prize: "6,000만", title: "핸디캡 경주", selections: ["2", "7", "1", "10"], horseNames: ["자이언트보스", "글로리영광", "글로벌서브", "서클에이"], nextBest: ["5", "11"], fastStart: ["1", "2", "6", "11"], desc: "(2) 자이언트보스는 3연승 저력이 있는 마필입니다. (7) 글로리영광은 상승세이며, (1) 글로벌서브는 안쪽에서 선행을 시도할 것입니다." },
+                { id: 8, startTime: "16:05", class: "국4등급", dist: "1700M", prize: "6,000만", title: "장거리 핸디캡", selections: ["6", "5", "2", "9"], horseNames: ["최강스피드", "어썸퀸", "탐라최강자", "브라이트위너"], nextBest: ["4", "10"], fastStart: ["1", "4", "5", "10"], desc: "(6) 최강스피드는 최근 추입력이 돋보입니다. (5) 어썸퀸은 직전 부진을 씻고 상위권 입상을 노리며, (2) 탐라최강자도 안정적입니다." },
+                { id: 9, startTime: "17:00", class: "국3등급", dist: "1800M", prize: "7,500만", title: "스테이어 경주", selections: ["5", "10", "2", "4"], horseNames: ["최강골드", "이클립스블랙", "누리천왕", "금빛천하"], nextBest: ["9", "1"], fastStart: ["2", "4", "5", "9"], desc: "(5) 최강골드는 1800M에서 4전 3승의 강자입니다. 선행 후 버티기가 가능합니다." },
+                { id: 10, startTime: "17:30", class: "혼3등급", dist: "1400M", prize: "7,500만", title: "대형 신예의 등장", selections: ["4", "3", "1", "5"], horseNames: ["그대만있다면", "드리머위즈", "마이티에버", "엘도라도놀부"], nextBest: ["8", "9"], fastStart: ["4", "9", "10", "11"], desc: "과천시장배 우승마 (4) 그대만있다면이 1400M에 도전합니다. 잠재력이 매우 뛰어난 마필입니다." },
+                { id: 11, startTime: "18:00", class: "2등급", dist: "1200M", prize: "9,000만", title: "최종 메인 경주", selections: ["1", "9", "2", "6"], horseNames: ["학산스피드", "벌교베리타스", "페어스카이", "베스트마야"], nextBest: ["8", "3"], fastStart: ["1", "2", "3", "11"], desc: "(1) 학산스피드는 1번 게이트의 이점을 살려 선행 우승을 노립니다. (9) 벌교베리타스는 강력한 추입마입니다." }
             ],
             busan: [
-                { id: 1, class: "국6등급", dist: "1400M", prize: "2,200만", title: "중거리 미승리마", selections: ["5", "9", "7", "6"], horseNames: ["오아시스아델", "스원퀸", "그랑크뤼", "플레어업"], nextBest: ["10", "4"], fastStart: ["5", "6", "7", "10"], desc: "(5) 오아시스아델은 서승운 기수 기승으로 우승 가능성을 높였습니다. (9) 스원퀸은 다실바 기수와의 첫 호흡입니다." },
-                { id: 2, class: "국6등급", dist: "1300M", prize: "2,200만", title: "암말 한정 경주", selections: ["10", "3", "8", "4"], horseNames: ["남표정지니", "아유레디", "희망사랑", "월드트리플캣"], nextBest: ["6", "5"], fastStart: ["2", "3", "10", "11"], desc: "(10) 남표정지니는 최근 꾸준한 발전으로 우승 문턱에 와 있습니다. (3) 아유레디도 데뷔전 선전했습니다." },
-                { id: 3, class: "국6등급", dist: "1200M", prize: "2,200만", title: "단거리 승부", selections: ["9", "11", "7", "10"], horseNames: ["벌마의랜드", "월드파이터맨", "울프스텝", "스마트유림"], nextBest: ["3", "2"], fastStart: ["5", "7", "9", "11"], desc: "(9) 벌마의랜드는 직전 아쉬운 2위로 이번엔 확실한 우승 후보입니다. (11) 월드파이터맨은 외곽이 변수입니다." },
-                { id: 4, class: "국5등급", dist: "1800M", prize: "3,200만", title: "장거리 핸디캡", selections: ["7", "12", "11", "4"], horseNames: ["포스비위드유", "위너스루키", "앨리스마린", "서부갬블"], nextBest: ["8", "5"], fastStart: ["3", "6", "11", "12"], desc: "(7) 포스비위드유는 최근 4경기 입상권으로 승리가 임박했습니다. (12) 위너스루키는 장거리 적성이 확인되었습니다." },
-                { id: 5, class: "혼4등급", dist: "1400M", prize: "5,400만", title: "암말 한정 핸디캡", selections: ["1", "12", "8", "5"], horseNames: ["닉스고원", "트윈레인보우", "미라쥬", "브라운루키"], nextBest: ["7", "9"], fastStart: ["1", "8", "11", "12"], desc: "신예 (1) 닉스고원은 데뷔전 압승으로 연승 가능성이 높습니다. (12) 트윈레인보우는 최외곽 극복이 숙제입니다." },
-                { id: 6, class: "혼2등급", dist: "1600M", prize: "6,500만", title: "메인 핸디캡 경주", selections: ["2", "4", "7", "12"], horseNames: ["프라임시크릿", "판타스틱밸류", "플라잉칸", "카디널포스"], nextBest: ["5", "1"], fastStart: ["3", "4", "8", "11"], desc: "급성장 중인 (2) 프라임시크릿이 우승을 노립니다. (4) 판타스틱밸류는 명예 회복을 위한 복귀전입니다." }
+                { id: 1, startTime: "12:05", class: "국6등급", dist: "1400M", prize: "3,000만", title: "중거리 미승리마", selections: ["5", "9", "7", "6"], horseNames: ["오아시스아델", "스원퀸", "그랑크뤼", "플레어업"], nextBest: ["10", "4"], fastStart: ["5", "6", "7", "10"], desc: "(5) 오아시스아델은 서승운 기수 기승으로 우승 가능성을 높였습니다. (9) 스원퀸은 다실바 기수와의 첫 호흡입니다." },
+                { id: 2, startTime: "13:10", class: "국6등급", dist: "1300M", prize: "3,000만", title: "암말 한정 경주", selections: ["10", "3", "8", "4"], horseNames: ["남표정지니", "아유레디", "희망사랑", "월드트리플캣"], nextBest: ["6", "5"], fastStart: ["2", "3", "10", "11"], desc: "(10) 남표정지니는 최근 꾸준한 발전으로 우승 문턱에 와 있습니다. (3) 아유레디도 데뷔전 선전했습니다." },
+                { id: 3, startTime: "14:00", class: "국6등급", dist: "1200M", prize: "3,000만", title: "단거리 승부", selections: ["9", "11", "7", "10"], horseNames: ["벌마의랜드", "월드파이터맨", "울프스텝", "스마트유림"], nextBest: ["3", "2"], fastStart: ["5", "7", "9", "11"], desc: "(9) 벌마의랜드는 직전 아쉬운 2위로 이번엔 확실한 우승 후보입니다. (11) 월드파이터맨은 외곽이 변수입니다." },
+                { id: 4, startTime: "14:50", class: "국5등급", dist: "1800M", prize: "4,500만", title: "장거리 핸디캡", selections: ["7", "12", "11", "4"], horseNames: ["포스비위드유", "위너스루키", "앨리스마린", "서부갬블"], nextBest: ["8", "5"], fastStart: ["3", "6", "11", "12"], desc: "(7) 포스비위드유는 최근 4경기 입상권으로 승리가 임박했습니다. (12) 위너스루키는 장거리 적성이 확인되었습니다." },
+                { id: 5, startTime: "15:40", class: "혼4등급", dist: "1400M", prize: "7,500만", title: "암말 한정 핸디캡", selections: ["1", "12", "8", "5"], horseNames: ["닉스고원", "트윈레인보우", "미라쥬", "브라운루키"], nextBest: ["7", "9"], fastStart: ["1", "8", "11", "12"], desc: "신예 (1) 닉스고원은 데뷔전 압승으로 연승 가능성이 높습니다. (12) 트윈레인보우는 최외곽 극복이 숙제입니다." },
+                { id: 6, startTime: "16:30", class: "2등급", dist: "1600M", prize: "9,000만", title: "메인 핸디캡 경주", selections: ["2", "4", "7", "12"], horseNames: ["프라임시크릿", "판타스틱밸류", "플라잉칸", "카디널포스"], nextBest: ["5", "1"], fastStart: ["3", "4", "8", "11"], desc: "급성장 중인 (2) 프라임시크릿이 우승을 노립니다. (4) 판타스틱밸류는 명예 회복을 위한 복귀전입니다." }
             ]
         };
 
-        const HorseBadge = ({ num, size = "md" }) => {
-            const colors = [
-                "bg-white text-black border-slate-300", "bg-blue-600 text-white border-blue-700",
-                "bg-red-600 text-white border-red-700", "bg-black text-white border-black",
-                "bg-yellow-400 text-black border-yellow-500", "bg-green-600 text-white border-green-700",
-                "bg-indigo-900 text-white border-indigo-950", "bg-pink-500 text-white border-pink-600",
-                "bg-purple-600 text-white border-purple-700", "bg-orange-500 text-white border-orange-600",
-                "bg-teal-600 text-white border-teal-700", "bg-slate-400 text-white border-slate-500"
-            ];
-            const n = parseInt(num);
-            const colorClass = colors[(n - 1) % colors.length] || "bg-slate-200";
-            const sizeClass = size === "sm" ? "w-5 h-5 text-[10px]" : "w-8 h-8 text-sm";
+        const NumberBadge = ({ num, size = "md" }) => {
+            const n = parseInt(num.match(/\d+/)?.[0] || "0");
+            // PDF 39페이지 기반 공식 모자 배색 (KRA 표준)
+            const colorConfigs = {
+                1: "bg-white text-black border-gray-300",
+                2: "bg-[#FFEB3B] text-black border-yellow-500", // 노란색
+                3: "bg-[#F44336] text-white border-red-700", // 빨간색
+                4: "bg-[#212121] text-white border-black", // 검정색
+                5: "bg-[#2196F3] text-white border-blue-700", // 파란색
+                6: "bg-[#4CAF50] text-white border-green-700", // 초록색
+                7: "bg-[#795548] text-white border-orange-950", // 갈색
+                8: "bg-[#F06292] text-white border-pink-400", // 분홍색
+                9: "bg-[#9C27B0] text-white border-purple-700", // 보라색
+                10: "bg-[#00BCD4] text-white border-cyan-600", // 하늘색
+                11: "bg-white text-red-600 border-red-400", // 흰색+빨강줄 (테두리로 표현)
+                12: "bg-[#FFEB3B] text-blue-700 border-blue-400" // 노랑+파랑줄 (텍스트색으로 표현)
+            };
+            
+            const colorClass = colorConfigs[n] || "bg-slate-100 text-slate-400 border-slate-200";
+            const sizeClasses = size === "sm" ? "w-5 h-5 text-[10px]" : "w-7 h-7 text-xs shadow-sm";
+            
             return (
-                <div className={`${sizeClass} rounded-full flex items-center justify-center font-black border-2 shadow-sm ${colorClass} shrink-0`}>
-                    {num}
+                <div className={`${sizeClasses} rounded flex items-center justify-center font-black border leading-none shrink-0 ${colorClass}`}>
+                    {n}
                 </div>
             );
         };
@@ -83,127 +93,350 @@
 
             return (
                 <div className="min-h-screen">
-                    {/* Header */}
-                    <header className="bg-slate-900 text-white py-6 px-4 shadow-2xl sticky top-0 z-50">
-                        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 bg-yellow-500 rounded-2xl shadow-lg">
-                                    <LucideIcon name="Trophy" size={28} className="text-white" />
-                                </div>
-                                <div>
-                                    <h1 className="text-2xl md:text-3xl font-black tracking-tighter">RACE MATE</h1>
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">AI Racing Analyst</p>
-                                </div>
+                    <header className="bg-[#1a202c] text-white py-5 px-4 shadow-sm">
+                        <div className="max-w-6xl mx-auto flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                                <LucideIcon name="Trophy" className="text-yellow-500" />
+                                <h1 className="text-xl font-black tracking-tight uppercase leading-none">Race Mate</h1>
                             </div>
-                            
-                            <div className="flex bg-slate-800 p-1.5 rounded-2xl border border-slate-700 w-full md:w-auto">
+                            <div className="flex bg-gray-800 rounded-lg p-1">
                                 <button 
                                     onClick={() => setLocation('seoul')}
-                                    className={`flex-1 md:flex-none px-8 py-2.5 rounded-xl transition-all text-xs font-black ${location === 'seoul' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                                    className={`px-6 py-2 rounded-md text-xs font-bold transition-all ${location === 'seoul' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-white'}`}
                                 >
-                                    SEOUL
+                                    서울
                                 </button>
                                 <button 
                                     onClick={() => setLocation('busan')}
-                                    className={`flex-1 md:flex-none px-8 py-2.5 rounded-xl transition-all text-xs font-black ${location === 'busan' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                                    className={`px-6 py-2 rounded-md text-xs font-bold transition-all ${location === 'busan' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-white'}`}
                                 >
-                                    BUSAN
+                                    부산
                                 </button>
                             </div>
                         </div>
                     </header>
 
-                    {/* Content */}
                     <main className="max-w-6xl mx-auto p-4 md:p-8">
-                        <div className="flex items-center gap-2 mb-8 text-slate-500 font-bold text-sm">
-                            <LucideIcon name="MapPin" size={16} className="text-blue-600" />
-                            <span>{location === 'seoul' ? '서울 경마공원' : '부산 경남 경마공원'}</span>
-                            <span className="opacity-20 mx-2">|</span>
-                            <span>{racingData[location].length}개 경주 분석 완료</span>
+                        <div className="mb-8 border-b border-gray-200 pb-4 flex items-center justify-between">
+                            <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                <LucideIcon name="Map" size={18} className="text-blue-600" />
+                                경주 분석 대시보드 ({location === 'seoul' ? '서울' : '부산'})
+                            </h2>
+                            <div className="text-xs text-gray-400 font-bold uppercase tracking-wider italic">2025.12.21 Sunday</div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {racingData[location].map((race) => (
-                                <div 
-                                    key={race.id} 
-                                    className={`bg-white rounded-[2.5rem] card-shadow border border-slate-200/60 overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col relative ${race.special ? 'ring-4 ring-orange-400/30' : ''}`}
-                                >
+                                <div key={race.id} className={`bg-white border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all ${race.special ? 'border-orange-500' : 'border-gray-200'}`}>
+                                    
+                                    <div className="p-5 border-b border-gray-100 flex items-start justify-between bg-gray-50/50">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-1.5">
+                                                <div className="flex items-center gap-1 text-blue-800 font-black text-xs bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                                                    <LucideIcon name="Clock" size={11} />
+                                                    <span>{race.startTime}</span>
+                                                </div>
+                                                <span className="text-gray-400 text-[11px] font-bold">{race.dist} · {race.class}</span>
+                                            </div>
+                                            <h3 className="text-base font-black text-gray-900 leading-tight">{race.title}</h3>
+                                        </div>
+                                        <div className="bg-gray-900 text-white w-10 h-10 rounded-lg flex flex-col items-center justify-center shrink-0 ml-3 shadow-lg">
+                                            <span className="text-sm font-black leading-none">{race.id}</span>
+                                            <span className="text-[7px] font-bold uppercase tracking-tighter">Race</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-5">
+                                        <div className="mb-5 text-gray-600 text-[13px] leading-relaxed bg-white p-3 border border-gray-100 rounded-lg shadow-inner italic font-medium">
+                                            "{race.desc}"
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <div>
+                                                <div className="flex items-center gap-1.5 mb-3">
+                                                    <LucideIcon name="Star" size={14} className="text-blue-600 fill-blue-600" />
+                                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">분석 추천 마번</span>
+                                                </div>
+                                                <div className="grid grid-cols-1 gap-2">
+                                                    {race.selections.map((num, idx) => (
+                                                        <div key={idx} className={`flex items-center gap-3 p-2.5 rounded-lg border ${idx === 0 ? 'bg-blue-50 border-blue-200 shadow-sm' : 'bg-white border-gray-50'}`}>
+                                                            <NumberBadge num={num} />
+                                                            <div className="flex-1 overflow-hidden">
+                                                                <div className={`text-xs font-black truncate ${idx === 0 ? 'text-blue-900' : 'text-gray-800'}`}>
+                                                                    {race.horseNames[idx]}
+                                                                </div>
+                                                                <div className="text-[9px] text-gray-400 font-bold uppercase mt-0.5">
+                                                                    {idx === 0 ? 'AI First Pick' : `Selection #${idx + 1}`}
+                                                                </div>
+                                                            </div>
+                                                            {idx === 0 && <LucideIcon name="CheckCircle2" size={14} className="text-blue-500" />}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-2 pt-3 border-t border-gray-100">
+                                                <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                                    <div className="text-[9px] font-black text-gray-400 uppercase mb-2 flex items-center gap-1">
+                                                        <LucideIcon name="Zap" size={10} className="text-orange-400" /> 복병마
+                                                    </div>
+                                                    <div className="flex gap-1.5 flex-wrap">
+                                                        {race.nextBest.map(n => <NumberBadge key={n} num={n} size="sm" />)}
+                                                    </div>
+                                                </div>
+                                                <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                                    <div className="text-[9px] font-black text-gray-400 uppercase mb-2 flex items-center gap-1">
+                                                        <LucideIcon name="FastForward" size={10} className="text-green-500" /> 빠른 출발
+                                                    </div>
+                                                    <div className="flex gap-1.5 flex-wrap">
+                                                        {race.fastStart.map(n => <NumberBadge key={n} num={n} size="sm" />)}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     {race.special && (
-                                        <div className="absolute top-0 right-0 bg-gradient-to-l from-orange-500 to-orange-400 text-white px-4 py-2 text-[10px] font-black rounded-bl-[1.5rem] z-10 shadow-lg flex items-center gap-1.5 animate-pulse">
-                                            <LucideIcon name="User" size={12} /> 박태종 기수 은퇴경주
+                                        <div className="bg-orange-500 text-white text-[10px] font-black py-2.5 px-5 text-center flex items-center justify-center gap-2 tracking-tight">
+                                            <LucideIcon name="Award" size={12} /> 박태종 기수 공식 은퇴 고지 경주
                                         </div>
                                     )}
-
-                                    {/* Card Header */}
-                                    <div className="p-6 pb-4">
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div className="flex flex-col">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">{race.class}</span>
-                                                    <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{race.dist}</span>
-                                                </div>
-                                                <h3 className="text-xl font-black text-slate-800 leading-tight">{race.title}</h3>
-                                            </div>
-                                            <div className="bg-slate-900 text-white w-12 h-12 rounded-2xl flex flex-col items-center justify-center shrink-0 shadow-lg">
-                                                <span className="text-lg font-black leading-none">{race.id}</span>
-                                                <span className="text-[7px] font-bold uppercase">Race</span>
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="bg-slate-50 p-4 rounded-2xl border border-dashed border-slate-200">
-                                            <p className="text-slate-600 text-xs md:text-sm leading-relaxed font-medium line-clamp-3">
-                                                {race.desc}
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    {/* Card Footer - Data Section */}
-                                    <div className="p-6 pt-0 mt-auto space-y-5">
-                                        <div>
-                                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                                <LucideIcon name="Star" size={12} className="text-blue-500 fill-blue-500" /> 핵심 추천 마번
-                                            </h4>
-                                            <div className="grid grid-cols-1 gap-2">
-                                                {race.selections.map((num, idx) => (
-                                                    <div key={idx} className={`flex items-center gap-3 p-2 rounded-xl border transition-all ${idx === 0 ? 'bg-blue-600 border-blue-500 text-white shadow-md scale-[1.02]' : 'bg-white border-slate-100'}`}>
-                                                        <HorseBadge num={num} />
-                                                        <div className="flex flex-col overflow-hidden">
-                                                            <span className={`text-xs font-black truncate ${idx === 0 ? 'text-white' : 'text-slate-800'}`}>{race.horseNames[idx]}</span>
-                                                            <span className={`text-[9px] font-bold ${idx === 0 ? 'text-blue-100' : 'text-slate-400'}`}>{idx === 0 ? '강력 추천' : `${idx + 1}순위`}</span>
-                                                        </div>
-                                                        {idx === 0 && <LucideIcon name="Award" size={16} className="ml-auto text-yellow-300 mr-1" />}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex flex-col gap-2">
-                                                <span className="text-[9px] font-black text-slate-400 uppercase">복병마</span>
-                                                <div className="flex gap-1.5 flex-wrap">
-                                                    {race.nextBest.map(n => <HorseBadge key={n} num={n} size="sm" />)}
-                                                </div>
-                                            </div>
-                                            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex flex-col gap-2">
-                                                <span className="text-[9px] font-black text-slate-400 uppercase">빠른 출발</span>
-                                                <div className="flex gap-1.5 flex-wrap">
-                                                    {race.fastStart.map(n => <HorseBadge key={n} num={n} size="sm" />)}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
                             ))}
                         </div>
                     </main>
 
-                    <footer className="py-12 px-6 border-t border-slate-200 mt-12 text-center">
+                    <footer className="py-12 px-6 text-center border-t border-gray-200 mt-12 bg-white">
                         <div className="max-w-md mx-auto">
-                            <LucideIcon name="Award" size={24} className="mx-auto text-slate-300 mb-4" />
-                            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-2">Race Mate Insights</p>
-                            <p className="text-slate-400 text-[11px] leading-relaxed">
-                                본 정보는 통계 기반 예측이며 실제 결과는 다를 수 있습니다.<br/> 무리한 베팅은 자제해 주시기 바랍니다.
+                            <LucideIcon name="ShieldAlert" size={24} className="mx-auto text-gray-300 mb-4" />
+                            <p className="text-gray-400 text-[11px] leading-relaxed font-semibold">
+                                출발 시각 및 상금 정보는 2025.12.21일자 공식 'Easy Race' 가이드를 기반으로 합니다.<br/>
+                                번호별 배경색은 실제 기수가 착용하는 모자 색상과 동일합니다.
+                            </p>
+                        </div>
+                    </footer>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>경마 분석 대시보드 - 모자색 적용 버전</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- React & Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        body { 
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            letter-spacing: -0.01em;
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const LucideIcon = ({ name, size = 20, className = "" }) => {
+            useEffect(() => {
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            }, [name]);
+            return <i data-lucide={name} style={{ width: size, height: size }} className={className}></i>;
+        };
+
+        const racingData = {
+            seoul: [
+                { id: 1, startTime: "10:35", class: "국6등급", dist: "1200M", prize: "4,500만", title: "2세 미승리마 경주", selections: ["3", "1", "7", "4"], horseNames: ["래피드선더", "포에버길", "천지탱크", "레전드매치"], nextBest: ["8", "10"], fastStart: ["1", "2", "3", "4"], desc: "신마 (3) 래피드선더에 기대를 겁니다. 주행심사 당시 준수한 기록으로 우승했습니다. (1) 포에버길은 데뷔전 경험이 자산이 될 것이며, (7) 천지탱크는 추입력이 돋보입니다." },
+                { id: 2, startTime: "11:00", class: "혼4등급", dist: "1200M", prize: "7,500만", title: "2세 외산마 경주", selections: ["2", "3", "10", "7"], horseNames: ["정상히어로", "짜릿한행복", "드림리메인", "K N 빅뱅"], nextBest: ["8", "4"], fastStart: ["2", "3", "7", "10"], desc: "(2) 정상히어로가 강력한 우승 후보입니다. (3) 짜릿한행복 역시 선입 전개 후 좋은 기록을 냈습니다. 신마 (10) 드림리메인의 선행력도 주목해야 합니다." },
+                { id: 3, startTime: "11:25", class: "국6등급", dist: "1300M", prize: "4,500만", title: "2세 미승리마", selections: ["5", "7", "10", "4"], horseNames: ["명브레이싱", "청산무사", "엑스텐", "판타스틱브로"], nextBest: ["6", "8"], fastStart: ["1", "5", "7", "9"], desc: "(5) 명브레이싱은 직전 준우승으로 기량이 향상되었습니다. (7) 청산무사는 조재로 기수 복귀로 반격을 노리며, (10) 엑스텐도 잠재력이 충분합니다." },
+                { id: 4, startTime: "12:45", class: "국6등급", dist: "1700M", prize: "3,000만", title: "장거리 도전", selections: ["6", "1", "10", "5"], horseNames: ["미스터카라", "세라드", "머니포시즌", "골든메이커"], nextBest: ["8", "4"], fastStart: ["1", "2", "3", "6"], desc: "(6) 미스터카라는 직전 선행 작전으로 최고 성적을 냈습니다. (1) 세라드는 거리 증량과 마이아 기수의 호흡이 변수이며, (10) 머니포시즌은 거리 적응을 마쳤습니다." },
+                { id: 5, startTime: "13:35", class: "국5등급", dist: "1200M", prize: "4,500만", title: "핸디캡 경주", selections: ["6", "3", "5", "7"], horseNames: ["제너럴윈드", "스톰트루퍼", "분당쓰나미", "타이거K"], nextBest: ["8", "10"], fastStart: ["3", "6", "9", "10"], desc: "(6) 제너럴윈드는 데뷔전 선행 우승으로 100% 승률 유지 중입니다. (3) 스톰트루퍼는 강력한 선행 경쟁자이며, (5) 분당쓰나미도 이변을 노립니다." },
+                { id: 6, startTime: "14:25", class: "국5등급", dist: "1300M", prize: "4,500만", title: "박태종 기수 은퇴 경주", selections: ["1", "11", "10", "6"], horseNames: ["미라클삭스", "아파르트", "싹다나은", "컴플리트디바"], special: true, nextBest: ["2", "9"], fastStart: ["6", "7", "10", "11"], desc: "한국 경마의 전설 박태종 기수의 마지막 질주. (1) 미라클삭스는 최근 연속 2위로 우승권에 근접해 있습니다. 감동의 피날레를 기대합니다." },
+                { id: 7, startTime: "15:15", class: "혼4등급", dist: "1400M", prize: "6,000만", title: "핸디캡 경주", selections: ["2", "7", "1", "10"], horseNames: ["자이언트보스", "글로리영광", "글로벌서브", "서클에이"], nextBest: ["5", "11"], fastStart: ["1", "2", "6", "11"], desc: "(2) 자이언트보스는 3연승 저력이 있는 마필입니다. (7) 글로리영광은 상승세이며, (1) 글로벌서브는 안쪽에서 선행을 시도할 것입니다." },
+                { id: 8, startTime: "16:05", class: "국4등급", dist: "1700M", prize: "6,000만", title: "장거리 핸디캡", selections: ["6", "5", "2", "9"], horseNames: ["최강스피드", "어썸퀸", "탐라최강자", "브라이트위너"], nextBest: ["4", "10"], fastStart: ["1", "4", "5", "10"], desc: "(6) 최강스피드는 최근 추입력이 돋보입니다. (5) 어썸퀸은 직전 부진을 씻고 상위권 입상을 노리며, (2) 탐라최강자도 안정적입니다." },
+                { id: 9, startTime: "17:00", class: "국3등급", dist: "1800M", prize: "7,500만", title: "스테이어 경주", selections: ["5", "10", "2", "4"], horseNames: ["최강골드", "이클립스블랙", "누리천왕", "금빛천하"], nextBest: ["9", "1"], fastStart: ["2", "4", "5", "9"], desc: "(5) 최강골드는 1800M에서 4전 3승의 강자입니다. 선행 후 버티기가 가능합니다." },
+                { id: 10, startTime: "17:30", class: "혼3등급", dist: "1400M", prize: "7,500만", title: "대형 신예의 등장", selections: ["4", "3", "1", "5"], horseNames: ["그대만있다면", "드리머위즈", "마이티에버", "엘도라도놀부"], nextBest: ["8", "9"], fastStart: ["4", "9", "10", "11"], desc: "과천시장배 우승마 (4) 그대만있다면이 1400M에 도전합니다. 잠재력이 매우 뛰어난 마필입니다." },
+                { id: 11, startTime: "18:00", class: "2등급", dist: "1200M", prize: "9,000만", title: "최종 메인 경주", selections: ["1", "9", "2", "6"], horseNames: ["학산스피드", "벌교베리타스", "페어스카이", "베스트마야"], nextBest: ["8", "3"], fastStart: ["1", "2", "3", "11"], desc: "(1) 학산스피드는 1번 게이트의 이점을 살려 선행 우승을 노립니다. (9) 벌교베리타스는 강력한 추입마입니다." }
+            ],
+            busan: [
+                { id: 1, startTime: "12:05", class: "국6등급", dist: "1400M", prize: "3,000만", title: "중거리 미승리마", selections: ["5", "9", "7", "6"], horseNames: ["오아시스아델", "스원퀸", "그랑크뤼", "플레어업"], nextBest: ["10", "4"], fastStart: ["5", "6", "7", "10"], desc: "(5) 오아시스아델은 서승운 기수 기승으로 우승 가능성을 높였습니다. (9) 스원퀸은 다실바 기수와의 첫 호흡입니다." },
+                { id: 2, startTime: "13:10", class: "국6등급", dist: "1300M", prize: "3,000만", title: "암말 한정 경주", selections: ["10", "3", "8", "4"], horseNames: ["남표정지니", "아유레디", "희망사랑", "월드트리플캣"], nextBest: ["6", "5"], fastStart: ["2", "3", "10", "11"], desc: "(10) 남표정지니는 최근 꾸준한 발전으로 우승 문턱에 와 있습니다. (3) 아유레디도 데뷔전 선전했습니다." },
+                { id: 3, startTime: "14:00", class: "국6등급", dist: "1200M", prize: "3,000만", title: "단거리 승부", selections: ["9", "11", "7", "10"], horseNames: ["벌마의랜드", "월드파이터맨", "울프스텝", "스마트유림"], nextBest: ["3", "2"], fastStart: ["5", "7", "9", "11"], desc: "(9) 벌마의랜드는 직전 아쉬운 2위로 이번엔 확실한 우승 후보입니다. (11) 월드파이터맨은 외곽이 변수입니다." },
+                { id: 4, startTime: "14:50", class: "국5등급", dist: "1800M", prize: "4,500만", title: "장거리 핸디캡", selections: ["7", "12", "11", "4"], horseNames: ["포스비위드유", "위너스루키", "앨리스마린", "서부갬블"], nextBest: ["8", "5"], fastStart: ["3", "6", "11", "12"], desc: "(7) 포스비위드유는 최근 4경기 입상권으로 승리가 임박했습니다. (12) 위너스루키는 장거리 적성이 확인되었습니다." },
+                { id: 5, startTime: "15:40", class: "혼4등급", dist: "1400M", prize: "7,500만", title: "암말 한정 핸디캡", selections: ["1", "12", "8", "5"], horseNames: ["닉스고원", "트윈레인보우", "미라쥬", "브라운루키"], nextBest: ["7", "9"], fastStart: ["1", "8", "11", "12"], desc: "신예 (1) 닉스고원은 데뷔전 압승으로 연승 가능성이 높습니다. (12) 트윈레인보우는 최외곽 극복이 숙제입니다." },
+                { id: 6, startTime: "16:30", class: "2등급", dist: "1600M", prize: "9,000만", title: "메인 핸디캡 경주", selections: ["2", "4", "7", "12"], horseNames: ["프라임시크릿", "판타스틱밸류", "플라잉칸", "카디널포스"], nextBest: ["5", "1"], fastStart: ["3", "4", "8", "11"], desc: "급성장 중인 (2) 프라임시크릿이 우승을 노립니다. (4) 판타스틱밸류는 명예 회복을 위한 복귀전입니다." }
+            ]
+        };
+
+        const NumberBadge = ({ num, size = "md" }) => {
+            const n = parseInt(num.match(/\d+/)?.[0] || "0");
+            // PDF 39페이지 기반 공식 모자 배색 (KRA 표준)
+            const colorConfigs = {
+                1: "bg-white text-black border-gray-300",
+                2: "bg-[#FFEB3B] text-black border-yellow-500", // 노란색
+                3: "bg-[#F44336] text-white border-red-700", // 빨간색
+                4: "bg-[#212121] text-white border-black", // 검정색
+                5: "bg-[#2196F3] text-white border-blue-700", // 파란색
+                6: "bg-[#4CAF50] text-white border-green-700", // 초록색
+                7: "bg-[#795548] text-white border-orange-950", // 갈색
+                8: "bg-[#F06292] text-white border-pink-400", // 분홍색
+                9: "bg-[#9C27B0] text-white border-purple-700", // 보라색
+                10: "bg-[#00BCD4] text-white border-cyan-600", // 하늘색
+                11: "bg-white text-red-600 border-red-400", // 흰색+빨강줄 (테두리로 표현)
+                12: "bg-[#FFEB3B] text-blue-700 border-blue-400" // 노랑+파랑줄 (텍스트색으로 표현)
+            };
+            
+            const colorClass = colorConfigs[n] || "bg-slate-100 text-slate-400 border-slate-200";
+            const sizeClasses = size === "sm" ? "w-5 h-5 text-[10px]" : "w-7 h-7 text-xs shadow-sm";
+            
+            return (
+                <div className={`${sizeClasses} rounded flex items-center justify-center font-black border leading-none shrink-0 ${colorClass}`}>
+                    {n}
+                </div>
+            );
+        };
+
+        function App() {
+            const [location, setLocation] = useState('seoul');
+
+            return (
+                <div className="min-h-screen">
+                    <header className="bg-[#1a202c] text-white py-5 px-4 shadow-sm">
+                        <div className="max-w-6xl mx-auto flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                                <LucideIcon name="Trophy" className="text-yellow-500" />
+                                <h1 className="text-xl font-black tracking-tight uppercase leading-none">Race Mate</h1>
+                            </div>
+                            <div className="flex bg-gray-800 rounded-lg p-1">
+                                <button 
+                                    onClick={() => setLocation('seoul')}
+                                    className={`px-6 py-2 rounded-md text-xs font-bold transition-all ${location === 'seoul' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    서울
+                                </button>
+                                <button 
+                                    onClick={() => setLocation('busan')}
+                                    className={`px-6 py-2 rounded-md text-xs font-bold transition-all ${location === 'busan' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    부산
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="max-w-6xl mx-auto p-4 md:p-8">
+                        <div className="mb-8 border-b border-gray-200 pb-4 flex items-center justify-between">
+                            <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                <LucideIcon name="Map" size={18} className="text-blue-600" />
+                                경주 분석 대시보드 ({location === 'seoul' ? '서울' : '부산'})
+                            </h2>
+                            <div className="text-xs text-gray-400 font-bold uppercase tracking-wider italic">2025.12.21 Sunday</div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {racingData[location].map((race) => (
+                                <div key={race.id} className={`bg-white border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all ${race.special ? 'border-orange-500' : 'border-gray-200'}`}>
+                                    
+                                    <div className="p-5 border-b border-gray-100 flex items-start justify-between bg-gray-50/50">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-1.5">
+                                                <div className="flex items-center gap-1 text-blue-800 font-black text-xs bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                                                    <LucideIcon name="Clock" size={11} />
+                                                    <span>{race.startTime}</span>
+                                                </div>
+                                                <span className="text-gray-400 text-[11px] font-bold">{race.dist} · {race.class}</span>
+                                            </div>
+                                            <h3 className="text-base font-black text-gray-900 leading-tight">{race.title}</h3>
+                                        </div>
+                                        <div className="bg-gray-900 text-white w-10 h-10 rounded-lg flex flex-col items-center justify-center shrink-0 ml-3 shadow-lg">
+                                            <span className="text-sm font-black leading-none">{race.id}</span>
+                                            <span className="text-[7px] font-bold uppercase tracking-tighter">Race</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-5">
+                                        <div className="mb-5 text-gray-600 text-[13px] leading-relaxed bg-white p-3 border border-gray-100 rounded-lg shadow-inner italic font-medium">
+                                            "{race.desc}"
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <div>
+                                                <div className="flex items-center gap-1.5 mb-3">
+                                                    <LucideIcon name="Star" size={14} className="text-blue-600 fill-blue-600" />
+                                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">분석 추천 마번</span>
+                                                </div>
+                                                <div className="grid grid-cols-1 gap-2">
+                                                    {race.selections.map((num, idx) => (
+                                                        <div key={idx} className={`flex items-center gap-3 p-2.5 rounded-lg border ${idx === 0 ? 'bg-blue-50 border-blue-200 shadow-sm' : 'bg-white border-gray-50'}`}>
+                                                            <NumberBadge num={num} />
+                                                            <div className="flex-1 overflow-hidden">
+                                                                <div className={`text-xs font-black truncate ${idx === 0 ? 'text-blue-900' : 'text-gray-800'}`}>
+                                                                    {race.horseNames[idx]}
+                                                                </div>
+                                                                <div className="text-[9px] text-gray-400 font-bold uppercase mt-0.5">
+                                                                    {idx === 0 ? 'AI First Pick' : `Selection #${idx + 1}`}
+                                                                </div>
+                                                            </div>
+                                                            {idx === 0 && <LucideIcon name="CheckCircle2" size={14} className="text-blue-500" />}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-2 pt-3 border-t border-gray-100">
+                                                <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                                    <div className="text-[9px] font-black text-gray-400 uppercase mb-2 flex items-center gap-1">
+                                                        <LucideIcon name="Zap" size={10} className="text-orange-400" /> 복병마
+                                                    </div>
+                                                    <div className="flex gap-1.5 flex-wrap">
+                                                        {race.nextBest.map(n => <NumberBadge key={n} num={n} size="sm" />)}
+                                                    </div>
+                                                </div>
+                                                <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                                    <div className="text-[9px] font-black text-gray-400 uppercase mb-2 flex items-center gap-1">
+                                                        <LucideIcon name="FastForward" size={10} className="text-green-500" /> 빠른 출발
+                                                    </div>
+                                                    <div className="flex gap-1.5 flex-wrap">
+                                                        {race.fastStart.map(n => <NumberBadge key={n} num={n} size="sm" />)}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {race.special && (
+                                        <div className="bg-orange-500 text-white text-[10px] font-black py-2.5 px-5 text-center flex items-center justify-center gap-2 tracking-tight">
+                                            <LucideIcon name="Award" size={12} /> 박태종 기수 공식 은퇴 고지 경주
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </main>
+
+                    <footer className="py-12 px-6 text-center border-t border-gray-200 mt-12 bg-white">
+                        <div className="max-w-md mx-auto">
+                            <LucideIcon name="ShieldAlert" size={24} className="mx-auto text-gray-300 mb-4" />
+                            <p className="text-gray-400 text-[11px] leading-relaxed font-semibold">
+                                출발 시각 및 상금 정보는 2025.12.21일자 공식 'Easy Race' 가이드를 기반으로 합니다.<br/>
+                                번호별 배경색은 실제 기수가 착용하는 모자 색상과 동일합니다.
                             </p>
                         </div>
                     </footer>
