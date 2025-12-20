@@ -1,370 +1,218 @@
-import React, { useState, useEffect } from 'react';
-import { MapPin, Trophy, FastForward, Star, Info, User, ChevronRight } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Race Mate - 경마 예상 대시보드</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- React & Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800;900&display=swap');
+        body { font-family: 'Pretendard', sans-serif; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .card-shadow { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+    <div id="root"></div>
 
-const racingData = {
-  seoul: [
-    {
-      id: 1,
-      class: "국6등급",
-      dist: "1200M",
-      prize: "3,200만 원",
-      title: "2세 미승리마 경주",
-      desc: "신마 (3) 래피드선더에 기대를 겁니다. 주행심사 당시 준수한 기록으로 우승했습니다. (1) 포에버길은 데뷔전 경험이 큰 자산이 될 것이며, (7) 천지탱크는 추입력이 돋보입니다.",
-      selections: ["(3) 래피드선더", "(1) 포에버길", "(7) 천지탱크", "(4) 레전드매치"],
-      nextBest: "8, 10",
-      fastStart: "1, 2, 3, 4"
-    },
-    {
-      id: 2,
-      class: "국4등급",
-      dist: "1200M",
-      prize: "5,400만 원",
-      title: "2세 외산마 경주",
-      desc: "(2) 정상히어로가 강력한 우승 후보입니다. (3) 짜릿한행복 역시 선입 전개 후 좋은 기록을 냈습니다. 신마 (10) 드림리메인의 선행력도 주목해야 합니다.",
-      selections: ["(2) 정상히어로", "(3) 짜릿한행복", "(10) 드림리메인", "(7) K N 빅뱅"],
-      nextBest: "8, 4",
-      fastStart: "2, 3, 7, 10"
-    },
-    {
-      id: 3,
-      class: "국6등급",
-      dist: "1300M",
-      prize: "3,200만 원",
-      title: "2세 미승리마",
-      desc: "(5) 명브레이싱은 직전 준우승으로 기량이 향상되었습니다. (7) 청산무사는 조재로 기수 복귀로 반격을 노리며, (10) 엑스텐도 잠재력이 충분합니다.",
-      selections: ["(5) 명브레이싱", "(7) 청산무사", "(10) 엑스텐", "(4) 판타스틱브로"],
-      nextBest: "6, 8",
-      fastStart: "1, 5, 7, 9"
-    },
-    {
-      id: 4,
-      class: "국6등급",
-      dist: "1700M",
-      prize: "2,200만 원",
-      title: "장거리 도전",
-      desc: "(6) 미스터카라는 직전 선행 작전으로 최고 성적을 냈습니다. (1) 세라드는 거리 증량과 마이아 기수의 호흡이 변수이며, (10) 머니포시즌은 거리 적응을 마쳤습니다.",
-      selections: ["(6) 미스터카라", "(1) 세라드", "(10) 머니포시즌", "(5) 골든메이커"],
-      nextBest: "8, 4",
-      fastStart: "1, 2, 3, 6"
-    },
-    {
-      id: 5,
-      class: "국5등급",
-      dist: "1200M",
-      prize: "3,200만 원",
-      title: "핸디캡 경주",
-      desc: "(6) 제너럴윈드는 데뷔전 선행 우승으로 100% 승률 유지 중입니다. (3) 스톰트루퍼는 강력한 선행 경쟁자이며, (5) 분당쓰나미도 이변을 노립니다.",
-      selections: ["(6) 제너럴윈드", "(3) 스톰트루퍼", "(5) 분당쓰나미", "(7) 타이거K"],
-      nextBest: "8, 10",
-      fastStart: "3, 6, 9, 10"
-    },
-    {
-      id: 6,
-      class: "국5등급",
-      dist: "1300M",
-      prize: "3,200만 원",
-      title: "박태종 기수 은퇴 경주",
-      desc: "전설 박태종 기수의 은퇴 경주입니다. (1) 미라클삭스는 최근 3회 연속 준우승으로 은퇴 기념 우승 가능성이 높습니다. (11) 아파르트가 강력한 도전마입니다.",
-      selections: ["(1) 미라클삭스", "(11) 아파르트", "(10) 싹다나은", "(6) 컴플리트디바"],
-      special: true,
-      nextBest: "2, 9",
-      fastStart: "6, 7, 10, 11"
-    },
-    {
-      id: 7,
-      class: "혼4등급",
-      dist: "1400M",
-      prize: "4,300만 원",
-      title: "핸디캡 경주",
-      desc: "(2) 자이언트보스는 3연승 저력이 있는 마필입니다. (7) 글로리영광은 상승세이며, (1) 글로벌서브는 안쪽 게이트에서 선행을 시도할 것입니다.",
-      selections: ["(2) 자이언트보스", "(7) 글로리영광", "(1) 글로벌서브", "(10) 서클에이"],
-      nextBest: "5, 11",
-      fastStart: "1, 2, 6, 11"
-    },
-    {
-      id: 8,
-      class: "혼4등급",
-      dist: "1700M",
-      prize: "4,300만 원",
-      title: "장거리 핸디캡",
-      desc: "(6) 최강스피드는 최근 추입력이 돋보입니다. (5) 어썸퀸은 직전 부진을 씻고 상위권 입상을 노리며, (2) 탐라최강자도 안정적입니다.",
-      selections: ["(6) 최강스피드", "(5) 어썸퀸", "(2) 탐라최강자", "(9) 브라이트위너"],
-      nextBest: "4, 10",
-      fastStart: "1, 4, 5, 10"
-    },
-    {
-      id: 9,
-      class: "혼3등급",
-      dist: "1800M",
-      prize: "5,400만 원",
-      title: "스테이어 경주",
-      desc: "(5) 최강골드는 1800M 거리 강자입니다. (10) 이클립스블랙은 2연승 상승세이며, (2) 누리천왕은 게이트 이점을 살릴 전망입니다.",
-      selections: ["(5) 최강골드", "(10) 이클립스블랙", "(2) 누리천왕", "(4) 금빛천하"],
-      nextBest: "9, 1",
-      fastStart: "2, 4, 5, 9"
-    },
-    {
-      id: 10,
-      class: "혼3등급",
-      dist: "1400M",
-      prize: "5,400만 원",
-      title: "대형 신예의 등장",
-      desc: "(4) 그대만있다면은 과천시장배 제패 후 1400M에 도전하는 유력마입니다. (3) 드리머위즈와 (1) 마이티에버가 뒤를 따릅니다.",
-      selections: ["(4) 그대만있다면", "(3) 드리머위즈", "(1) 마이티에버", "(5) 엘도라도놀부"],
-      nextBest: "8, 9",
-      fastStart: "4, 9, 10, 11"
-    },
-    {
-      id: 11,
-      class: "국2등급",
-      dist: "1200M",
-      prize: "6,500만 원",
-      title: "최종 메인 경주",
-      desc: "(1) 학산스피드는 1200M 거리 전문마입니다. (9) 벌교베리타스는 막판 추입을 노리며, (2) 페어스카이도 거리 단축이 유리해 보입니다.",
-      selections: ["(1) 학산스피드", "(9) 벌교베리타스", "(2) 페어스카이", "(6) 베스트마야"],
-      nextBest: "8, 3",
-      fastStart: "1, 2, 3, 11"
-    }
-  ],
-  busan: [
-    {
-      id: 1,
-      class: "국6등급",
-      dist: "1400M",
-      prize: "2,200만 원",
-      title: "중거리 미승리마",
-      desc: "(5) 오아시스아델은 서승운 기수 기승으로 우승 적기입니다. (9) 스원퀸은 다실바 기수와의 호흡이 기대되며, (7) 그랑크뤼는 복귀전 컨디션이 좋습니다.",
-      selections: ["(5) 오아시스아델", "(9) 스원퀸", "(7) 그랑크뤼", "(6) 플레어업"],
-      nextBest: "10, 4",
-      fastStart: "5, 6, 7, 10"
-    },
-    {
-      id: 2,
-      class: "국6등급",
-      dist: "1300M",
-      prize: "2,200만 원",
-      title: "암말 한정 경주",
-      desc: "(10) 남표정지니는 최근 꾸준한 발전으로 우승 유력 후보입니다. (3) 아유레디와 (8) 희망사랑도 최근 걸음이 살아나고 있습니다.",
-      selections: ["(10) 남표정지니", "(3) 아유레디", "(8) 희망사랑", "(4) 월드트리플캣"],
-      nextBest: "6, 5",
-      fastStart: "2, 3, 10, 11"
-    },
-    {
-      id: 3,
-      class: "국6등급",
-      dist: "1200M",
-      prize: "2,200만 원",
-      title: "단거리 승부",
-      desc: "(9) 벌마의랜드는 이번 경주 우승을 노릴 유력마입니다. (11) 월드파이터맨은 외곽 게이트가 변수이나 능력이 출중합니다.",
-      selections: ["(9) 벌마의랜드", "(11) 월드파이터맨", "(7) 울프스텝", "(10) 스마트유림"],
-      nextBest: "3, 2",
-      fastStart: "5, 7, 9, 11"
-    },
-    {
-      id: 4,
-      class: "국5등급",
-      dist: "1800M",
-      prize: "3,200만 원",
-      title: "장거리 핸디캡",
-      desc: "(7) 포스비위드유는 서승운 기수 복귀로 첫 승을 노립니다. (12) 위너스루키와 (11) 앨리스마린이 강력한 경쟁 상대입니다.",
-      selections: ["(7) 포스비위드유", "(12) 위너스루키", "(11) 앨리스마린", "(4) 서부갬블"],
-      nextBest: "8, 5",
-      fastStart: "3, 6, 11, 12"
-    },
-    {
-      id: 5,
-      class: "혼4등급",
-      dist: "1400M",
-      prize: "5,400만 원",
-      title: "암말 한정 핸디캡",
-      desc: "(1) 닉스고원은 압도적인 실력으로 연승 가능성이 큽니다. (12) 트윈레인보우는 최외곽 변수를 극복해야 하며 (8) 미라쥬도 복병입니다.",
-      selections: ["(1) 닉스고원", "(12) 트윈레인보우", "(8) 미라쥬", "(5) 브라운루키"],
-      nextBest: "7, 9",
-      fastStart: "1, 8, 11, 12"
-    },
-    {
-      id: 6,
-      class: "혼2등급",
-      dist: "1600M",
-      prize: "6,500만 원",
-      title: "메인 핸디캡 경주",
-      desc: "(2) 프라임시크릿은 2등급 적응을 마친 거리 강자입니다. (4) 판타스틱밸류는 명예 회복을 노리며 (7) 플라잉칸도 실력파입니다.",
-      selections: ["(2) 프라임시크릿", "(4) 판타스틱밸류", "(7) 플라잉칸", "(12) 카디널포스"],
-      nextBest: "5, 1",
-      fastStart: "3, 4, 8, 11"
-    }
-  ]
-};
+    <script type="text/babel">
+        const { useState, useEffect } = React;
 
-export default function App() {
-  const [location, setLocation] = useState('seoul');
-  const [isScrolled, setIsScrolled] = useState(false);
+        // 아이콘 래퍼 컴포넌트
+        const LucideIcon = ({ name, size = 24, className = "" }) => {
+            useEffect(() => {
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            }, [name]);
+            return <i data-lucide={name} style={{ width: size, height: size }} className={className}></i>;
+        };
 
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+        const racingData = {
+            seoul: [
+                { id: 1, class: "국6등급", dist: "1200M", prize: "3,200만", title: "2세 미승리마 경주", selections: ["3", "1", "7", "4"], horseNames: ["래피드선더", "포에버길", "천지탱크", "레전드매치"], nextBest: ["8", "10"], fastStart: ["1", "2", "3", "4"], desc: "신마 (3) 래피드선더에 기대를 겁니다. 주행심사 당시 준수한 기록으로 우승했습니다. (1) 포에버길은 데뷔전 경험이 자산이 될 것이며, (7) 천지탱크는 추입력이 돋보입니다." },
+                { id: 2, class: "국4등급", dist: "1200M", prize: "5,400만", title: "2세 외산마 경주", selections: ["2", "3", "10", "7"], horseNames: ["정상히어로", "짜릿한행복", "드림리메인", "K N 빅뱅"], nextBest: ["8", "4"], fastStart: ["2", "3", "7", "10"], desc: "(2) 정상히어로가 강력한 우승 후보입니다. (3) 짜릿한행복 역시 선입 전개 후 좋은 기록을 냈습니다. 신마 (10) 드림리메인의 선행력도 주목해야 합니다." },
+                { id: 3, class: "국6등급", dist: "1300M", prize: "3,200만", title: "2세 미승리마", selections: ["5", "7", "10", "4"], horseNames: ["명브레이싱", "청산무사", "엑스텐", "판타스틱브로"], nextBest: ["6", "8"], fastStart: ["1", "5", "7", "9"], desc: "(5) 명브레이싱은 직전 준우승으로 기량이 향상되었습니다. (7) 청산무사는 조재로 기수 복귀로 반격을 노리며, (10) 엑스텐도 잠재력이 충분합니다." },
+                { id: 4, class: "국6등급", dist: "1700M", prize: "2,200만", title: "장거리 도전", selections: ["6", "1", "10", "5"], horseNames: ["미스터카라", "세라드", "머니포시즌", "골든메이커"], nextBest: ["8", "4"], fastStart: ["1", "2", "3", "6"], desc: "(6) 미스터카라는 직전 선행 작전으로 최고 성적을 냈습니다. (1) 세라드는 거리 증량과 마이아 기수의 호흡이 변수이며, (10) 머니포시즌은 거리 적응을 마쳤습니다." },
+                { id: 5, class: "국5등급", dist: "1200M", prize: "3,200만", title: "핸디캡 경주", selections: ["6", "3", "5", "7"], horseNames: ["제너럴윈드", "스톰트루퍼", "분당쓰나미", "타이거K"], nextBest: ["8", "10"], fastStart: ["3", "6", "9", "10"], desc: "(6) 제너럴윈드는 데뷔전 선행 우승으로 100% 승률 유지 중입니다. (3) 스톰트루퍼는 강력한 선행 경쟁자이며, (5) 분당쓰나미도 이변을 노립니다." },
+                { id: 6, class: "국5등급", dist: "1300M", prize: "3,200만", title: "박태종 기수 은퇴 경주", selections: ["1", "11", "10", "6"], horseNames: ["미라클삭스", "아파르트", "싹다나은", "컴플리트디바"], special: true, nextBest: ["2", "9"], fastStart: ["6", "7", "10", "11"], desc: "한국 경마의 전설 박태종 기수의 마지막 질주. (1) 미라클삭스는 최근 연속 2위로 우승권에 근접해 있습니다. 감동의 피날레를 기대합니다." },
+                { id: 7, class: "혼4등급", dist: "1400M", prize: "4,300만", title: "핸디캡 경주", selections: ["2", "7", "1", "10"], horseNames: ["자이언트보스", "글로리영광", "글로벌서브", "서클에이"], nextBest: ["5", "11"], fastStart: ["1", "2", "6", "11"], desc: "(2) 자이언트보스는 3연승 저력이 있는 마필입니다. (7) 글로리영광은 상승세이며, (1) 글로벌서브는 안쪽에서 선행을 시도할 것입니다." },
+                { id: 8, class: "혼4등급", dist: "1700M", prize: "4,300만", title: "장거리 핸디캡", selections: ["6", "5", "2", "9"], horseNames: ["최강스피드", "어썸퀸", "탐라최강자", "브라이트위너"], nextBest: ["4", "10"], fastStart: ["1", "4", "5", "10"], desc: "(6) 최강스피드는 최근 추입력이 돋보입니다. (5) 어썸퀸은 직전 부진을 씻고 상위권 입상을 노리며, (2) 탐라최강자도 안정적입니다." },
+                { id: 9, class: "혼3등급", dist: "1800M", prize: "5,400만", title: "스테이어 경주", selections: ["5", "10", "2", "4"], horseNames: ["최강골드", "이클립스블랙", "누리천왕", "금빛천하"], nextBest: ["9", "1"], fastStart: ["2", "4", "5", "9"], desc: "(5) 최강골드는 1800M에서 4전 3승의 강자입니다. 선행 후 버티기가 가능합니다." },
+                { id: 10, class: "혼3등급", dist: "1400M", prize: "5,400만", title: "대형 신예의 등장", selections: ["4", "3", "1", "5"], horseNames: ["그대만있다면", "드리머위즈", "마이티에버", "엘도라도놀부"], nextBest: ["8", "9"], fastStart: ["4", "9", "10", "11"], desc: "과천시장배 우승마 (4) 그대만있다면이 1400M에 도전합니다. 잠재력이 매우 뛰어난 마필입니다." },
+                { id: 11, class: "국2등급", dist: "1200M", prize: "6,500만", title: "최종 메인 경주", selections: ["1", "9", "2", "6"], horseNames: ["학산스피드", "벌교베리타스", "페어스카이", "베스트마야"], nextBest: ["8", "3"], fastStart: ["1", "2", "3", "11"], desc: "(1) 학산스피드는 1번 게이트의 이점을 살려 선행 우승을 노립니다. (9) 벌교베리타스는 강력한 추입마입니다." }
+            ],
+            busan: [
+                { id: 1, class: "국6등급", dist: "1400M", prize: "2,200만", title: "중거리 미승리마", selections: ["5", "9", "7", "6"], horseNames: ["오아시스아델", "스원퀸", "그랑크뤼", "플레어업"], nextBest: ["10", "4"], fastStart: ["5", "6", "7", "10"], desc: "(5) 오아시스아델은 서승운 기수 기승으로 우승 가능성을 높였습니다. (9) 스원퀸은 다실바 기수와의 첫 호흡입니다." },
+                { id: 2, class: "국6등급", dist: "1300M", prize: "2,200만", title: "암말 한정 경주", selections: ["10", "3", "8", "4"], horseNames: ["남표정지니", "아유레디", "희망사랑", "월드트리플캣"], nextBest: ["6", "5"], fastStart: ["2", "3", "10", "11"], desc: "(10) 남표정지니는 최근 꾸준한 발전으로 우승 문턱에 와 있습니다. (3) 아유레디도 데뷔전 선전했습니다." },
+                { id: 3, class: "국6등급", dist: "1200M", prize: "2,200만", title: "단거리 승부", selections: ["9", "11", "7", "10"], horseNames: ["벌마의랜드", "월드파이터맨", "울프스텝", "스마트유림"], nextBest: ["3", "2"], fastStart: ["5", "7", "9", "11"], desc: "(9) 벌마의랜드는 직전 아쉬운 2위로 이번엔 확실한 우승 후보입니다. (11) 월드파이터맨은 외곽이 변수입니다." },
+                { id: 4, class: "국5등급", dist: "1800M", prize: "3,200만", title: "장거리 핸디캡", selections: ["7", "12", "11", "4"], horseNames: ["포스비위드유", "위너스루키", "앨리스마린", "서부갬블"], nextBest: ["8", "5"], fastStart: ["3", "6", "11", "12"], desc: "(7) 포스비위드유는 최근 4경기 입상권으로 승리가 임박했습니다. (12) 위너스루키는 장거리 적성이 확인되었습니다." },
+                { id: 5, class: "혼4등급", dist: "1400M", prize: "5,400만", title: "암말 한정 핸디캡", selections: ["1", "12", "8", "5"], horseNames: ["닉스고원", "트윈레인보우", "미라쥬", "브라운루키"], nextBest: ["7", "9"], fastStart: ["1", "8", "11", "12"], desc: "신예 (1) 닉스고원은 데뷔전 압승으로 연승 가능성이 높습니다. (12) 트윈레인보우는 최외곽 극복이 숙제입니다." },
+                { id: 6, class: "혼2등급", dist: "1600M", prize: "6,500만", title: "메인 핸디캡 경주", selections: ["2", "4", "7", "12"], horseNames: ["프라임시크릿", "판타스틱밸류", "플라잉칸", "카디널포스"], nextBest: ["5", "1"], fastStart: ["3", "4", "8", "11"], desc: "급성장 중인 (2) 프라임시크릿이 우승을 노립니다. (4) 판타스틱밸류는 명예 회복을 위한 복귀전입니다." }
+            ]
+        };
 
-  const scrollToRace = (id) => {
-    const element = document.getElementById(`race-${id}`);
-    if (element) {
-      const headerOffset = 140;
-      const elementPosition = element.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-      window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-20">
-      {/* Dynamic Header */}
-      <header className={`bg-blue-800 text-white transition-all duration-300 sticky top-0 z-50 ${isScrolled ? 'py-3 shadow-md' : 'py-6 md:py-8 shadow-lg'}`}>
-        <div className="max-w-6xl mx-auto px-4 flex flex-col items-center gap-4">
-          <div className="flex items-center justify-between w-full">
-            <div className="flex items-center gap-2 md:gap-3">
-              <Trophy className={`${isScrolled ? 'w-5 h-5' : 'w-6 h-6 md:w-8 md:h-8'} text-yellow-400 transition-all`} />
-              <h1 className={`font-bold tracking-tight transition-all ${isScrolled ? 'text-lg md:text-xl' : 'text-xl md:text-3xl'}`}>
-                경마 예상 대시보드
-              </h1>
-            </div>
-            
-            <div className="flex bg-blue-900/50 p-1 rounded-xl border border-white/10 shrink-0">
-              <button 
-                onClick={() => setLocation('seoul')}
-                className={`px-4 md:px-8 py-1.5 md:py-2 rounded-lg transition-all text-xs md:text-sm font-bold ${location === 'seoul' ? 'bg-white text-blue-800 shadow-sm' : 'text-blue-100 hover:bg-white/10'}`}
-              >
-                서울
-              </button>
-              <button 
-                onClick={() => setLocation('busan')}
-                className={`px-4 md:px-8 py-1.5 md:py-2 rounded-lg transition-all text-xs md:text-sm font-bold ${location === 'busan' ? 'bg-white text-blue-800 shadow-sm' : 'text-blue-100 hover:bg-white/10'}`}
-              >
-                부산
-              </button>
-            </div>
-          </div>
-
-          {/* Quick Nav for Mobile */}
-          {!isScrolled && (
-            <div className="flex overflow-x-auto w-full no-scrollbar gap-2 py-1">
-              {racingData[location].map(race => (
-                <button 
-                  key={race.id}
-                  onClick={() => scrollToRace(race.id)}
-                  className="shrink-0 w-8 h-8 rounded-full bg-blue-700/50 flex items-center justify-center text-[10px] font-bold border border-white/20 hover:bg-white hover:text-blue-800 transition-colors"
-                >
-                  {race.id}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-6xl mx-auto p-4 md:p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2 text-slate-500 text-xs md:text-sm font-medium">
-            <MapPin className="w-3.5 h-3.5 text-blue-500" />
-            <span>{location === 'seoul' ? '서울 경마공원' : '부산 경남 경마공원'}</span>
-            <span className="mx-1 opacity-30">•</span>
-            <span>{racingData[location].length}개 경주</span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-          {racingData[location].map((race) => (
-            <div 
-              id={`race-${race.id}`}
-              key={race.id} 
-              className={`bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all flex flex-col relative ${race.special ? 'ring-2 ring-orange-400' : ''}`}
-            >
-              {race.special && (
-                <div className="absolute top-0 right-0 bg-orange-500 text-white px-2.5 py-1 text-[10px] md:text-xs font-bold rounded-bl-xl flex items-center gap-1 z-10 animate-pulse">
-                  <User className="w-3 h-3" /> 은퇴기념
+        const HorseBadge = ({ num, size = "md" }) => {
+            const colors = [
+                "bg-white text-black border-slate-300", "bg-blue-600 text-white border-blue-700",
+                "bg-red-600 text-white border-red-700", "bg-black text-white border-black",
+                "bg-yellow-400 text-black border-yellow-500", "bg-green-600 text-white border-green-700",
+                "bg-indigo-900 text-white border-indigo-950", "bg-pink-500 text-white border-pink-600",
+                "bg-purple-600 text-white border-purple-700", "bg-orange-500 text-white border-orange-600",
+                "bg-teal-600 text-white border-teal-700", "bg-slate-400 text-white border-slate-500"
+            ];
+            const n = parseInt(num);
+            const colorClass = colors[(n - 1) % colors.length] || "bg-slate-200";
+            const sizeClass = size === "sm" ? "w-5 h-5 text-[10px]" : "w-8 h-8 text-sm";
+            return (
+                <div className={`${sizeClass} rounded-full flex items-center justify-center font-black border-2 shadow-sm ${colorClass} shrink-0`}>
+                    {num}
                 </div>
-              )}
+            );
+        };
 
-              {/* Card Header */}
-              <div className="bg-slate-50 p-4 md:p-5 border-b border-slate-100">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-blue-700 font-black text-2xl leading-none">{race.id}</span>
-                    <span className="text-blue-700/60 font-bold text-xs uppercase tracking-widest">Race</span>
-                  </div>
-                  <span className="text-[10px] md:text-xs font-bold px-2 py-1 bg-white border border-slate-200 rounded-lg text-slate-500 shadow-sm">
-                    {race.prize}
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-2 items-center">
-                  <span className="text-xs md:text-sm font-bold text-slate-700 bg-slate-200/50 px-2 py-0.5 rounded-md">{race.class}</span>
-                  <span className="w-1 h-1 bg-slate-300 rounded-full" />
-                  <span className="text-xs md:text-sm font-bold text-slate-700">{race.dist}</span>
-                </div>
-              </div>
+        function App() {
+            const [location, setLocation] = useState('seoul');
 
-              {/* Card Body */}
-              <div className="p-4 md:p-5 flex-grow">
-                <h3 className="font-bold text-base md:text-lg mb-2.5 text-slate-800 flex items-start gap-2 leading-tight">
-                  <ChevronRight className="w-4 h-4 mt-1 text-blue-500 shrink-0" />
-                  {race.title}
-                </h3>
-                <p className="text-slate-600 text-xs md:text-sm leading-relaxed mb-5 bg-blue-50/30 p-3 rounded-xl border border-blue-100/50">
-                  {race.desc}
-                </p>
-
-                <div className="space-y-4 pt-4 border-t border-slate-100">
-                  <div>
-                    <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-tighter mb-2 flex items-center gap-1.5">
-                      <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" /> 주안점 (Selections)
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {race.selections.map((sel, idx) => (
-                        <div key={idx} className={`px-3 py-2 rounded-xl text-[11px] md:text-xs font-bold text-center border transition-colors ${idx === 0 ? 'bg-blue-600 border-blue-600 text-white shadow-sm' : 'bg-white border-slate-200 text-slate-700'}`}>
-                          {sel}
+            return (
+                <div className="min-h-screen">
+                    {/* Header */}
+                    <header className="bg-slate-900 text-white py-6 px-4 shadow-2xl sticky top-0 z-50">
+                        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-yellow-500 rounded-2xl shadow-lg">
+                                    <LucideIcon name="Trophy" size={28} className="text-white" />
+                                </div>
+                                <div>
+                                    <h1 className="text-2xl md:text-3xl font-black tracking-tighter">RACE MATE</h1>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">AI Racing Analyst</p>
+                                </div>
+                            </div>
+                            
+                            <div className="flex bg-slate-800 p-1.5 rounded-2xl border border-slate-700 w-full md:w-auto">
+                                <button 
+                                    onClick={() => setLocation('seoul')}
+                                    className={`flex-1 md:flex-none px-8 py-2.5 rounded-xl transition-all text-xs font-black ${location === 'seoul' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                                >
+                                    SEOUL
+                                </button>
+                                <button 
+                                    onClick={() => setLocation('busan')}
+                                    className={`flex-1 md:flex-none px-8 py-2.5 rounded-xl transition-all text-xs font-black ${location === 'busan' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                                >
+                                    BUSAN
+                                </button>
+                            </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                    </header>
 
-                  <div className="flex gap-3">
-                    <div className="flex-1 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <div className="text-[9px] font-bold text-slate-400 uppercase mb-1 flex items-center gap-1">
-                        <Info className="w-2.5 h-2.5" /> 복병
-                      </div>
-                      <span className="text-xs font-black text-slate-700">{race.nextBest}</span>
-                    </div>
-                    <div className="flex-1 bg-green-50/50 p-3 rounded-xl border border-green-100">
-                      <div className="text-[9px] font-bold text-green-600 uppercase mb-1 flex items-center gap-1">
-                        <FastForward className="w-2.5 h-2.5" /> 빠른 마
-                      </div>
-                      <span className="text-xs font-black text-green-700">{race.fastStart}</span>
-                    </div>
-                  </div>
+                    {/* Content */}
+                    <main className="max-w-6xl mx-auto p-4 md:p-8">
+                        <div className="flex items-center gap-2 mb-8 text-slate-500 font-bold text-sm">
+                            <LucideIcon name="MapPin" size={16} className="text-blue-600" />
+                            <span>{location === 'seoul' ? '서울 경마공원' : '부산 경남 경마공원'}</span>
+                            <span className="opacity-20 mx-2">|</span>
+                            <span>{racingData[location].length}개 경주 분석 완료</span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+                            {racingData[location].map((race) => (
+                                <div 
+                                    key={race.id} 
+                                    className={`bg-white rounded-[2.5rem] card-shadow border border-slate-200/60 overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col relative ${race.special ? 'ring-4 ring-orange-400/30' : ''}`}
+                                >
+                                    {race.special && (
+                                        <div className="absolute top-0 right-0 bg-gradient-to-l from-orange-500 to-orange-400 text-white px-4 py-2 text-[10px] font-black rounded-bl-[1.5rem] z-10 shadow-lg flex items-center gap-1.5 animate-pulse">
+                                            <LucideIcon name="User" size={12} /> 박태종 기수 은퇴경주
+                                        </div>
+                                    )}
+
+                                    {/* Card Header */}
+                                    <div className="p-6 pb-4">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div className="flex flex-col">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">{race.class}</span>
+                                                    <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{race.dist}</span>
+                                                </div>
+                                                <h3 className="text-xl font-black text-slate-800 leading-tight">{race.title}</h3>
+                                            </div>
+                                            <div className="bg-slate-900 text-white w-12 h-12 rounded-2xl flex flex-col items-center justify-center shrink-0 shadow-lg">
+                                                <span className="text-lg font-black leading-none">{race.id}</span>
+                                                <span className="text-[7px] font-bold uppercase">Race</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="bg-slate-50 p-4 rounded-2xl border border-dashed border-slate-200">
+                                            <p className="text-slate-600 text-xs md:text-sm leading-relaxed font-medium line-clamp-3">
+                                                {race.desc}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Card Footer - Data Section */}
+                                    <div className="p-6 pt-0 mt-auto space-y-5">
+                                        <div>
+                                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                <LucideIcon name="Star" size={12} className="text-blue-500 fill-blue-500" /> 핵심 추천 마번
+                                            </h4>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                {race.selections.map((num, idx) => (
+                                                    <div key={idx} className={`flex items-center gap-3 p-2 rounded-xl border transition-all ${idx === 0 ? 'bg-blue-600 border-blue-500 text-white shadow-md scale-[1.02]' : 'bg-white border-slate-100'}`}>
+                                                        <HorseBadge num={num} />
+                                                        <div className="flex flex-col overflow-hidden">
+                                                            <span className={`text-xs font-black truncate ${idx === 0 ? 'text-white' : 'text-slate-800'}`}>{race.horseNames[idx]}</span>
+                                                            <span className={`text-[9px] font-bold ${idx === 0 ? 'text-blue-100' : 'text-slate-400'}`}>{idx === 0 ? '강력 추천' : `${idx + 1}순위`}</span>
+                                                        </div>
+                                                        {idx === 0 && <LucideIcon name="Award" size={16} className="ml-auto text-yellow-300 mr-1" />}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex flex-col gap-2">
+                                                <span className="text-[9px] font-black text-slate-400 uppercase">복병마</span>
+                                                <div className="flex gap-1.5 flex-wrap">
+                                                    {race.nextBest.map(n => <HorseBadge key={n} num={n} size="sm" />)}
+                                                </div>
+                                            </div>
+                                            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex flex-col gap-2">
+                                                <span className="text-[9px] font-black text-slate-400 uppercase">빠른 출발</span>
+                                                <div className="flex gap-1.5 flex-wrap">
+                                                    {race.fastStart.map(n => <HorseBadge key={n} num={n} size="sm" />)}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </main>
+
+                    <footer className="py-12 px-6 border-t border-slate-200 mt-12 text-center">
+                        <div className="max-w-md mx-auto">
+                            <LucideIcon name="Award" size={24} className="mx-auto text-slate-300 mb-4" />
+                            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-2">Race Mate Insights</p>
+                            <p className="text-slate-400 text-[11px] leading-relaxed">
+                                본 정보는 통계 기반 예측이며 실제 결과는 다를 수 있습니다.<br/> 무리한 베팅은 자제해 주시기 바랍니다.
+                            </p>
+                        </div>
+                    </footer>
                 </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </main>
+            );
+        }
 
-      {/* Mobile-friendly Footer */}
-      <footer className="max-w-6xl mx-auto px-6 py-12 mt-4 border-t border-slate-200 text-center">
-        <Trophy className="w-6 h-6 text-slate-300 mx-auto mb-3" />
-        <p className="text-slate-400 text-[10px] md:text-xs leading-relaxed max-w-sm mx-auto">
-          본 정보는 AI 분석을 포함한 참고용 데이터이며 실시간 마감 시간 및 확정 결과를 반드시 확인하시기 바랍니다.
-        </p>
-        <div className="mt-6 flex justify-center gap-6 text-slate-400 font-medium">
-          <span className="hover:text-blue-500 transition-colors cursor-pointer text-[10px] uppercase tracking-widest">Privacy</span>
-          <span className="hover:text-blue-500 transition-colors cursor-pointer text-[10px] uppercase tracking-widest">Terms</span>
-        </div>
-      </footer>
-
-      {/* Bottom Padding for Mobile browser bars */}
-      <div className="h-8 md:hidden" />
-    </div>
-  );
-}
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
