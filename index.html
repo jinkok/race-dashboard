@@ -1,0 +1,597 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { Upload, Clock, MapPin, Activity, AlertCircle, Medal, FileText, ThumbsUp, Star, Trophy, ClipboardPaste, CheckCircle2, Zap, AlertTriangle } from 'lucide-react';
+
+// --- 기본 데이터 (CSV 샘플) ---
+const SAMPLE_SEOUL_CSV = `일자,경주,시간,경주등급,거리,번호,마명,산지,성별,연령,레이팅,중량,증감,기수명,조교사명,마주명,조교 횟수,출전 주기,장구현황,특이사항,부마,등급
+2025년12월21일,제1경주,10:35,국6등급,1200M,1,포에버길,한국,수,2,,56,0,김용근,전승규,박남성,13,4주,계란형큰,,테스타마타,국6
+2025년12월21일,제1경주,10:35,국6등급,1200M,2,카론에지,한국,암,2,,54,0,오수철,최영주,조성옥,11,4주,"망사눈,반가지큰",,레이스데이,국6
+2025년12월21일,제1경주,10:35,국6등급,1200M,3,래피드선더,한국,암,2,,54,0,조재로,박종곤,이웅열,10,,망사눈+,,콩코드포인트,국6
+2025년12월21일,제1경주,10:35,국6등급,1200M,4,레전드매치,한국,수,2,,56,0,유승완,최영주,이종훈,12,3주,,,한센,국6
+2025년12월21일,제1경주,10:35,국6등급,1200M,7,천지탱크,한국,수,2,,56,0,문정균,김동균,최임규,10,6주,"계란형큰,망사눈",,에어포스블루,국6
+2025년12월21일,제7경주,15:15,혼4등급,1400M,2,자이언트보스,한국,수,3,46(3),56,1.5,김용근,홍대유,신명석,10,4주,,,뉴화이트삭스,국4
+2025년12월21일,제7경주,15:15,혼4등급,1400M,7,글로리영광,미국,수,3,50(6),58,3,장추열,박지헌,박남성,8,4주,"계란형큰,망사눈",,CATALINA CRUISER,외4
+2025년12월21일,제10경주,17:30,혼3등급,1400M,4,그대만있다면,미국,수,2,61(11),55.5,-0.5,씨씨웡,최용건,우태율,14,5주,"계란형큰,망사",,TACITUS,외3
+2025년12월21일,제10경주,17:30,혼3등급,1400M,5,엘도라도놀부,한국,수,3,64(0),58,4,마이아,정호익,임동현,10,3주,망사눈,,파워블레이드,국3
+2025년12월21일,제11경주,18:00,2등급,1200M,1,학산스피드,한국(포),수,3,72(8),55.5,3.5,이동하,홍대유,이재학,10,4주,,,올드패션드,2등급`;
+
+const SAMPLE_BUSAN_CSV = `일자,경주,시간,경주등급,거리,번호,마명,산지,성별,연령,레이팅,중량,증감,기수명,조교사명,마주명,조교 횟수,출전 주기,장구현황,특이사항,부마,등급
+2025년12월21일,제1경주,12:05,국6등급,1400M,5,오아시스아델,한국,수,2,,56,0,서승운,백광열,이종훈,10,4주,"계란형큰,망사",,섀클포드,국6
+2025년12월21일,제1경주,12:05,국6등급,1400M,7,그랑크뤼,한국,거,3,,57,2,박재이,김혜선,송정수,17,53주,"계란형큰+,망사+,망사눈-,반가지큰-,승인편자-,혀끈-",,투아너앤드서브,국6
+2025년12월21일,제1경주,12:05,국6등급,1400M,9,스원퀸,한국,암,3,,55,0,다실바,문현철,홍애란,13,5주,"계란형큰,망사눈",,섀클포드,국6
+2025년12월21일,제2경주,13:10,국6등급,1300M,1,탑큐,한국,암,3,,55,0,김어수,윤영훈,김정두,13,3주,"계란형큰,망사",,케이탑,국6
+2025년12월21일,제2경주,13:10,국6등급,1300M,2,매직오브아트,한국,암,2,,54,0,모준호,라이스,신우철,13,4주,"계란형큰,망사눈",,빅스,국6
+2025년12월21일,제2경주,13:10,국6등급,1300M,3,아유레디,한국,암,2,,54,0,다나카,임성실,김무현,11,4주,"망사눈,반가지큰",,돌아온현표,국6
+2025년12월21일,제2경주,13:10,국6등급,1300M,10,램프요정지니,한국,암,2,,54,0,서승운,조용배,유성훈,10,4주,"계란형큰,망사",,언캡처드,국6`;
+
+// --- 기본 데이터 (전문가 추천 텍스트 샘플 - 한국어) ---
+const SAMPLE_RECOMMENDATION = `
+서울 1경주: 국6등급 (1200M) 별정A / 3,200만 원
+12마리의 루키들 중 5마리가 데뷔전을 치릅니다. 신예마인 (3)래피드선더를 주목합니다. 주행심사 당시 중위권에서 올라와 적절한 기록으로 우승했으며, 1200M 거리도 데뷔전에 적합해 보입니다. (1)포에버길은 데뷔전에서 시종일관 선두권에서 경합하며 3위를 기록했습니다. 실전 경험이 큰 자산이 될 것입니다. (7)천지탱크는 지난 11월 9일 데뷔전에서 후미권에서 추격해 4위를 기록하며 가능성을 보였습니다. (4)레전드매치와 신마 (8)메탈인베이더도 배당판의 지지를 받을 후보들입니다.
+승부예측: (3)래피드선더, (1)포에버길, (7)천지탱크, (4)레전드매치
+복병권: 8, 10
+초반 전개 빠른 말: 1, 2, 3, 4
+
+서울 2경주: 혼4등급 (1200M) 별정A / 5,400만 원
+2마리를 제외하고 모두 데뷔전인 외산마 경주입니다. 경험이 있는 (2)정상히어로가 강력한 우승 후보입니다. 11월 22일 데뷔전에서 선입권 전개로 2위를 기록하며 실력을 입증했습니다. 하지만 같은 경주에서 1마신 차이로 3위를 했던 (3)짜릿한행복 역시 만만치 않은 상대입니다. 신마 중에는 주행심사에서 여유 있게 선행승을 거둔 (10)드림리메인이 눈에 띕니다. (7)K N빅뱅과 두 번째 주행심사에서 걸음이 좋아진 (8)태권브이도 복병입니다.
+승부예측: (2)정상히어로, (3)짜릿한행복, (10)드림리메인, (7)K N빅뱅
+복병권: 8, 4
+초반 전개 빠른 말: 2, 3, 7, 10
+
+서울 3경주: 국6등급 (1300M) 별정A / 3,200만 원
+(5)명브레이싱은 지난 11월 15일 1200M 경주에서 선행 전개 후 2위를 기록하며 걸음이 좋아졌습니다. 이번에도 안쪽 게이트를 활용해 선행 강공이 예상됩니다. (7)청산무사는 데뷔전 2위 이후 직전 경주에서는 외곽 게이트의 불리함으로 부진했지만, 박태종 기수가 다시 기승하며 반전을 노립니다. (10)엑스텐은 직전 4위를 기록하며 가능성을 보였고, (4)판타스틱브로와 데뷔마 (6)다나은스타도 순위권 도전이 가능합니다.
+승부예측: (5)명브레이싱, (7)청산무사, (10)엑스텐, (4)판타스틱브로
+복병권: 6, 8
+초반 전개 빠른 말: 1, 5, 7, 9
+
+부경 1경주: 국6등급 (1400M) 별정A / 2,200만 원
+(5)오아시스아델은 최근 세 번의 경주에서 꾸준히 걸음이 늘고 있으며, 직전 1600M에서도 3위를 기록했습니다. 서승운 기수의 기승은 우승 의지로 해석됩니다. (9)스원퀸은 직전 부진을 뒤로하고 1300M 2위 기록이 있는 만큼 다실바 기수와 함께 반등을 노립니다. 53주 만에 복귀하는 (7)그랑크루는 주행심사 모습이 양호해 복귀전에서 선전이 기대됩니다. (6)플레어업과 (10)마더원더풀도 복승권 후보입니다.
+승부예측: (5)오아시스아델, (9)스원퀸, (7)그랑크루, (6)플레어업
+복병권: 10, 4
+초반 전개 빠른 말: 5, 6, 7, 10
+
+서울 4경주: 국6등급 (1700M) 별정A / 2,200만 원
+(6)미스터카라는 직전 1700M 경주에서 처음으로 선행 작전을 펼치며 2위를 기록, 최고의 성적을 냈습니다. 이번에도 비슷한 전개가 예상됩니다. (1)세라드는 마이아 기수와 호흡을 맞추며 거리 연장에 도전하는데, 혈통적 잠재력이 기대됩니다. (10)머니포시즌은 직전 1700M에서 추입력을 발휘하며 2위를 기록해 거리 적성을 확인했습니다. (5)골든메이커와 (8)맥스맨이 복병입니다.
+승부예측: (6)미스터카라, (1)세라드, (10)머니포시즌, (5)골든메이커
+복병권: 8, 4
+초반 전개 빠른 말: 1, 2, 3, 6
+
+부경 2경주: 국6등급 (1300M) 별정A / 2,200만 원 (암말 한정)
+암말 한정 경주입니다. (10)람표정지니는 직전 경주에서 선입 전개로 2위를 기록하며 이번 경주 강력한 우승 후보로 꼽힙니다. (3)아유레디는 데뷔전에서 추입력을 선보이며 3위를 기록했고, 이번에 더 나은 게이트를 배정받아 상위권을 노립니다. (8)희망사랑은 최근 두 번의 4위 기록으로 경주 적응력을 키웠습니다. (4)월드트리플캣과 (6)레조넌스마린도 무시할 수 없습니다.
+승부예측: (10)람표정지니, (3)아유레디, (8)희망사랑, (4)월드트리플캣
+복병권: 6, 5
+초반 전개 빠른 말: 2, 3, 10, 11
+
+서울 5경주: 국5등급 (1200M) 핸디캡 / 3,200만 원
+(6)제너럴윈드는 주행심사 우승 후 데뷔전에서도 1000M 선행승을 거두며 100% 승률을 기록 중입니다. 승군전이자 거리 연장이지만 연승이 기대됩니다. (3)스톰트루퍼는 선행 전개가 강점이며 이번에도 앞선에서 경주를 주도할 것입니다. (5)분당쓰나미는 직전 경주 깜짝 2위를 기록하며 상승세에 있고, (7)타이거K와 (8)벽송도 순위권 진입이 가능합니다.
+승부예측: (6)제너럴윈드, (3)스톰트루퍼, (5)분당쓰나미, (7)타이거K
+복병권: 8, 10
+초반 전개 빠른 말: 3, 6, 9, 10
+
+부경 3경주: 국6등급 (1200M) 별정A / 2,200만 원
+(9)벌마의랜드는 직전 1200M에서 아쉽게 2위를 차지했으나 선두권 전개가 좋아 강력한 우승 후보입니다. (11)월드파이터맨은 외곽 게이트가 부담스럽지만 초반 위치 선정만 잘한다면 충분히 위협적입니다. (7)울프스텝은 감량 이점이 활용해 직전 2위를 기록한 만큼 이번에도 호성적이 기대됩니다. (10)스마트유림과 (3)빅토리스토리도 가능성이 있습니다.
+승부예측: (9)벌마의랜드, (11)월드파이터맨, (7)울프스텝, (10)스마트유림
+복병권: 3, 2
+초반 전개 빠른 말: 5, 7, 9, 11
+
+서울 6경주: 국5등급 (1300M) 핸디캡 / 3,200만 원
+전설적인 박태종 기수의 은퇴 경주로 주목받는 경주입니다. 박 기수는 인기마 (1)미라클삭스에 기승합니다. 최근 3연속 2위를 기록 중이며 이번 암말 한정 경주에서 첫 승을 노립니다. 하지만 퀴로즈 기수의 (11)아파투가 강력한 도전마입니다. 직전 1300M에서 빠른 기록으로 우승하며 승군했습니다. (10)싹다나은은 감량 기수 기승으로 이점을 챙겼고, (6)컴플리트디바와 (2)섬돌모루도 전력이 탄탄합니다.
+승부예측: (1)미라클삭스, (11)아파투, (10)싹다나은, (6)컴플리트디바
+복병권: 2, 9
+초반 전개 빠른 말: 6, 7, 10, 11
+
+부경 4경주: 국5등급 (1800M) 핸디캡 / 3,200만 원
+(7)포스비위드유는 최근 4경기에서 2위 1번, 3위 3번을 기록하며 우승 문턱에 와 있습니다. 서승운 기수의 복귀가 큰 힘이 될 것입니다. (12)위너스루키는 직전 1800M 첫 도전에서 2위를 기록하며 거리 적성을 보여주었으며 이번에도 강력한 상대입니다. (11)앨리스마린은 이 거리 우승 경험이 있는 실력자이며, (4)서부갬블과 (8)닥터솔라가 순위권을 노립니다.
+승부예측: (7)포스비위드유, (12)위너스루키, (11)앨리스마린, (4)서부갬블
+복병권: 8, 5
+초반 전개 빠른 말: 3, 6, 11, 12
+
+서울 7경주: 혼4등급 (1400M) 핸디캡 / 4,300만 원
+(2)자이언트보스는 공백 후 복귀전에서 2위를 기록하며 건재를 과시했습니다. 이번에는 더 좋아진 컨디션으로 우승을 노립니다. (7)글로리영광은 직전 경주에서 자이언트보스를 꺾고 우승하며 상승세에 있으나 부중이 늘어난 것이 변수입니다. (1)글로벌서브는 이번에 안쪽 게이트를 배정받아 편안하게 선행을 나설 수 있어 반등이 기대됩니다. (10)서클에이와 (5)마이티코드도 체크해야 합니다.
+승부예측: (2)자이언트보스, (7)글로리영광, (1)글로벌서브, (10)서클에이
+복병권: 5, 11
+초반 전개 빠른 말: 1, 2, 6, 11
+
+부경 5경주: 혼4등급 (1400M) 핸디캡 / 5,400만 원 (암말 한정)
+(1)닉스고원은 데뷔전 1200M에서 압도적인 실력으로 우승했습니다. 부중이 3kg 늘고 거리도 늘었지만 여전히 우승 후보 0순위입니다. (12)트윈레인보우는 최근 2승을 거둔 강자이나 외곽 게이트가 변수입니다. (8)미라주는 승군전이지만 1400M 우승 경험이 있어 배당 메리트가 있습니다. (5)브라운루키와 (7)더노미네이트도 복병으로 분류됩니다.
+승부예측: (1)닉스고원, (12)트윈레인보우, (8)미라주, (5)브라운루키
+복병권: 7, 9
+초반 전개 빠른 말: 1, 8, 11, 12
+
+서울 8경주: 국4등급 (1700M) 핸디캡 / 4,300만 원
+(6)최강스피드는 직전 1300M 우승 후 승군했습니다. 처음 도전하는 1700M이지만 추입형 스타일이라 거리 연장이 유리할 것으로 보입니다. (5)어썸퀸은 직전 경주 출발이 늦어 고전했지만, 이전에 보여준 5연속 입상 전력은 무시할 수 없습니다. (2)탐라최강자는 꾸준히 3위 이내 성적을 내고 있으며, (9)브라이트위너와 (4)원더풀삭스도 입상권입니다.
+승부예측: (6)최강스피드, (5)어썸퀸, (2)탐라최강자, (9)브라이트위너
+복병권: 4, 10
+초반 전개 빠른 말: 1, 4, 5, 10
+
+부경 6경주: 2등급 (1600M) 핸디캡 / 6,500만 원
+(2)프라임시크릿은 3연승 후 2등급 승군전에서 2위를 기록하며 높은 클래스를 증명했습니다. 이번에도 좋은 게이트로 우승이 유력합니다. 트리플 티아라의 강자 (4)판타스틱밸류는 공백 후 적응을 마쳤으며 이번 경주에서 본래의 기량을 보여줄 것으로 보입니다. (7)플라잉칸은 직전 1400M에서 코 차이로 2위를 차지한 상승세의 말입니다. (12)카디널포스와 (5)월드위너스맨도 우승권 전력입니다.
+승부예측: (2)프라임시크릿, (4)판타스틱밸류, (7)플라잉칸, (12)카디널포스
+복병권: 5, 1
+초반 전개 빠른 말: 3, 4, 8, 11
+
+서울 9경주: 국3등급 (1800M) 핸디캡 / 5,400만 원
+(5)최강골드는 1800M에서 4전 3승을 기록 중인 거리 전문가입니다. 직전 승군전 3위의 아쉬움을 선행 작전으로 씻어낼 준비를 마쳤습니다. (10)이클립스블랙은 1800M에서 2연속 선행승을 거두고 승군했습니다. 외곽 게이트지만 감량 이점이 있습니다. (2)누리천왕 역시 최근 3전 2승의 상승세이며, (4)금빛천하와 (9)탱탱볼도 무시 못 할 전력입니다.
+승부예측: (5)최강골드, (10)이클립스블랙, (2)누리천왕, (4)금빛천하
+복병권: 9, 1
+초반 전개 빠른 말: 2, 4, 5, 9
+
+서울 10경주: 국3등급 (1400M) 핸디캡 / 5,400만 원
+(4)그대만있다면은 직전 과천시장배(L)에서 우승하며 잠재력을 입증한 신예 강자입니다. 1400M 첫 도전이지만 충분히 극복 가능해 보입니다. (3)드리머위즈는 직전 경주 2위를 기록하며 컨디션을 회복했고, (1)마이티에버는 4kg 감량 이점을 살려 기습 선행을 노릴 것입니다. (5)엘도라도놀부와 (8)럭키프랭크도 복승권 후보입니다.
+승부예측: (4)그대만있다면, (3)드리머위즈, (1)마이티에버, (5)엘도라도놀부
+복병권: 8, 9
+초반 전개 빠른 말: 4, 9, 10, 11
+
+서울 11경주: 2등급 (1200M) 핸디캡 / 6,500만 원
+(1)학산스피드는 1200M에서만 4승을 거둔 단거리 강자로, 이번에도 1번 게이트의 이점을 살려 선행 우승을 노립니다. (9)벌교베리타스는 최근 3경기 연속 2, 3위를 기록하며 우승권에 근접해 있습니다. (2)페어스카이즈는 거리 단축이 유리하게 작용할 것으로 보이며, (6)베스트마야와 (8)대물도 배당판에서 주목받을 것입니다.
+승부예측: (1)학산스피드, (9)벌교베리타스, (2)페어스카이즈, (6)베스트마야
+복병권: 8, 3
+초반 전개 빠른 말: 1, 2, 3, 11
+`;
+
+// --- 유틸리티: CSV 파싱 ---
+const parseCSV = (text) => {
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.trim());
+  const result = [];
+  for (let i = 1; i < lines.length; i++) {
+    let row = [];
+    let inQuotes = false;
+    let currentVal = '';
+    for (let char of lines[i]) {
+      if (char === '"') inQuotes = !inQuotes;
+      else if (char === ',' && !inQuotes) {
+        row.push(currentVal.trim());
+        currentVal = '';
+      } else currentVal += char;
+    }
+    row.push(currentVal.trim());
+    if (row.length === headers.length) {
+      let obj = {};
+      headers.forEach((header, index) => obj[header] = row[index]);
+      result.push(obj);
+    }
+  }
+  return result;
+};
+
+// --- 유틸리티: 전문가 추천 텍스트 파싱 (한국어 분석 강화) ---
+const parseRecommendations = (text) => {
+  if (!text) return { seoul: {}, busan: {} };
+  
+  // 텍스트 정규화
+  const normalized = text.replace(/\r\n/g, '\n').replace(/\u00A0/g, ' ');
+  
+  const parsed = {
+    seoul: {},
+    busan: {}
+  };
+
+  // 1. 서울/부경 N경주 블록 찾기
+  // 예: 서울 1경주, 부경 3경주
+  const raceHeaderRegex = /(서울|부경)\s*(\d+)경주/gi;
+  
+  let match;
+  let lastIndex = 0;
+  let lastLocationName = null;
+  let lastRaceNum = null;
+
+  // 블록 처리 함수
+  const processBlock = (content, locationName, raceNum) => {
+      if (!locationName || !raceNum) return;
+      
+      const location = (locationName === '서울' || locationName === 'Seoul') ? 'seoul' : 'busan';
+      const raceKey = `제${raceNum}경주`;
+      
+      // 승부예측(Selections) 라인 찾기
+      const predictionMatch = content.match(/(승부예측|Selections)[:\s]*(.*)/i);
+      // 복병권(Dark Horse) 라인 찾기
+      const darkHorseMatch = content.match(/(복병권|복병|Dark Horse)[:\s]*(.*)/i);
+      // 초반 전개 빠른 말(Fast Start) 라인 찾기
+      const fastStartMatch = content.match(/(초반 전개 빠른 말|Fast Start)[:\s]*(.*)/i);
+      
+      let selections = [];
+      let darkHorses = [];
+      let fastStarters = [];
+      let commentary = content;
+
+      // 숫자 추출 헬퍼
+      const extractNumbers = (str) => {
+          if (!str) return [];
+          return (str.match(/\d+/g) || []);
+      };
+
+      if (predictionMatch) {
+          selections = extractNumbers(predictionMatch[2]);
+          // 코멘트에서 해당 라인 제거
+          commentary = commentary.replace(predictionMatch[0], '');
+      }
+      if (darkHorseMatch) {
+          darkHorses = extractNumbers(darkHorseMatch[2]);
+          commentary = commentary.replace(darkHorseMatch[0], '');
+      }
+      if (fastStartMatch) {
+          fastStarters = extractNumbers(fastStartMatch[2]);
+          commentary = commentary.replace(fastStartMatch[0], '');
+      }
+      
+      // 헤더 라인 제거 (예: 서울 1경주: 국6등급...)
+      // 첫 줄이 헤더일 가능성이 높으므로, 헤더와 유사한 패턴 제거
+      const headerPattern = new RegExp(`^.*${locationName}.*${raceNum}경주.*`, 'i');
+      commentary = commentary.replace(headerPattern, '').trim();
+      
+      // 불필요한 줄바꿈 정리
+      commentary = commentary.replace(/^\s*[:]\s*/, '').trim(); 
+      
+      parsed[location][raceKey] = {
+          selections,
+          darkHorses,
+          fastStarters,
+          commentary: commentary.trim()
+      };
+  };
+
+  // 루프를 돌며 블록 단위로 텍스트 잘라내기
+  while ((match = raceHeaderRegex.exec(normalized)) !== null) {
+      const currentLoc = match[1];
+      const currentRaceNum = match[2];
+      
+      // 이전 블록 처리
+      if (lastLocationName) {
+          const blockContent = normalized.substring(lastIndex, match.index);
+          processBlock(blockContent, lastLocationName, lastRaceNum);
+      }
+      
+      lastLocationName = currentLoc;
+      lastRaceNum = currentRaceNum;
+      lastIndex = match.index; // 헤더 시작부터 포함 (나중에 지움)
+  }
+  
+  // 마지막 블록 처리
+  if (lastLocationName) {
+      const blockContent = normalized.substring(lastIndex);
+      processBlock(blockContent, lastLocationName, lastRaceNum);
+  }
+
+  return parsed;
+};
+
+export default function HorseRacingSchedule() {
+  const [activeLocation, setActiveLocation] = useState('seoul');
+  const [seoulData, setSeoulData] = useState([]);
+  const [busanData, setBusanData] = useState([]);
+  const [recommendations, setRecommendations] = useState({ seoul: {}, busan: {} });
+  const [selectedRace, setSelectedRace] = useState('');
+  const [pastedText, setPastedText] = useState('');
+  const [parsedStatus, setParsedStatus] = useState({ seoul: 0, busan: 0 });
+
+  // 텍스트 파싱 후 상태 업데이트 헬퍼
+  const handleParseText = (text) => {
+      const parsed = parseRecommendations(text);
+      setRecommendations(parsed);
+      setParsedStatus({
+          seoul: Object.keys(parsed.seoul).length,
+          busan: Object.keys(parsed.busan).length
+      });
+  };
+
+  // 초기 로드
+  useEffect(() => {
+    try {
+      setSeoulData(parseCSV(SAMPLE_SEOUL_CSV));
+      setBusanData(parseCSV(SAMPLE_BUSAN_CSV));
+      handleParseText(SAMPLE_RECOMMENDATION);
+      setPastedText(SAMPLE_RECOMMENDATION); 
+    } catch (e) {
+      console.error("Parsing error", e);
+    }
+  }, []);
+
+  const currentData = useMemo(() => activeLocation === 'seoul' ? seoulData : busanData, [activeLocation, seoulData, busanData]);
+  
+  const raceList = useMemo(() => {
+    const races = [...new Set(currentData.map(item => item['경주']))];
+    return races.sort((a, b) => {
+      const numA = parseInt(a.replace(/[^0-9]/g, '')) || 0;
+      const numB = parseInt(b.replace(/[^0-9]/g, '')) || 0;
+      return numA - numB;
+    });
+  }, [currentData]);
+
+  useEffect(() => {
+    if (raceList.length > 0) setSelectedRace(raceList[0]);
+    else setSelectedRace('');
+  }, [raceList, activeLocation]);
+
+  const raceDetails = useMemo(() => {
+    return currentData
+      .filter(item => item['경주'] === selectedRace)
+      .sort((a, b) => parseInt(a['번호']) - parseInt(b['번호']));
+  }, [currentData, selectedRace]);
+
+  const raceMeta = raceDetails.length > 0 ? raceDetails[0] : null;
+
+  const currentRec = useMemo(() => {
+    if (!selectedRace) return null;
+    const locationRecs = recommendations[activeLocation];
+    return locationRecs[selectedRace] || null;
+  }, [recommendations, activeLocation, selectedRace]);
+
+  const handleCsvUpload = (event, location) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const parsed = parseCSV(e.target.result);
+          if (location === 'seoul') setSeoulData(parsed);
+          else setBusanData(parsed);
+        } catch { alert("CSV 형식 오류"); }
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const handleRecUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target.result;
+        setPastedText(text);
+        handleParseText(text);
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const handlePasteChange = (e) => {
+      const text = e.target.value;
+      setPastedText(text);
+      handleParseText(text);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20">
+      {/* Header */}
+      <header className="bg-slate-900 text-white p-4 shadow-lg sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Trophy className="w-6 h-6 text-yellow-400" />
+            <h1 className="text-xl font-bold">2025 스마트 경마 출전표</h1>
+          </div>
+          
+          <div className="flex bg-slate-800 rounded-lg p-1">
+            <button
+            onClick={() => setActiveLocation('seoul')}
+            className={`px-6 py-2 rounded-md font-medium transition-colors text-sm ${activeLocation === 'seoul' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'}`}
+            >서울 (Seoul)</button>
+            <button
+            onClick={() => setActiveLocation('busan')}
+            className={`px-6 py-2 rounded-md font-medium transition-colors text-sm ${activeLocation === 'busan' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'}`}
+            >부산 (Busan)</button>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto p-4 space-y-6">
+        {/* Upload Section */}
+        <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            {/* CSV Upload */}
+            <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-slate-600 font-semibold mb-1">
+                    <AlertCircle className="w-4 h-4 text-blue-500" /> 출전표 데이터 업로드 (CSV)
+                </div>
+                <div className="flex gap-2">
+                    <label className="cursor-pointer flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded transition border border-blue-200">
+                        <Upload className="w-4 h-4" /> 서울 CSV
+                        <input type="file" accept=".csv" className="hidden" onChange={(e) => handleCsvUpload(e, 'seoul')} />
+                    </label>
+                    <label className="cursor-pointer flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded transition border border-blue-200">
+                        <Upload className="w-4 h-4" /> 부산 CSV
+                        <input type="file" accept=".csv" className="hidden" onChange={(e) => handleCsvUpload(e, 'busan')} />
+                    </label>
+                </div>
+            </div>
+
+            {/* Expert Rec Upload / Paste */}
+            <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between text-slate-600 font-semibold mb-1">
+                    <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-amber-500" /> 전문가 추천 (파일 or 붙여넣기)
+                    </div>
+                    {/* Parsing Status Indicator */}
+                    {(parsedStatus.seoul > 0 || parsedStatus.busan > 0) && (
+                        <div className="flex items-center gap-1 text-[10px] text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
+                            <CheckCircle2 className="w-3 h-3" />
+                            <span>인식됨: 서울 {parsedStatus.seoul}, 부산 {parsedStatus.busan} 경주</span>
+                        </div>
+                    )}
+                </div>
+                
+                <div className="flex flex-col gap-2">
+                    <label className="cursor-pointer w-full flex items-center justify-center gap-2 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded transition border border-amber-200">
+                        <Upload className="w-4 h-4" /> .txt / .pdf 텍스트 파일
+                        <input type="file" accept=".txt" className="hidden" onChange={handleRecUpload} />
+                    </label>
+                    <div className="relative">
+                        <textarea 
+                            className="w-full h-24 p-2 text-xs border border-slate-300 rounded focus:ring-2 focus:ring-amber-400 focus:outline-none resize-none"
+                            placeholder="PDF나 문서 내용을 복사(Ctrl+C)해서 여기에 붙여넣기(Ctrl+V) 하세요..."
+                            value={pastedText}
+                            onChange={handlePasteChange}
+                        />
+                        <ClipboardPaste className="absolute bottom-2 right-2 w-4 h-4 text-slate-400 pointer-events-none" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {/* Race Selector */}
+        <div className="overflow-x-auto pb-2">
+            <div className="flex gap-2 min-w-max">
+            {raceList.map((race) => (
+                <button
+                    key={race}
+                    onClick={() => setSelectedRace(race)}
+                    className={`px-4 py-3 rounded-xl font-bold text-sm flex flex-col items-center min-w-[80px] border transition-all ${
+                    selectedRace === race
+                        ? 'bg-slate-800 text-white border-slate-800 shadow-md transform scale-105'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-blue-300'
+                    }`}
+                >
+                    <span>{race}</span>
+                    {recommendations[activeLocation][race] && <Star className="w-3 h-3 text-amber-400 mt-1 fill-amber-400" />}
+                </button>
+            ))}
+            </div>
+        </div>
+
+        {/* Expert Commentary Section (Conditional) */}
+        {currentRec && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                    <ThumbsUp className="w-24 h-24 text-amber-500" />
+                </div>
+                <h3 className="text-amber-800 font-bold text-lg flex items-center gap-2 mb-2">
+                    <Medal className="w-5 h-5" /> 전문가 분석 & 코멘트
+                </h3>
+                <p className="text-amber-900 leading-relaxed text-sm whitespace-pre-wrap font-medium">
+                    {currentRec.commentary || "코멘트 내용이 없습니다."}
+                </p>
+                
+                <div className="mt-4 flex flex-col md:flex-row gap-4">
+                    {/* Selections */}
+                    {currentRec.selections.length > 0 && (
+                        <div className="flex flex-wrap gap-2 items-center">
+                            <span className="text-amber-800 font-bold text-xs bg-amber-200 px-2 py-1 rounded">추천마(승부예측)</span>
+                            {currentRec.selections.map(num => (
+                                <span key={num} className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-sm shadow-md border-2 border-amber-300">
+                                    {num}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                    {/* Dark Horses */}
+                    {currentRec.darkHorses && currentRec.darkHorses.length > 0 && (
+                         <div className="flex flex-wrap gap-2 items-center">
+                            <span className="text-red-800 font-bold text-xs bg-red-100 px-2 py-1 rounded flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3" /> 복병권
+                            </span>
+                            {currentRec.darkHorses.map(num => (
+                                <span key={num} className="w-8 h-8 rounded-full bg-white text-red-600 flex items-center justify-center font-bold text-sm shadow-sm border border-red-200">
+                                    {num}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                    {/* Fast Starters */}
+                     {currentRec.fastStarters && currentRec.fastStarters.length > 0 && (
+                         <div className="flex flex-wrap gap-2 items-center">
+                            <span className="text-blue-800 font-bold text-xs bg-blue-100 px-2 py-1 rounded flex items-center gap-1">
+                                <Zap className="w-3 h-3" /> 초반 빠른 말
+                            </span>
+                            {currentRec.fastStarters.map(num => (
+                                <span key={num} className="w-8 h-8 rounded-full bg-white text-blue-600 flex items-center justify-center font-bold text-sm shadow-sm border border-blue-200">
+                                    {num}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        )}
+
+        {/* Race Info & Table */}
+        {raceMeta && (
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex flex-wrap gap-x-6 gap-y-2 items-center">
+                    <h2 className="text-xl font-bold text-slate-800">{selectedRace}</h2>
+                    <div className="flex items-center gap-4 text-sm text-slate-600">
+                        <span className="flex items-center gap-1"><Clock className="w-4 h-4"/>{raceMeta['시간']}</span>
+                        <span className="flex items-center gap-1"><MapPin className="w-4 h-4"/>{raceMeta['거리']}</span>
+                        <span className="flex items-center gap-1"><Activity className="w-4 h-4"/>{raceMeta['경주등급']}</span>
+                    </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-slate-100 text-slate-500 font-medium border-b border-slate-200">
+                            <tr>
+                                <th className="px-4 py-3 text-center w-14">번호</th>
+                                <th className="px-4 py-3">마명 / 부마</th>
+                                <th className="px-4 py-3">정보 (산지/성별/연령)</th>
+                                <th className="px-4 py-3 text-center">중량</th>
+                                <th className="px-4 py-3">기수 / 조교사</th>
+                                <th className="px-4 py-3 text-center">등급 / 레이팅</th>
+                                <th className="px-4 py-3">최근정보 (조교/주기)</th>
+                                <th className="px-4 py-3">특이사항</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {raceDetails.map((horse, idx) => {
+                                // 추천 여부 확인
+                                const isRecommended = currentRec?.selections.includes(horse['번호']);
+                                const isDarkHorse = currentRec?.darkHorses.includes(horse['번호']);
+                                const isFast = currentRec?.fastStarters.includes(horse['번호']);
+                                
+                                return (
+                                    <tr key={idx} className={`transition-colors ${isRecommended ? 'bg-yellow-50 hover:bg-yellow-100' : 'hover:bg-slate-50'}`}>
+                                        <td className="px-4 py-3 text-center relative">
+                                            {isRecommended && <ThumbsUp className="w-4 h-4 text-amber-500 absolute top-1 left-1" />}
+                                            <span className={`inline-block w-8 h-8 leading-8 rounded-full border shadow-sm font-bold text-lg
+                                                ${isRecommended ? 'bg-amber-400 text-white border-amber-500' : 
+                                                  isDarkHorse ? 'bg-red-100 text-red-600 border-red-300' : 'bg-white text-slate-700 border-slate-300'}`}>
+                                                {horse['번호']}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className="font-bold text-slate-900 text-base flex items-center gap-2">
+                                                {horse['마명']}
+                                                <div className="flex gap-1">
+                                                    {isRecommended && <span className="text-[10px] bg-amber-500 text-white px-1.5 py-0.5 rounded">강추</span>}
+                                                    {isDarkHorse && <span className="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded">복병</span>}
+                                                    {isFast && <span className="text-[10px] bg-blue-500 text-white px-1.5 py-0.5 rounded">선행</span>}
+                                                </div>
+                                            </div>
+                                            <div className="text-xs text-slate-500">{horse['부마']}</div>
+                                        </td>
+                                        <td className="px-4 py-3 text-xs">
+                                            <div className="flex gap-1 mb-1">
+                                                <span className={`px-1.5 rounded text-white ${horse['성별'] === '암' ? 'bg-pink-400' : horse['성별'] === '수' ? 'bg-blue-400' : 'bg-green-400'}`}>
+                                                    {horse['성별']}
+                                                </span>
+                                                <span className="px-1.5 rounded bg-slate-200">{horse['연령']}세</span>
+                                            </div>
+                                            <span className="text-slate-500">{horse['산지']}</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-center">
+                                            <div className="font-bold">{horse['중량']}</div>
+                                            <div className={`text-xs ${parseFloat(horse['증감']) > 0 ? 'text-red-500' : 'text-blue-500'}`}>({horse['증감']})</div>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className="font-semibold">{horse['기수명']}</div>
+                                            <div className="text-xs text-slate-500">{horse['조교사명']}</div>
+                                        </td>
+                                        <td className="px-4 py-3 text-center">
+                                            {horse['등급'] && <span className="block text-xs font-bold text-indigo-600">{horse['등급']}</span>}
+                                            <span className="text-xs text-slate-400">{horse['레이팅'] || '-'}</span>
+                                        </td>
+                                        <td className="px-4 py-3 text-xs text-slate-500">
+                                            <div>조교: {horse['조교 횟수']}</div>
+                                            <div>주기: {horse['출전 주기']}</div>
+                                        </td>
+                                        <td className="px-4 py-3 text-xs text-red-500 font-medium">
+                                            {horse['특이사항']}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        )}
+      </main>
+    </div>
+  );
+}
