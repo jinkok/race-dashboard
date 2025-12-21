@@ -1,8 +1,50 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Upload, Clock, MapPin, Activity, AlertCircle, Medal, FileText, ThumbsUp, Star, Trophy, ClipboardPaste, CheckCircle2, Zap, AlertTriangle } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2025 스마트 경마 출전표</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel (JSX 변환용) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-// --- 기본 데이터 (CSV 샘플) ---
-const SAMPLE_SEOUL_CSV = `일자,경주,시간,경주등급,거리,번호,마명,산지,성별,연령,레이팅,중량,증감,기수명,조교사명,마주명,조교 횟수,출전 주기,장구현황,특이사항,부마,등급
+    <style>
+        body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        // --- 아이콘 컴포넌트 (SVG 직접 정의) ---
+        const Icons = {
+            Upload: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>,
+            Clock: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+            MapPin: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>,
+            Activity: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>,
+            AlertCircle: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>,
+            Medal: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M7.21 15 2.66 7.14a2 2 0 0 1 .13-2.2L4.4 2.8A2 2 0 0 1 6 2h12a2 2 0 0 1 1.6.8l1.6 2.14a2 2 0 0 1 .14 2.2L16.79 15"/><path d="M11 12 5.12 2.2"/><path d="m13 12 5.88-9.8"/><path d="M8 7h8"/><circle cx="12" cy="17" r="5"/><path d="M12 18v-2h-.5"/></svg>,
+            FileText: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>,
+            ThumbsUp: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"/></svg>,
+            Star: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
+            Trophy: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>,
+            ClipboardPaste: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M15 2H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1Z"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2M16 4h2a2 2 0 0 1 2 2v2M11 14h10"/><path d="m17 10 4 4-4 4"/></svg>,
+            CheckCircle2: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>,
+            Zap: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
+            AlertTriangle: (props) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+        };
+
+        // --- 기본 데이터 (CSV 샘플) ---
+        const SAMPLE_SEOUL_CSV = `일자,경주,시간,경주등급,거리,번호,마명,산지,성별,연령,레이팅,중량,증감,기수명,조교사명,마주명,조교 횟수,출전 주기,장구현황,특이사항,부마,등급
 2025년12월21일,제1경주,10:35,국6등급,1200M,1,포에버길,한국,수,2,,56,0,김용근,전승규,박남성,13,4주,계란형큰,,테스타마타,국6
 2025년12월21일,제1경주,10:35,국6등급,1200M,2,카론에지,한국,암,2,,54,0,오수철,최영주,조성옥,11,4주,"망사눈,반가지큰",,레이스데이,국6
 2025년12월21일,제1경주,10:35,국6등급,1200M,3,래피드선더,한국,암,2,,54,0,조재로,박종곤,이웅열,10,,망사눈+,,콩코드포인트,국6
@@ -14,7 +56,7 @@ const SAMPLE_SEOUL_CSV = `일자,경주,시간,경주등급,거리,번호,마명
 2025년12월21일,제10경주,17:30,혼3등급,1400M,5,엘도라도놀부,한국,수,3,64(0),58,4,마이아,정호익,임동현,10,3주,망사눈,,파워블레이드,국3
 2025년12월21일,제11경주,18:00,2등급,1200M,1,학산스피드,한국(포),수,3,72(8),55.5,3.5,이동하,홍대유,이재학,10,4주,,,올드패션드,2등급`;
 
-const SAMPLE_BUSAN_CSV = `일자,경주,시간,경주등급,거리,번호,마명,산지,성별,연령,레이팅,중량,증감,기수명,조교사명,마주명,조교 횟수,출전 주기,장구현황,특이사항,부마,등급
+        const SAMPLE_BUSAN_CSV = `일자,경주,시간,경주등급,거리,번호,마명,산지,성별,연령,레이팅,중량,증감,기수명,조교사명,마주명,조교 횟수,출전 주기,장구현황,특이사항,부마,등급
 2025년12월21일,제1경주,12:05,국6등급,1400M,5,오아시스아델,한국,수,2,,56,0,서승운,백광열,이종훈,10,4주,"계란형큰,망사",,섀클포드,국6
 2025년12월21일,제1경주,12:05,국6등급,1400M,7,그랑크뤼,한국,거,3,,57,2,박재이,김혜선,송정수,17,53주,"계란형큰+,망사+,망사눈-,반가지큰-,승인편자-,혀끈-",,투아너앤드서브,국6
 2025년12월21일,제1경주,12:05,국6등급,1400M,9,스원퀸,한국,암,3,,55,0,다실바,문현철,홍애란,13,5주,"계란형큰,망사눈",,섀클포드,국6
@@ -23,8 +65,8 @@ const SAMPLE_BUSAN_CSV = `일자,경주,시간,경주등급,거리,번호,마명
 2025년12월21일,제2경주,13:10,국6등급,1300M,3,아유레디,한국,암,2,,54,0,다나카,임성실,김무현,11,4주,"망사눈,반가지큰",,돌아온현표,국6
 2025년12월21일,제2경주,13:10,국6등급,1300M,10,램프요정지니,한국,암,2,,54,0,서승운,조용배,유성훈,10,4주,"계란형큰,망사",,언캡처드,국6`;
 
-// --- 기본 데이터 (전문가 추천 텍스트 샘플 - 한국어) ---
-const SAMPLE_RECOMMENDATION = `
+        // --- 기본 데이터 (전문가 추천 텍스트 샘플 - 한국어) ---
+        const SAMPLE_RECOMMENDATION = `
 서울 1경주: 국6등급 (1200M) 별정A / 3,200만 원
 12마리의 루키들 중 5마리가 데뷔전을 치릅니다. 신예마인 (3)래피드선더를 주목합니다. 주행심사 당시 중위권에서 올라와 적절한 기록으로 우승했으며, 1200M 거리도 데뷔전에 적합해 보입니다. (1)포에버길은 데뷔전에서 시종일관 선두권에서 경합하며 3위를 기록했습니다. 실전 경험이 큰 자산이 될 것입니다. (7)천지탱크는 지난 11월 9일 데뷔전에서 후미권에서 추격해 4위를 기록하며 가능성을 보였습니다. (4)레전드매치와 신마 (8)메탈인베이더도 배당판의 지지를 받을 후보들입니다.
 승부예측: (3)래피드선더, (1)포에버길, (7)천지탱크, (4)레전드매치
@@ -128,471 +170,450 @@ const SAMPLE_RECOMMENDATION = `
 초반 전개 빠른 말: 1, 2, 3, 11
 `;
 
-// --- 유틸리티: CSV 파싱 ---
-const parseCSV = (text) => {
-  const lines = text.trim().split('\n');
-  const headers = lines[0].split(',').map(h => h.trim());
-  const result = [];
-  for (let i = 1; i < lines.length; i++) {
-    let row = [];
-    let inQuotes = false;
-    let currentVal = '';
-    for (let char of lines[i]) {
-      if (char === '"') inQuotes = !inQuotes;
-      else if (char === ',' && !inQuotes) {
-        row.push(currentVal.trim());
-        currentVal = '';
-      } else currentVal += char;
-    }
-    row.push(currentVal.trim());
-    if (row.length === headers.length) {
-      let obj = {};
-      headers.forEach((header, index) => obj[header] = row[index]);
-      result.push(obj);
-    }
-  }
-  return result;
-};
+        // --- 유틸리티: CSV 파싱 ---
+        const parseCSV = (text) => {
+            const lines = text.trim().split('\n');
+            const headers = lines[0].split(',').map(h => h.trim());
+            const result = [];
+            for (let i = 1; i < lines.length; i++) {
+                let row = [];
+                let inQuotes = false;
+                let currentVal = '';
+                for (let char of lines[i]) {
+                    if (char === '"') inQuotes = !inQuotes;
+                    else if (char === ',' && !inQuotes) {
+                        row.push(currentVal.trim());
+                        currentVal = '';
+                    } else currentVal += char;
+                }
+                row.push(currentVal.trim());
+                if (row.length === headers.length) {
+                    let obj = {};
+                    headers.forEach((header, index) => obj[header] = row[index]);
+                    result.push(obj);
+                }
+            }
+            return result;
+        };
 
-// --- 유틸리티: 전문가 추천 텍스트 파싱 (한국어 분석 강화) ---
-const parseRecommendations = (text) => {
-  if (!text) return { seoul: {}, busan: {} };
-  
-  // 텍스트 정규화
-  const normalized = text.replace(/\r\n/g, '\n').replace(/\u00A0/g, ' ');
-  
-  const parsed = {
-    seoul: {},
-    busan: {}
-  };
+        // --- 유틸리티: 전문가 추천 텍스트 파싱 (한국어 분석 강화) ---
+        const parseRecommendations = (text) => {
+            if (!text) return { seoul: {}, busan: {} };
+            
+            // 텍스트 정규화
+            const normalized = text.replace(/\r\n/g, '\n').replace(/\u00A0/g, ' ');
+            
+            const parsed = {
+                seoul: {},
+                busan: {}
+            };
 
-  // 1. 서울/부경 N경주 블록 찾기
-  // 예: 서울 1경주, 부경 3경주
-  const raceHeaderRegex = /(서울|부경)\s*(\d+)경주/gi;
-  
-  let match;
-  let lastIndex = 0;
-  let lastLocationName = null;
-  let lastRaceNum = null;
+            // 1. 서울/부경 N경주 블록 찾기
+            const raceHeaderRegex = /(서울|부경)\s*(\d+)경주/gi;
+            
+            let match;
+            let lastIndex = 0;
+            let lastLocationName = null;
+            let lastRaceNum = null;
 
-  // 블록 처리 함수
-  const processBlock = (content, locationName, raceNum) => {
-      if (!locationName || !raceNum) return;
-      
-      const location = (locationName === '서울' || locationName === 'Seoul') ? 'seoul' : 'busan';
-      const raceKey = `제${raceNum}경주`;
-      
-      // 승부예측(Selections) 라인 찾기
-      const predictionMatch = content.match(/(승부예측|Selections)[:\s]*(.*)/i);
-      // 복병권(Dark Horse) 라인 찾기
-      const darkHorseMatch = content.match(/(복병권|복병|Dark Horse)[:\s]*(.*)/i);
-      // 초반 전개 빠른 말(Fast Start) 라인 찾기
-      const fastStartMatch = content.match(/(초반 전개 빠른 말|Fast Start)[:\s]*(.*)/i);
-      
-      let selections = [];
-      let darkHorses = [];
-      let fastStarters = [];
-      let commentary = content;
-
-      // 숫자 추출 헬퍼
-      const extractNumbers = (str) => {
-          if (!str) return [];
-          return (str.match(/\d+/g) || []);
-      };
-
-      if (predictionMatch) {
-          selections = extractNumbers(predictionMatch[2]);
-          // 코멘트에서 해당 라인 제거
-          commentary = commentary.replace(predictionMatch[0], '');
-      }
-      if (darkHorseMatch) {
-          darkHorses = extractNumbers(darkHorseMatch[2]);
-          commentary = commentary.replace(darkHorseMatch[0], '');
-      }
-      if (fastStartMatch) {
-          fastStarters = extractNumbers(fastStartMatch[2]);
-          commentary = commentary.replace(fastStartMatch[0], '');
-      }
-      
-      // 헤더 라인 제거 (예: 서울 1경주: 국6등급...)
-      // 첫 줄이 헤더일 가능성이 높으므로, 헤더와 유사한 패턴 제거
-      const headerPattern = new RegExp(`^.*${locationName}.*${raceNum}경주.*`, 'i');
-      commentary = commentary.replace(headerPattern, '').trim();
-      
-      // 불필요한 줄바꿈 정리
-      commentary = commentary.replace(/^\s*[:]\s*/, '').trim(); 
-      
-      parsed[location][raceKey] = {
-          selections,
-          darkHorses,
-          fastStarters,
-          commentary: commentary.trim()
-      };
-  };
-
-  // 루프를 돌며 블록 단위로 텍스트 잘라내기
-  while ((match = raceHeaderRegex.exec(normalized)) !== null) {
-      const currentLoc = match[1];
-      const currentRaceNum = match[2];
-      
-      // 이전 블록 처리
-      if (lastLocationName) {
-          const blockContent = normalized.substring(lastIndex, match.index);
-          processBlock(blockContent, lastLocationName, lastRaceNum);
-      }
-      
-      lastLocationName = currentLoc;
-      lastRaceNum = currentRaceNum;
-      lastIndex = match.index; // 헤더 시작부터 포함 (나중에 지움)
-  }
-  
-  // 마지막 블록 처리
-  if (lastLocationName) {
-      const blockContent = normalized.substring(lastIndex);
-      processBlock(blockContent, lastLocationName, lastRaceNum);
-  }
-
-  return parsed;
-};
-
-// 메인 컴포넌트 이름을 'App'으로 설정하여 렌더링 호환성 확보
-export default function App() {
-  const [activeLocation, setActiveLocation] = useState('seoul');
-  const [seoulData, setSeoulData] = useState([]);
-  const [busanData, setBusanData] = useState([]);
-  const [recommendations, setRecommendations] = useState({ seoul: {}, busan: {} });
-  const [selectedRace, setSelectedRace] = useState('');
-  const [pastedText, setPastedText] = useState('');
-  const [parsedStatus, setParsedStatus] = useState({ seoul: 0, busan: 0 });
-
-  // 텍스트 파싱 후 상태 업데이트 헬퍼
-  const handleParseText = (text) => {
-      const parsed = parseRecommendations(text);
-      setRecommendations(parsed);
-      setParsedStatus({
-          seoul: Object.keys(parsed.seoul).length,
-          busan: Object.keys(parsed.busan).length
-      });
-  };
-
-  // 초기 로드
-  useEffect(() => {
-    try {
-      setSeoulData(parseCSV(SAMPLE_SEOUL_CSV));
-      setBusanData(parseCSV(SAMPLE_BUSAN_CSV));
-      handleParseText(SAMPLE_RECOMMENDATION);
-      setPastedText(SAMPLE_RECOMMENDATION); 
-    } catch (e) {
-      console.error("Parsing error", e);
-    }
-  }, []);
-
-  const currentData = useMemo(() => activeLocation === 'seoul' ? seoulData : busanData, [activeLocation, seoulData, busanData]);
-  
-  const raceList = useMemo(() => {
-    const races = [...new Set(currentData.map(item => item['경주']))];
-    return races.sort((a, b) => {
-      const numA = parseInt(a.replace(/[^0-9]/g, '')) || 0;
-      const numB = parseInt(b.replace(/[^0-9]/g, '')) || 0;
-      return numA - numB;
-    });
-  }, [currentData]);
-
-  useEffect(() => {
-    if (raceList.length > 0) setSelectedRace(raceList[0]);
-    else setSelectedRace('');
-  }, [raceList, activeLocation]);
-
-  const raceDetails = useMemo(() => {
-    return currentData
-      .filter(item => item['경주'] === selectedRace)
-      .sort((a, b) => parseInt(a['번호']) - parseInt(b['번호']));
-  }, [currentData, selectedRace]);
-
-  const raceMeta = raceDetails.length > 0 ? raceDetails[0] : null;
-
-  const currentRec = useMemo(() => {
-    if (!selectedRace) return null;
-    const locationRecs = recommendations[activeLocation];
-    return locationRecs[selectedRace] || null;
-  }, [recommendations, activeLocation, selectedRace]);
-
-  const handleCsvUpload = (event, location) => {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const parsed = parseCSV(e.target.result);
-          if (location === 'seoul') setSeoulData(parsed);
-          else setBusanData(parsed);
-        } catch { alert("CSV 형식 오류"); }
-      };
-      reader.readAsText(file);
-    }
-  };
-
-  const handleRecUpload = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = e.target.result;
-        setPastedText(text);
-        handleParseText(text);
-      };
-      reader.readAsText(file);
-    }
-  };
-
-  const handlePasteChange = (e) => {
-      const text = e.target.value;
-      setPastedText(text);
-      handleParseText(text);
-  };
-
-  return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20">
-      {/* Header */}
-      <header className="bg-slate-900 text-white p-4 shadow-lg sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Trophy className="w-6 h-6 text-yellow-400" />
-            <h1 className="text-xl font-bold">2025 스마트 경마 출전표</h1>
-          </div>
-          
-          <div className="flex bg-slate-800 rounded-lg p-1">
-            <button
-            onClick={() => setActiveLocation('seoul')}
-            className={`px-6 py-2 rounded-md font-medium transition-colors text-sm ${activeLocation === 'seoul' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'}`}
-            >서울 (Seoul)</button>
-            <button
-            onClick={() => setActiveLocation('busan')}
-            className={`px-6 py-2 rounded-md font-medium transition-colors text-sm ${activeLocation === 'busan' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'}`}
-            >부산 (Busan)</button>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto p-4 space-y-6">
-        {/* Upload Section */}
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            {/* CSV Upload */}
-            <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2 text-slate-600 font-semibold mb-1">
-                    <AlertCircle className="w-4 h-4 text-blue-500" /> 출전표 데이터 업로드 (CSV)
-                </div>
-                <div className="flex gap-2">
-                    <label className="cursor-pointer flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded transition border border-blue-200">
-                        <Upload className="w-4 h-4" /> 서울 CSV
-                        <input type="file" accept=".csv" className="hidden" onChange={(e) => handleCsvUpload(e, 'seoul')} />
-                    </label>
-                    <label className="cursor-pointer flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded transition border border-blue-200">
-                        <Upload className="w-4 h-4" /> 부산 CSV
-                        <input type="file" accept=".csv" className="hidden" onChange={(e) => handleCsvUpload(e, 'busan')} />
-                    </label>
-                </div>
-            </div>
-
-            {/* Expert Rec Upload / Paste */}
-            <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between text-slate-600 font-semibold mb-1">
-                    <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-amber-500" /> 전문가 추천 (파일 or 붙여넣기)
-                    </div>
-                    {/* Parsing Status Indicator */}
-                    {(parsedStatus.seoul > 0 || parsedStatus.busan > 0) && (
-                        <div className="flex items-center gap-1 text-[10px] text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
-                            <CheckCircle2 className="w-3 h-3" />
-                            <span>인식됨: 서울 {parsedStatus.seoul}, 부산 {parsedStatus.busan} 경주</span>
-                        </div>
-                    )}
-                </div>
+            // 블록 처리 함수
+            const processBlock = (content, locationName, raceNum) => {
+                if (!locationName || !raceNum) return;
                 
-                <div className="flex flex-col gap-2">
-                    <label className="cursor-pointer w-full flex items-center justify-center gap-2 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded transition border border-amber-200">
-                        <Upload className="w-4 h-4" /> .txt / .pdf 텍스트 파일
-                        <input type="file" accept=".txt" className="hidden" onChange={handleRecUpload} />
-                    </label>
-                    <div className="relative">
-                        <textarea 
-                            className="w-full h-24 p-2 text-xs border border-slate-300 rounded focus:ring-2 focus:ring-amber-400 focus:outline-none resize-none"
-                            placeholder="PDF나 문서 내용을 복사(Ctrl+C)해서 여기에 붙여넣기(Ctrl+V) 하세요..."
-                            value={pastedText}
-                            onChange={handlePasteChange}
-                        />
-                        <ClipboardPaste className="absolute bottom-2 right-2 w-4 h-4 text-slate-400 pointer-events-none" />
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {/* Race Selector */}
-        <div className="overflow-x-auto pb-2">
-            <div className="flex gap-2 min-w-max">
-            {raceList.map((race) => (
-                <button
-                    key={race}
-                    onClick={() => setSelectedRace(race)}
-                    className={`px-4 py-3 rounded-xl font-bold text-sm flex flex-col items-center min-w-[80px] border transition-all ${
-                    selectedRace === race
-                        ? 'bg-slate-800 text-white border-slate-800 shadow-md transform scale-105'
-                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-blue-300'
-                    }`}
-                >
-                    <span>{race}</span>
-                    {recommendations[activeLocation][race] && <Star className="w-3 h-3 text-amber-400 mt-1 fill-amber-400" />}
-                </button>
-            ))}
-            </div>
-        </div>
-
-        {/* Expert Commentary Section (Conditional) */}
-        {currentRec && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 shadow-sm relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                    <ThumbsUp className="w-24 h-24 text-amber-500" />
-                </div>
-                <h3 className="text-amber-800 font-bold text-lg flex items-center gap-2 mb-2">
-                    <Medal className="w-5 h-5" /> 전문가 분석 & 코멘트
-                </h3>
-                <p className="text-amber-900 leading-relaxed text-sm whitespace-pre-wrap font-medium">
-                    {currentRec.commentary || "코멘트 내용이 없습니다."}
-                </p>
+                const location = (locationName === '서울' || locationName === 'Seoul') ? 'seoul' : 'busan';
+                const raceKey = `제${raceNum}경주`;
                 
-                <div className="mt-4 flex flex-col md:flex-row gap-4">
-                    {/* Selections */}
-                    {currentRec.selections.length > 0 && (
-                        <div className="flex flex-wrap gap-2 items-center">
-                            <span className="text-amber-800 font-bold text-xs bg-amber-200 px-2 py-1 rounded">추천마(승부예측)</span>
-                            {currentRec.selections.map(num => (
-                                <span key={num} className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-sm shadow-md border-2 border-amber-300">
-                                    {num}
-                                </span>
-                            ))}
-                        </div>
-                    )}
-                    {/* Dark Horses */}
-                    {currentRec.darkHorses && currentRec.darkHorses.length > 0 && (
-                         <div className="flex flex-wrap gap-2 items-center">
-                            <span className="text-red-800 font-bold text-xs bg-red-100 px-2 py-1 rounded flex items-center gap-1">
-                                <AlertTriangle className="w-3 h-3" /> 복병권
-                            </span>
-                            {currentRec.darkHorses.map(num => (
-                                <span key={num} className="w-8 h-8 rounded-full bg-white text-red-600 flex items-center justify-center font-bold text-sm shadow-sm border border-red-200">
-                                    {num}
-                                </span>
-                            ))}
-                        </div>
-                    )}
-                    {/* Fast Starters */}
-                     {currentRec.fastStarters && currentRec.fastStarters.length > 0 && (
-                         <div className="flex flex-wrap gap-2 items-center">
-                            <span className="text-blue-800 font-bold text-xs bg-blue-100 px-2 py-1 rounded flex items-center gap-1">
-                                <Zap className="w-3 h-3" /> 초반 빠른 말
-                            </span>
-                            {currentRec.fastStarters.map(num => (
-                                <span key={num} className="w-8 h-8 rounded-full bg-white text-blue-600 flex items-center justify-center font-bold text-sm shadow-sm border border-blue-200">
-                                    {num}
-                                </span>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
-        )}
+                const predictionMatch = content.match(/(승부예측|Selections)[:\s]*(.*)/i);
+                const darkHorseMatch = content.match(/(복병권|복병|Dark Horse)[:\s]*(.*)/i);
+                const fastStartMatch = content.match(/(초반 전개 빠른 말|Fast Start)[:\s]*(.*)/i);
+                
+                let selections = [];
+                let darkHorses = [];
+                let fastStarters = [];
+                let commentary = content;
 
-        {/* Race Info & Table */}
-        {raceMeta && (
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex flex-wrap gap-x-6 gap-y-2 items-center">
-                    <h2 className="text-xl font-bold text-slate-800">{selectedRace}</h2>
-                    <div className="flex items-center gap-4 text-sm text-slate-600">
-                        <span className="flex items-center gap-1"><Clock className="w-4 h-4"/>{raceMeta['시간']}</span>
-                        <span className="flex items-center gap-1"><MapPin className="w-4 h-4"/>{raceMeta['거리']}</span>
-                        <span className="flex items-center gap-1"><Activity className="w-4 h-4"/>{raceMeta['경주등급']}</span>
-                    </div>
-                </div>
+                const extractNumbers = (str) => {
+                    if (!str) return [];
+                    return (str.match(/\d+/g) || []);
+                };
 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                        <thead className="bg-slate-100 text-slate-500 font-medium border-b border-slate-200">
-                            <tr>
-                                <th className="px-4 py-3 text-center w-14">번호</th>
-                                <th className="px-4 py-3">마명 / 부마</th>
-                                <th className="px-4 py-3">정보 (산지/성별/연령)</th>
-                                <th className="px-4 py-3 text-center">중량</th>
-                                <th className="px-4 py-3">기수 / 조교사</th>
-                                <th className="px-4 py-3 text-center">등급 / 레이팅</th>
-                                <th className="px-4 py-3">최근정보 (조교/주기)</th>
-                                <th className="px-4 py-3">특이사항</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {raceDetails.map((horse, idx) => {
-                                // 추천 여부 확인
-                                const isRecommended = currentRec?.selections.includes(horse['번호']);
-                                const isDarkHorse = currentRec?.darkHorses.includes(horse['번호']);
-                                const isFast = currentRec?.fastStarters.includes(horse['번호']);
+                if (predictionMatch) {
+                    selections = extractNumbers(predictionMatch[2]);
+                    commentary = commentary.replace(predictionMatch[0], '');
+                }
+                if (darkHorseMatch) {
+                    darkHorses = extractNumbers(darkHorseMatch[2]);
+                    commentary = commentary.replace(darkHorseMatch[0], '');
+                }
+                if (fastStartMatch) {
+                    fastStarters = extractNumbers(fastStartMatch[2]);
+                    commentary = commentary.replace(fastStartMatch[0], '');
+                }
+                
+                const headerPattern = new RegExp(`^.*${locationName}.*${raceNum}경주.*`, 'i');
+                commentary = commentary.replace(headerPattern, '').trim();
+                commentary = commentary.replace(/^\s*[:]\s*/, '').trim(); 
+                
+                parsed[location][raceKey] = {
+                    selections,
+                    darkHorses,
+                    fastStarters,
+                    commentary: commentary.trim()
+                };
+            };
+
+            while ((match = raceHeaderRegex.exec(normalized)) !== null) {
+                const currentLoc = match[1];
+                const currentRaceNum = match[2];
+                
+                if (lastLocationName) {
+                    const blockContent = normalized.substring(lastIndex, match.index);
+                    processBlock(blockContent, lastLocationName, lastRaceNum);
+                }
+                
+                lastLocationName = currentLoc;
+                lastRaceNum = currentRaceNum;
+                lastIndex = match.index; 
+            }
+            
+            if (lastLocationName) {
+                const blockContent = normalized.substring(lastIndex);
+                processBlock(blockContent, lastLocationName, lastRaceNum);
+            }
+
+            return parsed;
+        };
+
+        // --- 메인 앱 컴포넌트 ---
+        function App() {
+            const [activeLocation, setActiveLocation] = useState('seoul');
+            const [seoulData, setSeoulData] = useState([]);
+            const [busanData, setBusanData] = useState([]);
+            const [recommendations, setRecommendations] = useState({ seoul: {}, busan: {} });
+            const [selectedRace, setSelectedRace] = useState('');
+            const [pastedText, setPastedText] = useState('');
+            const [parsedStatus, setParsedStatus] = useState({ seoul: 0, busan: 0 });
+
+            const handleParseText = (text) => {
+                const parsed = parseRecommendations(text);
+                setRecommendations(parsed);
+                setParsedStatus({
+                    seoul: Object.keys(parsed.seoul).length,
+                    busan: Object.keys(parsed.busan).length
+                });
+            };
+
+            useEffect(() => {
+                try {
+                    setSeoulData(parseCSV(SAMPLE_SEOUL_CSV));
+                    setBusanData(parseCSV(SAMPLE_BUSAN_CSV));
+                    handleParseText(SAMPLE_RECOMMENDATION);
+                    setPastedText(SAMPLE_RECOMMENDATION); 
+                } catch (e) {
+                    console.error("Parsing error", e);
+                }
+            }, []);
+
+            const currentData = useMemo(() => activeLocation === 'seoul' ? seoulData : busanData, [activeLocation, seoulData, busanData]);
+            
+            const raceList = useMemo(() => {
+                const races = [...new Set(currentData.map(item => item['경주']))];
+                return races.sort((a, b) => {
+                    const numA = parseInt(a.replace(/[^0-9]/g, '')) || 0;
+                    const numB = parseInt(b.replace(/[^0-9]/g, '')) || 0;
+                    return numA - numB;
+                });
+            }, [currentData]);
+
+            useEffect(() => {
+                if (raceList.length > 0) setSelectedRace(raceList[0]);
+                else setSelectedRace('');
+            }, [raceList, activeLocation]);
+
+            const raceDetails = useMemo(() => {
+                return currentData
+                    .filter(item => item['경주'] === selectedRace)
+                    .sort((a, b) => parseInt(a['번호']) - parseInt(b['번호']));
+            }, [currentData, selectedRace]);
+
+            const raceMeta = raceDetails.length > 0 ? raceDetails[0] : null;
+
+            const currentRec = useMemo(() => {
+                if (!selectedRace) return null;
+                const locationRecs = recommendations[activeLocation];
+                return locationRecs[selectedRace] || null;
+            }, [recommendations, activeLocation, selectedRace]);
+
+            const handleCsvUpload = (event, location) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const parsed = parseCSV(e.target.result);
+                            if (location === 'seoul') setSeoulData(parsed);
+                            else setBusanData(parsed);
+                        } catch { alert("CSV 형식 오류"); }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+
+            const handleRecUpload = (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const text = e.target.result;
+                        setPastedText(text);
+                        handleParseText(text);
+                    };
+                    reader.readAsText(file);
+                }
+            };
+
+            const handlePasteChange = (e) => {
+                const text = e.target.value;
+                setPastedText(text);
+                handleParseText(text);
+            };
+
+            return (
+                <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20">
+                    <header className="bg-slate-900 text-white p-4 shadow-lg sticky top-0 z-10">
+                        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <Icons.Trophy className="w-6 h-6 text-yellow-400" />
+                                <h1 className="text-xl font-bold">2025 스마트 경마 출전표</h1>
+                            </div>
+                            
+                            <div className="flex bg-slate-800 rounded-lg p-1">
+                                <button
+                                onClick={() => setActiveLocation('seoul')}
+                                className={`px-4 py-2 rounded-md font-medium transition-colors text-sm ${activeLocation === 'seoul' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                                >서울 (Seoul)</button>
+                                <button
+                                onClick={() => setActiveLocation('busan')}
+                                className={`px-4 py-2 rounded-md font-medium transition-colors text-sm ${activeLocation === 'busan' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                                >부산 (Busan)</button>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="max-w-6xl mx-auto p-4 space-y-6">
+                        <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div className="flex flex-col gap-2">
+                                <div className="flex items-center gap-2 text-slate-600 font-semibold mb-1">
+                                    <Icons.AlertCircle className="w-4 h-4 text-blue-500" /> 출전표 데이터 업로드 (CSV)
+                                </div>
+                                <div className="flex gap-2">
+                                    <label className="cursor-pointer flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded transition border border-blue-200">
+                                        <Icons.Upload className="w-4 h-4" /> 서울 CSV
+                                        <input type="file" accept=".csv" className="hidden" onChange={(e) => handleCsvUpload(e, 'seoul')} />
+                                    </label>
+                                    <label className="cursor-pointer flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded transition border border-blue-200">
+                                        <Icons.Upload className="w-4 h-4" /> 부산 CSV
+                                        <input type="file" accept=".csv" className="hidden" onChange={(e) => handleCsvUpload(e, 'busan')} />
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                <div className="flex items-center justify-between text-slate-600 font-semibold mb-1">
+                                    <div className="flex items-center gap-2">
+                                        <Icons.FileText className="w-4 h-4 text-amber-500" /> 전문가 추천 (파일 or 붙여넣기)
+                                    </div>
+                                    {(parsedStatus.seoul > 0 || parsedStatus.busan > 0) && (
+                                        <div className="flex items-center gap-1 text-[10px] text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
+                                            <Icons.CheckCircle2 className="w-3 h-3" />
+                                            <span>인식됨: 서울 {parsedStatus.seoul}, 부산 {parsedStatus.busan} 경주</span>
+                                        </div>
+                                    )}
+                                </div>
                                 
-                                return (
-                                    <tr key={idx} className={`transition-colors ${isRecommended ? 'bg-yellow-50 hover:bg-yellow-100' : 'hover:bg-slate-50'}`}>
-                                        <td className="px-4 py-3 text-center relative">
-                                            {isRecommended && <ThumbsUp className="w-4 h-4 text-amber-500 absolute top-1 left-1" />}
-                                            <span className={`inline-block w-8 h-8 leading-8 rounded-full border shadow-sm font-bold text-lg
-                                                ${isRecommended ? 'bg-amber-400 text-white border-amber-500' : 
-                                                  isDarkHorse ? 'bg-red-100 text-red-600 border-red-300' : 'bg-white text-slate-700 border-slate-300'}`}>
-                                                {horse['번호']}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <div className="font-bold text-slate-900 text-base flex items-center gap-2">
-                                                {horse['마명']}
-                                                <div className="flex gap-1">
-                                                    {isRecommended && <span className="text-[10px] bg-amber-500 text-white px-1.5 py-0.5 rounded">강추</span>}
-                                                    {isDarkHorse && <span className="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded">복병</span>}
-                                                    {isFast && <span className="text-[10px] bg-blue-500 text-white px-1.5 py-0.5 rounded">선행</span>}
-                                                </div>
-                                            </div>
-                                            <div className="text-xs text-slate-500">{horse['부마']}</div>
-                                        </td>
-                                        <td className="px-4 py-3 text-xs">
-                                            <div className="flex gap-1 mb-1">
-                                                <span className={`px-1.5 rounded text-white ${horse['성별'] === '암' ? 'bg-pink-400' : horse['성별'] === '수' ? 'bg-blue-400' : 'bg-green-400'}`}>
-                                                    {horse['성별']}
+                                <div className="flex flex-col gap-2">
+                                    <label className="cursor-pointer w-full flex items-center justify-center gap-2 px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded transition border border-amber-200">
+                                        <Icons.Upload className="w-4 h-4" /> .txt / .pdf 텍스트 파일
+                                        <input type="file" accept=".txt" className="hidden" onChange={handleRecUpload} />
+                                    </label>
+                                    <div className="relative">
+                                        <textarea 
+                                            className="w-full h-24 p-2 text-xs border border-slate-300 rounded focus:ring-2 focus:ring-amber-400 focus:outline-none resize-none"
+                                            placeholder="PDF나 문서 내용을 복사(Ctrl+C)해서 여기에 붙여넣기(Ctrl+V) 하세요..."
+                                            value={pastedText}
+                                            onChange={handlePasteChange}
+                                        />
+                                        <Icons.ClipboardPaste className="absolute bottom-2 right-2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="overflow-x-auto pb-2">
+                            <div className="flex gap-2 min-w-max">
+                            {raceList.map((race) => (
+                                <button
+                                    key={race}
+                                    onClick={() => setSelectedRace(race)}
+                                    className={`px-4 py-3 rounded-xl font-bold text-sm flex flex-col items-center min-w-[80px] border transition-all ${
+                                    selectedRace === race
+                                        ? 'bg-slate-800 text-white border-slate-800 shadow-md transform scale-105'
+                                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-blue-300'
+                                    }`}
+                                >
+                                    <span>{race}</span>
+                                    {recommendations[activeLocation][race] && <Icons.Star className="w-3 h-3 text-amber-400 mt-1 fill-amber-400" />}
+                                </button>
+                            ))}
+                            </div>
+                        </div>
+
+                        {currentRec && (
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 shadow-sm relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-4 opacity-10">
+                                    <Icons.ThumbsUp className="w-24 h-24 text-amber-500" />
+                                </div>
+                                <h3 className="text-amber-800 font-bold text-lg flex items-center gap-2 mb-2">
+                                    <Icons.Medal className="w-5 h-5" /> 전문가 분석 & 코멘트
+                                </h3>
+                                <p className="text-amber-900 leading-relaxed text-sm whitespace-pre-wrap font-medium">
+                                    {currentRec.commentary || "코멘트 내용이 없습니다."}
+                                </p>
+                                
+                                <div className="mt-4 flex flex-col md:flex-row gap-4">
+                                    {currentRec.selections.length > 0 && (
+                                        <div className="flex flex-wrap gap-2 items-center">
+                                            <span className="text-amber-800 font-bold text-xs bg-amber-200 px-2 py-1 rounded">추천마(승부예측)</span>
+                                            {currentRec.selections.map(num => (
+                                                <span key={num} className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-sm shadow-md border-2 border-amber-300">
+                                                    {num}
                                                 </span>
-                                                <span className="px-1.5 rounded bg-slate-200">{horse['연령']}세</span>
-                                            </div>
-                                            <span className="text-slate-500">{horse['산지']}</span>
-                                        </td>
-                                        <td className="px-4 py-3 text-center">
-                                            <div className="font-bold">{horse['중량']}</div>
-                                            <div className={`text-xs ${parseFloat(horse['증감']) > 0 ? 'text-red-500' : 'text-blue-500'}`}>({horse['증감']})</div>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <div className="font-semibold">{horse['기수명']}</div>
-                                            <div className="text-xs text-slate-500">{horse['조교사명']}</div>
-                                        </td>
-                                        <td className="px-4 py-3 text-center">
-                                            {horse['등급'] && <span className="block text-xs font-bold text-indigo-600">{horse['등급']}</span>}
-                                            <span className="text-xs text-slate-400">{horse['레이팅'] || '-'}</span>
-                                        </td>
-                                        <td className="px-4 py-3 text-xs text-slate-500">
-                                            <div>조교: {horse['조교 횟수']}</div>
-                                            <div>주기: {horse['출전 주기']}</div>
-                                        </td>
-                                        <td className="px-4 py-3 text-xs text-red-500 font-medium">
-                                            {horse['특이사항']}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {currentRec.darkHorses && currentRec.darkHorses.length > 0 && (
+                                         <div className="flex flex-wrap gap-2 items-center">
+                                            <span className="text-red-800 font-bold text-xs bg-red-100 px-2 py-1 rounded flex items-center gap-1">
+                                                <Icons.AlertTriangle className="w-3 h-3" /> 복병권
+                                            </span>
+                                            {currentRec.darkHorses.map(num => (
+                                                <span key={num} className="w-8 h-8 rounded-full bg-white text-red-600 flex items-center justify-center font-bold text-sm shadow-sm border border-red-200">
+                                                    {num}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                     {currentRec.fastStarters && currentRec.fastStarters.length > 0 && (
+                                         <div className="flex flex-wrap gap-2 items-center">
+                                            <span className="text-blue-800 font-bold text-xs bg-blue-100 px-2 py-1 rounded flex items-center gap-1">
+                                                <Icons.Zap className="w-3 h-3" /> 초반 빠른 말
+                                            </span>
+                                            {currentRec.fastStarters.map(num => (
+                                                <span key={num} className="w-8 h-8 rounded-full bg-white text-blue-600 flex items-center justify-center font-bold text-sm shadow-sm border border-blue-200">
+                                                    {num}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {raceMeta && (
+                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex flex-wrap gap-x-6 gap-y-2 items-center">
+                                    <h2 className="text-xl font-bold text-slate-800">{selectedRace}</h2>
+                                    <div className="flex items-center gap-4 text-sm text-slate-600">
+                                        <span className="flex items-center gap-1"><Icons.Clock className="w-4 h-4"/>{raceMeta['시간']}</span>
+                                        <span className="flex items-center gap-1"><Icons.MapPin className="w-4 h-4"/>{raceMeta['거리']}</span>
+                                        <span className="flex items-center gap-1"><Icons.Activity className="w-4 h-4"/>{raceMeta['경주등급']}</span>
+                                    </div>
+                                </div>
+
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm text-left">
+                                        <thead className="bg-slate-100 text-slate-500 font-medium border-b border-slate-200">
+                                            <tr>
+                                                <th className="px-4 py-3 text-center w-14">번호</th>
+                                                <th className="px-4 py-3">마명 / 부마</th>
+                                                <th className="px-4 py-3">정보 (산지/성별/연령)</th>
+                                                <th className="px-4 py-3 text-center">중량</th>
+                                                <th className="px-4 py-3">기수 / 조교사</th>
+                                                <th className="px-4 py-3 text-center">등급 / 레이팅</th>
+                                                <th className="px-4 py-3">최근정보 (조교/주기)</th>
+                                                <th className="px-4 py-3">특이사항</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {raceDetails.map((horse, idx) => {
+                                                const isRecommended = currentRec?.selections.includes(horse['번호']);
+                                                const isDarkHorse = currentRec?.darkHorses.includes(horse['번호']);
+                                                const isFast = currentRec?.fastStarters.includes(horse['번호']);
+                                                
+                                                return (
+                                                    <tr key={idx} className={`transition-colors ${isRecommended ? 'bg-yellow-50 hover:bg-yellow-100' : 'hover:bg-slate-50'}`}>
+                                                        <td className="px-4 py-3 text-center relative">
+                                                            {isRecommended && <Icons.ThumbsUp className="w-4 h-4 text-amber-500 absolute top-1 left-1" />}
+                                                            <span className={`inline-block w-8 h-8 leading-8 rounded-full border shadow-sm font-bold text-lg
+                                                                ${isRecommended ? 'bg-amber-400 text-white border-amber-500' : 
+                                                                  isDarkHorse ? 'bg-red-100 text-red-600 border-red-300' : 'bg-white text-slate-700 border-slate-300'}`}>
+                                                                {horse['번호']}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <div className="font-bold text-slate-900 text-base flex items-center gap-2">
+                                                                {horse['마명']}
+                                                                <div className="flex gap-1">
+                                                                    {isRecommended && <span className="text-[10px] bg-amber-500 text-white px-1.5 py-0.5 rounded">강추</span>}
+                                                                    {isDarkHorse && <span className="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded">복병</span>}
+                                                                    {isFast && <span className="text-[10px] bg-blue-500 text-white px-1.5 py-0.5 rounded">선행</span>}
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-xs text-slate-500">{horse['부마']}</div>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-xs">
+                                                            <div className="flex gap-1 mb-1">
+                                                                <span className={`px-1.5 rounded text-white ${horse['성별'] === '암' ? 'bg-pink-400' : horse['성별'] === '수' ? 'bg-blue-400' : 'bg-green-400'}`}>
+                                                                    {horse['성별']}
+                                                                </span>
+                                                                <span className="px-1.5 rounded bg-slate-200">{horse['연령']}세</span>
+                                                            </div>
+                                                            <span className="text-slate-500">{horse['산지']}</span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-center">
+                                                            <div className="font-bold">{horse['중량']}</div>
+                                                            <div className={`text-xs ${parseFloat(horse['증감']) > 0 ? 'text-red-500' : 'text-blue-500'}`}>({horse['증감']})</div>
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <div className="font-semibold">{horse['기수명']}</div>
+                                                            <div className="text-xs text-slate-500">{horse['조교사명']}</div>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-center">
+                                                            {horse['등급'] && <span className="block text-xs font-bold text-indigo-600">{horse['등급']}</span>}
+                                                            <span className="text-xs text-slate-400">{horse['레이팅'] || '-'}</span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-xs text-slate-500">
+                                                            <div>조교: {horse['조교 횟수']}</div>
+                                                            <div>주기: {horse['출전 주기']}</div>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-xs text-red-500 font-medium">
+                                                            {horse['특이사항']}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+                    </main>
                 </div>
-            </div>
-        )}
-      </main>
-    </div>
-  );
-}
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
