@@ -39,29 +39,21 @@
         const { useState, useEffect, useMemo, useRef } = React;
         
         // Use window.lucideReact for the UMD build (fallback to window.lucide)
-        // Wait for lucide to load if not available yet
         const getLucideLib = () => {
             if (window.lucideReact) return window.lucideReact;
             if (window.lucide) return window.lucide;
             return null;
         };
         
-        // Create a fallback icon component
-        const FallbackIcon = ({ size = 16, className = "" }) => (
-            <span className={className} style={{ display: 'inline-block', width: size, height: size }}>•</span>
-        );
+        // --- MODIFIED: FallbackIcon renders NOTHING now ---
+        const FallbackIcon = () => null;
         
-        // Extract icons with fallback - try multiple ways to access
+        // Extract icons with fallback
         const getIcon = (name) => {
             const lib = getLucideLib();
             if (!lib) return FallbackIcon;
-            
-            // Try direct property access
             if (lib[name]) return lib[name];
-            
-            // Try lowercase
             if (lib[name.toLowerCase()]) return lib[name.toLowerCase()];
-            
             return FallbackIcon;
         };
         
@@ -88,6 +80,7 @@
         const Dumbbell = getIcon('Dumbbell');
         const Repeat = getIcon('Repeat');
         const MapPin = getIcon('MapPin');
+        const Gauge = getIcon('Gauge');
 
         // --- UI Components ---
         const Card = ({ children, className = "" }) => (
@@ -145,6 +138,19 @@
             return parseFloat(parts[0]) * 60 + parseFloat(parts[1]);
         };
 
+        // Improved Clean Text Function (Even Stronger)
+        const cleanText = (text) => {
+            if (!text) return "";
+            // Remove leading/trailing special chars, whitespace, punctuation
+            let cleaned = text.replace(/^[.\s,:\-/>·\[\]]+/, '').replace(/[.\s,:\-/>·\[\]]+$/, '').trim();
+            // Remove leading particles (korean specific)
+            cleaned = cleaned.replace(/^[은는이가을를의에와과]\s*/, '').trim();
+            // Clean again to be sure
+            return cleaned.replace(/^[.\s,:\-/>·\[\]]+/, '').trim();
+        };
+
+        const normalizeName = (name) => name?.replace(/\s/g, '').replace(/\./g, '');
+
         // --- PDF Loader Configuration ---
         const PDFJS_WORKER_CDN = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
 
@@ -178,20 +184,16 @@
 
             const [selectedRaceIdx, setSelectedRaceIdx] = useState(0);
             const [expandedHorse, setExpandedHorse] = useState(null);
-            
             const [pdfLibLoaded, setPdfLibLoaded] = useState(false);
             const [pdfParsing, setPdfParsing] = useState(false);
-            
             const [raceStats, setRaceStats] = useState({});
 
-            // --- 1. PDF.js Load Effect ---
             useEffect(() => {
                 if (window.pdfjsLib) {
                     window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_CDN;
                     setPdfLibLoaded(true);
                     return;
                 }
-                // Fallback if not loaded by script tag immediately
                 const interval = setInterval(() => {
                     if (window.pdfjsLib) {
                         window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_CDN;
@@ -201,8 +203,6 @@
                 }, 500);
                 return () => clearInterval(interval);
             }, []);
-
-            // --- 2. Parsing Logic ---
 
             const parseEntryCSV = (text) => {
                 const lines = text.split('\n');
@@ -263,7 +263,7 @@
                                 origin: cols[2],
                                 sex: cols[3],
                                 age: cols[4],
-                                rating: cols[5]?.trim(), // Keep full rating string
+                                rating: cols[5]?.trim(),
                                 weight: cols[6]?.replace('*', ''),
                                 weightDiff: cols[7],
                                 jockey: cols[8],
@@ -285,14 +285,11 @@
             const parseHistoryCSV = (text) => {
                 const lines = text.split('\n');
                 const historyData = [];
-                
                 for (let i = 1; i < lines.length; i++) {
                     const line = lines[i].trim();
                     if (!line || line.startsWith('출전_경주일자') || line.startsWith('번호')) continue;
-
                     const cols = line.split(',');
                     if (cols.length < 10) continue;
-
                     historyData.push({
                         raceNo: cols[1]?.replace(/[^0-9]/g, '').trim(), 
                         horseNo: cols[5]?.trim(),
@@ -320,55 +317,94 @@
                 const horseData = {}; 
                 
                 let currentRaceNo = null;
+                let currentSection = 'main';
 
                 lines.forEach(line => {
                     let trimmed = line.trim();
                     if (!trimmed) return;
 
+                    // Detect Race Header
                     const raceMatch = trimmed.match(/(?:서울|부경|부산|제)?\s*0?(\d+)\s*경주/);
-                    if (raceMatch) {
+                    if (raceMatch && !trimmed.includes('기록')) {
                         currentRaceNo = raceMatch[1];
-                        if (!raceData[currentRaceNo]) raceData[currentRaceNo] = {};
+                        if (!raceData[currentRaceNo]) raceData[currentRaceNo] = { analysis: { fastStart: [], fastFinish: [], topItems: [] } };
                         if (!horseData[currentRaceNo]) horseData[currentRaceNo] = {};
+                        currentSection = 'main';
+                        return;
                     }
 
-                    if (currentRaceNo) {
+                    if (!currentRaceNo) return;
+
+                    // Section Detection
+                    if (trimmed.includes('경주 초반 빠른 말')) {
+                        currentSection = 'fastStart';
+                        return;
+                    } else if (trimmed.includes('경주 후반 빠른 말')) {
+                        currentSection = 'fastFinish';
+                        return;
+                    } else if (trimmed.includes('기타 추리') || trimmed.includes('TOP 5')) {
+                        currentSection = 'top5';
+                        return;
+                    }
+
+                    if (currentSection === 'main') {
                         const noSpaceLine = trimmed.replace(/\s/g, '');
                         const recordMatch = noSpaceLine.match(/평균기록[:]?(\d{1,2}:\d{2}\.\d)/);
-                        
                         if (recordMatch) {
                             raceData[currentRaceNo].avgRecord = recordMatch[1];
                         }
 
-                        const horseMatch = trimmed.match(/^(\d+)(?:[.\s]+|번\s*)([가-힣a-zA-Z]+)/);
+                        // Robust horse line matching: "1. Name" or "1 . Name" or "1 Name"
+                        const horseMatch = trimmed.match(/^(\d+)(?:[. ]+|번\s*)([가-힣a-zA-Z]+)/);
                         if (horseMatch) {
-                            const name = horseMatch[2];
+                            let name = normalizeName(horseMatch[2]);
                             let stats = "";
                             let note = "";
 
                             if (trimmed.includes('[통산]')) {
                                 const statsMatch = trimmed.match(/\[통산\]\s*([^\[]+)/);
-                                if (statsMatch) stats = statsMatch[1].trim();
+                                if (statsMatch) stats = cleanText(statsMatch[1]);
                             }
                             
-                            if (trimmed.includes('-')) {
+                            if (trimmed.includes('-') && !trimmed.match(/\d{4}-\d{2}-\d{2}/) && !trimmed.match(/\d{2}\.\d{2}\.\d{2}/)) {
                                 const parts = trimmed.split('-');
-                                if (parts.length > 1) {
-                                    note = parts[parts.length - 1].trim();
-                                }
+                                if (parts.length > 1) note = cleanText(parts[parts.length - 1]);
                             }
 
-                            horseData[currentRaceNo][name] = { stats, note };
+                            if (horseData[currentRaceNo][name]) {
+                                if (stats) horseData[currentRaceNo][name].stats = stats;
+                                if (note) horseData[currentRaceNo][name].note = note;
+                            } else {
+                                horseData[currentRaceNo][name] = { stats, note };
+                            }
+                        }
+                    } 
+                    else if (currentSection === 'fastStart' || currentSection === 'fastFinish') {
+                         // Skip headers within section
+                         if(trimmed.includes('경주') && trimmed.includes('빠른 말')) return;
+
+                         // Robust matching for list items: "1. Name" or "1 Name"
+                        const horseMatch = trimmed.match(/(\d+)(?:[. ]+|번\s*)([가-힣a-zA-Z]+)/);
+                        if (horseMatch) {
+                            const item = { no: horseMatch[1], name: normalizeName(horseMatch[2]) };
+                            if (currentSection === 'fastStart') {
+                                if (!raceData[currentRaceNo].analysis.fastStart.some(h => h.no === item.no)) {
+                                    raceData[currentRaceNo].analysis.fastStart.push(item);
+                                }
+                            } else {
+                                if (!raceData[currentRaceNo].analysis.fastFinish.some(h => h.no === item.no)) {
+                                    raceData[currentRaceNo].analysis.fastFinish.push(item);
+                                }
+                            }
                         }
                     }
                 });
+
                 return { races: raceData, horses: horseData };
             };
 
             const parseExpertPick = (text) => {
                 const expertData = {};
-                
-                // 경주별로 텍스트 분리
                 const raceSections = text.split(/(부산|서울|부경)\s*(\d+)\s*경주\s*:/);
                 
                 for (let i = 1; i < raceSections.length; i += 3) {
@@ -377,10 +413,8 @@
                     const locationStr = raceSections[i];
                     const raceNo = raceSections[i + 1];
                     const raceContent = raceSections[i + 2] || '';
-                    
                     const location = locationStr === '부경' ? 'busan' : (locationStr === '부산' ? 'busan' : 'seoul');
                     
-                    // 경주 정보 추출 (첫 줄)
                     const firstLine = raceContent.split('\n')[0]?.trim() || '';
                     const gradeMatch = firstLine.match(/(\d+)등급/);
                     const distanceMatch = firstLine.match(/\((\d+)m\)/i);
@@ -401,67 +435,55 @@
                         horseComments: {}
                     };
                     
-                    // 전체 텍스트에서 추천, 복병, 선행 추출
                     const fullText = raceContent.replace(/\n/g, ' ');
                     
-                    // 추천말 추출
                     const recommendedMatch = fullText.match(/추천\s*:\s*(.+?)(?=복병|선행|$)/);
                     if (recommendedMatch) {
                         const recommendedStr = recommendedMatch[1];
-                        const horseMatches = recommendedStr.matchAll(/\((\d+)\)\s*([가-힣a-zA-Z]+)/g);
+                        const horseMatches = recommendedStr.matchAll(/\((\d+)\)\s*([가-힣a-zA-Z\.]+)/g);
                         for (const match of horseMatches) {
                             race.recommended.push({
                                 no: match[1],
-                                name: match[2]
+                                name: normalizeName(match[2])
                             });
                         }
                     }
                     
-                    // 복병 추출
                     const darkHorseMatch = fullText.match(/복병\s*:\s*([\d,\s]+)/);
                     if (darkHorseMatch) {
                         const numbers = darkHorseMatch[1].split(',').map(n => n.trim()).filter(n => n);
                         race.darkHorse = numbers;
                     }
                     
-                    // 선행 유력 추출
                     const frontRunnerMatch = fullText.match(/선행\s*유력\s*:\s*([\d,\s]+)/);
                     if (frontRunnerMatch) {
                         const numbers = frontRunnerMatch[1].split(',').map(n => n.trim()).filter(n => n);
                         race.frontRunner = numbers;
                     }
                     
-                    // 각 말에 대한 설명 추출
-                    // "(번호) 말이름" 패턴을 찾고, 다음 "(번호)" 또는 "추천:" 전까지의 텍스트를 추출
                     const horsePattern = /\((\d+)\)\s*([가-힣a-zA-Z]+)/g;
                     let match;
                     const horsePositions = [];
-                    
                     while ((match = horsePattern.exec(fullText)) !== null) {
                         horsePositions.push({
                             no: match[1],
-                            name: match[2],
+                            name: normalizeName(match[2]),
                             start: match.index,
                             end: match.index + match[0].length
                         });
                     }
                     
-                    // 각 말의 설명 추출
                     for (let j = 0; j < horsePositions.length; j++) {
                         const horse = horsePositions[j];
-                        const nextHorseStart = j < horsePositions.length - 1 ? horsePositions[j + 1].start : 
-                                             fullText.indexOf('추천:', horse.end);
-                        const nextKeyword = Math.min(
-                            nextHorseStart > 0 ? nextHorseStart : fullText.length,
-                            fullText.indexOf('복병:', horse.end) > 0 ? fullText.indexOf('복병:', horse.end) : fullText.length,
-                            fullText.indexOf('선행', horse.end) > 0 ? fullText.indexOf('선행', horse.end) : fullText.length
-                        );
+                        const nextHorseStart = j < horsePositions.length - 1 ? horsePositions[j + 1].start : fullText.length;
+                        const keywords = ['추천:', '복병:', '선행'].map(k => fullText.indexOf(k, horse.end)).filter(i => i > 0);
+                        const nextKeyword = keywords.length > 0 ? Math.min(...keywords, nextHorseStart) : nextHorseStart;
                         
                         let comment = fullText.substring(horse.end, nextKeyword).trim();
-                        // 불필요한 문자 제거
-                        comment = comment.replace(/^[은는이가을를의에와과]/g, '').trim();
+                        comment = cleanText(comment);
+                        comment = comment.replace(/\s+/g, ' ');
                         
-                        if (comment && comment.length > 15) {
+                        if (comment && comment.length > 5) {
                             race.horseComments[horse.no] = {
                                 name: horse.name,
                                 comment: comment
@@ -472,11 +494,8 @@
                     if (!expertData[location]) expertData[location] = {};
                     expertData[location][raceNo] = race;
                 }
-                
                 return expertData;
             };
-
-            // --- 3. Handlers ---
 
             const handleFileUpload = async (e, type, location) => {
                 const file = e.target.files[0];
@@ -521,14 +540,10 @@
                                 setData(prev => ({ ...prev, [location]: { ...prev[location], histories: parsedData } }));
                             } else if (type === 'expertPick') {
                                 parsedData = parseExpertPick(text);
-                                // 각 location별로 데이터 병합
                                 setData(prev => {
                                     const newData = { ...prev };
                                     Object.keys(parsedData).forEach(loc => {
-                                        newData[loc] = {
-                                            ...newData[loc],
-                                            expertPick: parsedData[loc] || {}
-                                        };
+                                        newData[loc] = { ...newData[loc], expertPick: parsedData[loc] || {} };
                                     });
                                     return newData;
                                 });
@@ -555,39 +570,25 @@
                 }));
             };
 
-            // --- 4. Logic ---
             const getCurrentLocationData = () => data[activeLocation];
 
             const getHistoryForHorse = (raceNo, horseNo) => {
                 const { histories } = getCurrentLocationData();
                 const targetRace = String(raceNo);
                 const targetHorse = String(horseNo);
-
-                const rawList = histories.filter(h => 
-                    String(h.raceNo) === targetRace && 
-                    String(h.horseNo) === targetHorse
-                );
-
+                const rawList = histories.filter(h => String(h.raceNo) === targetRace && String(h.horseNo) === targetHorse);
                 const uniqueList = rawList.reduce((acc, current) => {
                     const x = acc.find(item => item.date === current.date);
                     return x ? acc : acc.concat([current]);
                 }, []);
-
                 return uniqueList.sort((a, b) => new Date(b.date) - new Date(a.date));
             };
 
             const calculateRaceStats = (currentRace) => {
-                const stats = {
-                    fastestStart: [],
-                    fastestFinish: [],
-                    bestRecords: {},
-                    topRating: [],
-                    topTraining: []
-                };
+                const stats = { fastestStart: [], fastestFinish: [], bestRecords: {}, topRating: [], topTraining: [] };
                 if(!currentRace) return stats;
 
                 const raceDist = currentRace.distance?.replace('M','').trim();
-
                 let maxRating = -1;
                 let maxTraining = -1;
                 
@@ -598,43 +599,27 @@
                     if (t > maxTraining) maxTraining = t;
                 });
 
-                if (maxRating > 0) {
-                    stats.topRating = currentRace.horses.filter(h => (parseInt(h.rating) || 0) === maxRating).map(h => h.no);
-                }
-                if (maxTraining > 0) {
-                    stats.topTraining = currentRace.horses.filter(h => (parseInt(h.trainingCount) || 0) === maxTraining).map(h => h.no);
-                }
+                if (maxRating > 0) stats.topRating = currentRace.horses.filter(h => (parseInt(h.rating) || 0) === maxRating).map(h => h.no);
+                if (maxTraining > 0) stats.topTraining = currentRace.horses.filter(h => (parseInt(h.trainingCount) || 0) === maxTraining).map(h => h.no);
 
                 const speedList = currentRace.horses.map(horse => {
                     const myHistory = getHistoryForHorse(currentRace.no, horse.no);
                     const recent3 = myHistory.slice(0, 3);
-                    
                     const s1fVals = recent3.map(h => timeToSeconds(h.s1f)).filter(v => v < 100);
                     const avgS1f = s1fVals.length > 0 ? s1fVals.reduce((a,b) => a+b, 0) / s1fVals.length : 999;
-
                     const g1fVals = recent3.map(h => timeToSeconds(h.g1f)).filter(v => v < 100);
                     const avgG1f = g1fVals.length > 0 ? g1fVals.reduce((a,b) => a+b, 0) / g1fVals.length : 999;
-
                     const distHistory = myHistory.filter(h => h.distance == raceDist && h.record);
                     let bestRec = null;
                     if (distHistory.length > 0) {
-                        bestRec = distHistory.reduce((prev, curr) => {
-                            return timeToSeconds(prev.record) < timeToSeconds(curr.record) ? prev : curr;
-                        });
+                        bestRec = distHistory.reduce((prev, curr) => timeToSeconds(prev.record) < timeToSeconds(curr.record) ? prev : curr);
                     }
-
                     return { no: horse.no, avgS1f, avgG1f, bestRec };
                 });
 
                 stats.fastestStart = [...speedList].sort((a,b) => a.avgS1f - b.avgS1f).slice(0, 3).map(i => i.no);
                 stats.fastestFinish = [...speedList].sort((a,b) => a.avgG1f - b.avgG1f).slice(0, 3).map(i => i.no);
-
-                speedList.forEach(item => {
-                    if(item.bestRec) {
-                        stats.bestRecords[item.no] = item.bestRec.record;
-                    }
-                });
-
+                speedList.forEach(item => { if(item.bestRec) stats.bestRecords[item.no] = item.bestRec.record; });
                 return stats;
             };
 
@@ -642,9 +627,7 @@
                 const { races } = getCurrentLocationData();
                 if (races.length > 0) {
                     const newStats = {};
-                    races.forEach(race => {
-                        newStats[race.no] = calculateRaceStats(race);
-                    });
+                    races.forEach(race => { newStats[race.no] = calculateRaceStats(race); });
                     setRaceStats(newStats);
                 }
             }, [activeLocation, data]);
@@ -789,55 +772,51 @@
                                 {currentRace && (
                                     <div className="space-y-4">
                                         <div className="bg-white rounded-lg p-4 shadow-md border-l-4 border-l-yellow-400 flex flex-col gap-4 sticky top-16 z-40">
-                                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                                <div>
-                                                    <h2 className="text-2xl font-black text-gray-900 flex items-center gap-2">
-                                                        <span className="bg-slate-900 text-white text-sm px-2 py-1 rounded">{activeLocation === LOCATIONS.SEOUL ? '서울' : '부산'}</span>
-                                                        제{currentRace.no}경주 
-                                                        <span className="text-lg font-normal text-gray-500 flex items-center gap-1"><Clock size={16}/> {currentRace.startTime}</span>
-                                                    </h2>
-                                                    <div className="flex items-center gap-2 mt-1">
-                                                        <span className="bg-slate-800 text-white text-xs px-2 py-0.5 rounded font-bold">{currentRace.distance}</span>
-                                                        <p className="text-xs text-gray-600 font-medium">{currentRace.conditions}</p>
-                                                    </div>
+                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span className="bg-slate-900 text-white text-xs px-2 py-1 rounded">{activeLocation === LOCATIONS.SEOUL ? '서울' : '부산'}</span>
+                                                    <h2 className="text-xl sm:text-2xl font-black text-gray-900">제{currentRace.no}경주</h2>
+                                                    <span className="text-sm sm:text-lg font-normal text-gray-500 flex items-center gap-1"><Clock size={14} className="sm:w-4 sm:h-4"/> {currentRace.startTime}</span>
+                                                    <span className="bg-slate-800 text-white text-xs px-2 py-0.5 rounded font-bold">{currentRace.distance}</span>
+                                                    <p className="text-xs text-gray-600 font-medium truncate max-w-[200px] sm:max-w-none">{currentRace.conditions}</p>
                                                 </div>
                                                 
                                                 {currentEasyRace?.avgRecord ? (
-                                                    <div className="bg-yellow-50 px-4 py-2 rounded-lg border border-yellow-200 text-right">
-                                                        <span className="block text-xs text-yellow-700 font-bold uppercase">Average Winning Time</span>
-                                                        <span className="text-xl font-black text-yellow-900 font-mono tracking-tight flex items-center gap-1 justify-end">
-                                                            <Timer size={18}/> {currentEasyRace.avgRecord}
+                                                    <div className="bg-yellow-50 px-3 py-1.5 rounded-lg border border-yellow-200 text-right">
+                                                        <span className="block text-[10px] text-yellow-700 font-bold uppercase">우승마 평균기록</span>
+                                                        <span className="text-lg sm:text-xl font-black text-yellow-900 font-mono tracking-tight flex items-center gap-1 justify-end">
+                                                            <Timer size={16} className="sm:w-[18px] sm:h-[18px]"/> {currentEasyRace.avgRecord}
                                                         </span>
                                                     </div>
                                                 ) : (
                                                     <div className="text-xs text-gray-400 text-right">
-                                                        PDF 데이터가 없습니다.
+                                                        PDF 데이터 없음
                                                     </div>
                                                 )}
                                             </div>
 
                                             {currentExpertPick && (
-                                                <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-3 rounded-lg border border-orange-200">
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <Trophy className="w-4 h-4 text-orange-600"/>
-                                                        <span className="text-xs font-bold text-orange-800">Expert Pick 정보</span>
-                                                    </div>
-                                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                                                <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-2 rounded-lg border border-orange-200">
+                                                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                                                        <div className="flex items-center gap-1">
+                                                            <Trophy className="w-3 h-3 text-orange-600"/>
+                                                            <span className="font-bold text-orange-800">Expert Pick:</span>
+                                                        </div>
                                                         {currentExpertPick.recommended && currentExpertPick.recommended.length > 0 && (
-                                                            <div>
-                                                                <span className="font-bold text-green-700">추천: </span>
+                                                            <span className="flex items-center gap-1">
+                                                                <span className="font-bold text-green-700">추천</span>
                                                                 <span className="text-gray-700">
                                                                     {currentExpertPick.recommended.map((r, idx) => (
                                                                         <span key={idx}>
-                                                                            {idx > 0 && ', '}({r.no}) {r.name}
+                                                                            {idx > 0 && ', '}({r.no}){r.name}
                                                                         </span>
                                                                     ))}
                                                                 </span>
-                                                            </div>
+                                                            </span>
                                                         )}
                                                         {currentExpertPick.darkHorse && currentExpertPick.darkHorse.length > 0 && (
-                                                            <div>
-                                                                <span className="font-bold text-purple-700">복병: </span>
+                                                            <span className="flex items-center gap-1">
+                                                                <span className="font-bold text-purple-700">복병</span>
                                                                 <span className="text-gray-700">
                                                                     {currentExpertPick.darkHorse.map((d, idx) => (
                                                                         <span key={idx}>
@@ -845,11 +824,11 @@
                                                                         </span>
                                                                     ))}
                                                                 </span>
-                                                            </div>
+                                                            </span>
                                                         )}
                                                         {currentExpertPick.frontRunner && currentExpertPick.frontRunner.length > 0 && (
-                                                            <div>
-                                                                <span className="font-bold text-blue-700">선행 유력: </span>
+                                                            <span className="flex items-center gap-1">
+                                                                <span className="font-bold text-blue-700">선행</span>
                                                                 <span className="text-gray-700">
                                                                     {currentExpertPick.frontRunner.map((f, idx) => (
                                                                         <span key={idx}>
@@ -857,7 +836,7 @@
                                                                         </span>
                                                                     ))}
                                                                 </span>
-                                                            </div>
+                                                            </span>
                                                         )}
                                                     </div>
                                                 </div>
@@ -873,6 +852,8 @@
                                                 
                                                 const isFastStart = currentStats?.fastestStart?.includes(horse.no);
                                                 const isFastFinish = currentStats?.fastestFinish?.includes(horse.no);
+                                                const isEasyFastStart = currentEasyRace?.analysis?.fastStart.some(h => h.no === horse.no);
+                                                const isEasyFastFinish = currentEasyRace?.analysis?.fastFinish.some(h => h.no === horse.no);
                                                 const bestRecord = currentStats?.bestRecords[horse.no];
                                                 const isTopRating = currentStats?.topRating?.includes(horse.no);
                                                 const isTopTraining = currentStats?.topTraining?.includes(horse.no);
@@ -911,8 +892,8 @@
                                                                     {isRecommended && <Badge color="green"><Trophy size={10}/> 추천</Badge>}
                                                                     {isDarkHorse && <Badge color="purple"><Flame size={10}/> 복병</Badge>}
                                                                     {isFrontRunner && <Badge color="blue"><Rocket size={10}/> 선행</Badge>}
-                                                                    {isFastStart && <Badge color="red"><Rocket size={10}/> 초반빠름</Badge>}
-                                                                    {isFastFinish && <Badge color="blue"><Zap size={10}/> 후반빠름</Badge>}
+                                                                    {(isFastStart || isEasyFastStart) && <Badge color="red"><Rocket size={10}/> 초반빠름</Badge>}
+                                                                    {(isFastFinish || isEasyFastFinish) && <Badge color="blue"><Zap size={10}/> 후반빠름</Badge>}
                                                                     {Math.abs(parseInt(horse.weightDiff || 0)) >= 10 && (
                                                                         <Badge color="orange"><Scale size={10}/> 체중{horse.weightDiff}</Badge>
                                                                     )}
@@ -963,7 +944,7 @@
 
                                                                     {(easyInfo?.stats) && (
                                                                         <div className="text-[10px] sm:text-xs bg-purple-50 text-purple-800 px-2 py-0.5 rounded font-medium border border-purple-100 flex items-center">
-                                                                        {easyInfo.stats}
+                                                                        {cleanText(easyInfo.stats)}
                                                                         </div>
                                                                     )}
                                                                 </div>
@@ -991,7 +972,7 @@
                                                                         <h4 className="text-xs font-bold text-purple-700 uppercase mb-1 flex items-center gap-1">
                                                                             <Info size={12}/> Easy Race 분석
                                                                         </h4>
-                                                                        <p className="text-gray-700 text-xs sm:text-sm">{easyInfo.note}</p>
+                                                                        <p className="text-gray-700 text-xs sm:text-sm">{cleanText(easyInfo.note)}</p>
                                                                     </div>
                                                                 )}
 
@@ -1000,7 +981,9 @@
                                                                         <h4 className="text-xs font-bold text-orange-700 uppercase mb-1 flex items-center gap-1">
                                                                             <Trophy size={12}/> Expert Pick 분석
                                                                         </h4>
-                                                                        <p className="text-gray-700 text-xs sm:text-sm leading-relaxed">{expertHorseComment.comment}</p>
+                                                                        <p className="text-gray-700 text-xs sm:text-sm leading-relaxed">
+                                                                            {cleanText(expertHorseComment.comment)}
+                                                                        </p>
                                                                     </div>
                                                                 )}
 
@@ -1052,8 +1035,7 @@
                                                                                     <td className="p-2">{h.grade}</td>
                                                                                     <td className={`p-2 ${distClass}`}>{h.distance}</td>
                                                                                     <td className={`p-2 font-mono ${distClass}`}>{h.record}</td>
-                                                                                    <td className={`p-2 ${rankClass}`}>{h.rank}</td>
-                                                                                    <td className="p-2 text-gray-600">{h.jockey}</td>
+                                                                                    <td className={`p-2 ${rankClass}`}>{h.rank}</td>                                                                                    <td className="p-2 text-gray-600">{h.jockey}</td>
                                                                                     <td className="p-2 text-gray-800 font-medium">{h.weight}</td>
                                                                                     <td className="p-2 text-gray-500">{h.s1f}</td>
                                                                                     <td className="p-2 text-yellow-700">{h.g3f}</td>
