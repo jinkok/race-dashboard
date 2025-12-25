@@ -81,6 +81,9 @@
         const Repeat = getIcon('Repeat');
         const MapPin = getIcon('MapPin');
         const Gauge = getIcon('Gauge');
+        const ArrowUpCircle = getIcon('ArrowUpCircle');
+        const ArrowDownCircle = getIcon('ArrowDownCircle');
+        const Leaf = getIcon('Leaf');
 
         // --- UI Components ---
         const Card = ({ children, className = "" }) => (
@@ -138,14 +141,10 @@
             return parseFloat(parts[0]) * 60 + parseFloat(parts[1]);
         };
 
-        // Improved Clean Text Function (Even Stronger)
         const cleanText = (text) => {
             if (!text) return "";
-            // Remove leading/trailing special chars, whitespace, punctuation
             let cleaned = text.replace(/^[.\s,:\-/>·\[\]]+/, '').replace(/[.\s,:\-/>·\[\]]+$/, '').trim();
-            // Remove leading particles (korean specific)
             cleaned = cleaned.replace(/^[은는이가을를의에와과]\s*/, '').trim();
-            // Clean again to be sure
             return cleaned.replace(/^[.\s,:\-/>·\[\]]+/, '').trim();
         };
 
@@ -167,7 +166,7 @@
                 pdf: `[Easy Race 분석 데이터 - 서울]\n서울 1 경주\n국6등급 1200m 우승마 평균기록 1:15.5\n1 위너스블루: [통산] 1전 0승 [복승률 0%] - 데뷔전 아쉬움`
             },
             busan: {
-                entry: `2025년12월26일(금) 제1경주 부경 제97일,11:15\n국6등급 1300M 별정A,일반,R0~0,2세 성별오픈,루키\n번호,마명,산지,성별,연령,레이팅,중량,증감,기수명,조교사명,마주명,조교 횟수,출전 주기,장구현황,특이사항,부마,등급\n1,용비짱,한국,거,2,,56,0,박재이,구민성,정성진,15,,"Triabit +,망사+",,지몰로지스트,국6`,
+                entry: `2025년12월26일(금) 제1경주 부경 제97일,11:15\n국6등급 1300M 별정A,일반,R0~0,2세 성별오픈,루키\n번호,마명,산지,성별,연령,레이팅,중량,증감,기수명,조교사명,마주명,조교 횟수,출전 주기,장구현황,특이사항,부마,등급\n1,용비짱,한국,거,2,,56,0,박재이,구민성,정성진,15,,"Triabit +,망사+",,지몰로지스트,국6\n2,판타스틱캡틴,한국,수,2,,56,0,송경윤,강은석,무지개렌트카,12,12주,\"계란형큰,망사\",,어플릿익스프레스,국6`,
                 history: `출전_경주일자,출전_경주번호,출전_출발시간,출전_등급,출전_거리,출전마_마번,출전마_마명,출전마_기수,출전마_성별,출전마_나이,출전마_부담중량,순,경주일자,등급,거리,기록,순위,마번,종류,함수율,빠르기,기수명,중량,S-1F,G-3F,G-1F,마체중\n2025년12월26일,1경주,11:15,국6등급,1300M,2,판타스틱캡틴,송경윤,수,2,56,1,2025/10/18-2R,-,1000,1:07.3,9/11,1,주,10,-,신윤섭,55,0:15.0,0:39.6,0:13.8,490(0)`,
                 pdf: `[Easy Race 분석 데이터 - 부산]\n부경 1 경주\n국6등급 1300m 우승마 평균기록 1:21.5\n1 용비짱: [통산] 3전 0승 [복승률 0%] - 걸음 늘고 있음`
             }
@@ -273,6 +272,7 @@
                                 cycle: cols[12],
                                 equipment: cols[13]?.replace(/"/g, ''),
                                 sire: cols[15],
+                                horseGrade: cols[16]?.trim() // Added: 파싱된 말 등급
                             });
                         }
                     }
@@ -323,7 +323,6 @@
                     let trimmed = line.trim();
                     if (!trimmed) return;
 
-                    // Detect Race Header
                     const raceMatch = trimmed.match(/(?:서울|부경|부산|제)?\s*0?(\d+)\s*경주/);
                     if (raceMatch && !trimmed.includes('기록')) {
                         currentRaceNo = raceMatch[1];
@@ -335,7 +334,6 @@
 
                     if (!currentRaceNo) return;
 
-                    // Section Detection
                     if (trimmed.includes('경주 초반 빠른 말')) {
                         currentSection = 'fastStart';
                         return;
@@ -354,7 +352,6 @@
                             raceData[currentRaceNo].avgRecord = recordMatch[1];
                         }
 
-                        // Robust horse line matching: "1. Name" or "1 . Name" or "1 Name"
                         const horseMatch = trimmed.match(/^(\d+)(?:[. ]+|번\s*)([가-힣a-zA-Z]+)/);
                         if (horseMatch) {
                             let name = normalizeName(horseMatch[2]);
@@ -380,10 +377,7 @@
                         }
                     } 
                     else if (currentSection === 'fastStart' || currentSection === 'fastFinish') {
-                         // Skip headers within section
                          if(trimmed.includes('경주') && trimmed.includes('빠른 말')) return;
-
-                         // Robust matching for list items: "1. Name" or "1 Name"
                         const horseMatch = trimmed.match(/(\d+)(?:[. ]+|번\s*)([가-힣a-zA-Z]+)/);
                         if (horseMatch) {
                             const item = { no: horseMatch[1], name: normalizeName(horseMatch[2]) };
@@ -576,12 +570,23 @@
                 const { histories } = getCurrentLocationData();
                 const targetRace = String(raceNo);
                 const targetHorse = String(horseNo);
-                const rawList = histories.filter(h => String(h.raceNo) === targetRace && String(h.horseNo) === targetHorse);
+
+                const rawList = histories.filter(h => 
+                    String(h.raceNo) === targetRace && 
+                    String(h.horseNo) === targetHorse
+                );
+
                 const uniqueList = rawList.reduce((acc, current) => {
                     const x = acc.find(item => item.date === current.date);
                     return x ? acc : acc.concat([current]);
                 }, []);
-                return uniqueList.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                // Fix: 날짜 문자열(예: 2025/11/21-2R)에서 날짜 부분만 추출하여 정렬
+                return uniqueList.sort((a, b) => {
+                    const dateA = a.date ? new Date(a.date.split('-')[0]) : new Date(0);
+                    const dateB = b.date ? new Date(b.date.split('-')[0]) : new Date(0);
+                    return dateB - dateA; // 내림차순 (최신순)
+                });
             };
 
             const calculateRaceStats = (currentRace) => {
@@ -873,6 +878,50 @@
                                                 const isDarkHorse = currentExpertPick?.darkHorse?.includes(horse.no);
                                                 const isFrontRunner = currentExpertPick?.frontRunner?.includes(horse.no);
 
+                                                // Grade Change Logic
+                                                let gradeChangeInfo = null;
+                                                const lastRaceGrade = lastRace?.grade; // e.g., "국6등급", "-", "혼4"
+                                                
+                                                // FIX: Use currentRace.conditions instead of currentRace.info
+                                                // parseEntryCSV stores the race details line in 'conditions'
+                                                const raceInfoString = currentRace.conditions || currentRace.info;
+
+                                                if (raceInfoString && horse.horseGrade) {
+                                                    // "등급" 글자 유무와 상관없이 숫자만 추출
+                                                    const raceGradeMatch = raceInfoString.match(/(\d+)등급/) || raceInfoString.match(/(\d+)/);
+                                                    const horseGradeMatch = horse.horseGrade.match(/(\d+)/);
+                                                    // lastRaceGrade가 존재하고 '-'가 아닐 때 숫자 추출
+                                                    const lastRaceGradeMatch = lastRaceGrade && !lastRaceGrade.includes('주행') && lastRaceGrade.trim() !== '-' 
+                                                                             ? lastRaceGrade.match(/(\d+)/) : null;
+                                                    
+                                                    if (raceGradeMatch && horseGradeMatch) {
+                                                        const raceGradeNum = parseInt(raceGradeMatch[1]); // 이번 경주 등급 (예: 5)
+                                                        const horseGradeNum = parseInt(horseGradeMatch[1]); // 말의 현재 등급 (예: 5)
+                                                        
+                                                        // 1. 점핑 출전: 말 등급(6) > 경주 등급(5) (숫자가 클수록 하위 등급)
+                                                        if (horseGradeNum > raceGradeNum) {
+                                                            gradeChangeInfo = { type: 'jump', text: '점핑출전' };
+                                                        } 
+                                                        // 2. 강급: 말 등급(4) < 경주 등급(5)
+                                                        else if (horseGradeNum < raceGradeNum) {
+                                                            gradeChangeInfo = { type: 'down', text: '강급' };
+                                                        }
+                                                        // 3. 적정 등급(동일 등급)인 경우 과거 비교
+                                                        else if (horseGradeNum === raceGradeNum) {
+                                                            if (lastRaceGradeMatch) {
+                                                                const lastRaceGradeNum = parseInt(lastRaceGradeMatch[1]); // 직전 경주 등급 (예: 6)
+                                                                // 직전 등급(6) > 현 등급(5) -> 이번에 승급해서 온 것임
+                                                                if (lastRaceGradeNum > raceGradeNum) {
+                                                                    gradeChangeInfo = { type: 'up', text: '승급전' };
+                                                                }
+                                                            } else if (lastRaceGrade && (lastRaceGrade.includes('주행') || lastRaceGrade.trim() === '-')) {
+                                                                // 직전 경주가 등급 없음(주행심사 등) -> 등급 경주 첫 진입 (데뷔/복귀)
+                                                                gradeChangeInfo = { type: 'new', text: '전적진입' };
+                                                            }
+                                                        }
+                                                    }
+                                                }
+
                                                 return (
                                                     <Card key={horse.no} className={`transition-all duration-200 ${isExpanded ? 'ring-2 ring-blue-500 shadow-md' : 'hover:shadow'}`}>
                                                         <div className="p-3 flex items-start sm:items-center cursor-pointer relative" onClick={() => setExpandedHorse(isExpanded ? null : horse.no)}>
@@ -889,6 +938,28 @@
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="flex flex-wrap items-center gap-2 mb-1">
                                                                     <h3 className="text-lg font-bold text-gray-900 leading-none">{horse.name}</h3>
+                                                                    
+                                                                    {gradeChangeInfo && gradeChangeInfo.type === 'jump' && (
+                                                                        <Badge color="purple" className="animate-pulse border-purple-300 bg-purple-100 text-purple-800">
+                                                                            <TrendingUp size={10} className="mr-1"/> {gradeChangeInfo.text}
+                                                                        </Badge>
+                                                                    )}
+                                                                    {gradeChangeInfo && gradeChangeInfo.type === 'up' && (
+                                                                        <Badge color="red" className="animate-pulse border-red-300 bg-red-100 text-red-800">
+                                                                            <Rocket size={10} className="mr-1"/> {gradeChangeInfo.text}
+                                                                        </Badge>
+                                                                    )}
+                                                                    {gradeChangeInfo && gradeChangeInfo.type === 'new' && (
+                                                                        <Badge color="green" className="bg-green-100 text-green-800 border-green-200">
+                                                                            <Leaf size={10} className="mr-1"/> {gradeChangeInfo.text}
+                                                                        </Badge>
+                                                                    )}
+                                                                    {gradeChangeInfo && gradeChangeInfo.type === 'down' && (
+                                                                        <Badge color="teal">
+                                                                            <ArrowDownCircle size={10}/> {gradeChangeInfo.text}
+                                                                        </Badge>
+                                                                    )}
+
                                                                     {isRecommended && <Badge color="green"><Trophy size={10}/> 추천</Badge>}
                                                                     {isDarkHorse && <Badge color="purple"><Flame size={10}/> 복병</Badge>}
                                                                     {isFrontRunner && <Badge color="blue"><Rocket size={10}/> 선행</Badge>}
@@ -922,6 +993,7 @@
                                                                     <span className="w-px h-3 bg-gray-300"></span>
                                                                     <span className="text-gray-600 font-medium bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
                                                                         {horse.origin}/{horse.sex}/{horse.age}세
+                                                                        {horse.horseGrade && ` (${horse.horseGrade})`}
                                                                     </span>
                                                                 </div>
 
