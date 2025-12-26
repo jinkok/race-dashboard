@@ -431,7 +431,8 @@
                     
                     const fullText = raceContent.replace(/\n/g, ' ');
                     
-                    const recommendedMatch = fullText.match(/추천\s*:\s*(.+?)(?=복병|선행|$)/);
+                    // FIX: "추천:" 뿐만 아니라 "추천 마번:"도 인식하도록 정규식 수정
+                    const recommendedMatch = fullText.match(/추천(?:\s*마번)?\s*:\s*(.+?)(?=복병|선행|$)/);
                     if (recommendedMatch) {
                         const recommendedStr = recommendedMatch[1];
                         const horseMatches = recommendedStr.matchAll(/\((\d+)\)\s*([가-힣a-zA-Z\.]+)/g);
@@ -470,7 +471,7 @@
                     for (let j = 0; j < horsePositions.length; j++) {
                         const horse = horsePositions[j];
                         const nextHorseStart = j < horsePositions.length - 1 ? horsePositions[j + 1].start : fullText.length;
-                        const keywords = ['추천:', '복병:', '선행'].map(k => fullText.indexOf(k, horse.end)).filter(i => i > 0);
+                        const keywords = ['추천:', '추천 마번:', '복병:', '선행'].map(k => fullText.indexOf(k, horse.end)).filter(i => i > 0);
                         const nextKeyword = keywords.length > 0 ? Math.min(...keywords, nextHorseStart) : nextHorseStart;
                         
                         let comment = fullText.substring(horse.end, nextKeyword).trim();
