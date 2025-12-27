@@ -45,7 +45,7 @@
             return null;
         };
         
-        // --- MODIFIED: FallbackIcon renders NOTHING now ---
+        // FallbackIcon renders NOTHING
         const FallbackIcon = () => null;
         
         // Extract icons with fallback
@@ -272,7 +272,7 @@
                                 cycle: cols[12],
                                 equipment: cols[13]?.replace(/"/g, ''),
                                 sire: cols[15],
-                                horseGrade: cols[16]?.trim() // Added: 파싱된 말 등급
+                                horseGrade: cols[16]?.trim() 
                             });
                         }
                     }
@@ -312,7 +312,24 @@
             };
 
             const parseEasyRaceText = (text) => {
-                const lines = text.split('\n');
+                // --- PRE-PROCESSING: FIX BROKEN/SPLIT HEADERS ---
+                // Case 1: "서울 10" \n "0 경주" -> "서울 10 경주" (User's specific case)
+                // Case 2: "서울 1" \n "0 경주" -> "서울 10 경주" (Split digits)
+                // This regex looks for: Location + Digits + Newline + Digits + '경주'
+                let cleanedText = text.replace(/((?:서울|부경|부산|제)\s*)\s*(\d+)\s*[\s\n\r]+\s*(\d+)\s*경주/g, (match, prefix, n1, n2) => {
+                    // If n1 is already a 2-digit number (e.g., 10, 11) and n2 matches the last digit (ghosting) or is just noise
+                    // The user said: "Seoul 10" \n "0 Race"
+                    if (n1.length === 2) {
+                         return `${prefix} ${n1} 경주`; 
+                    }
+                    // If split digits (e.g. 1 and 0 -> 10)
+                    if (n1.length === 1 && n2.length === 1) {
+                        return `${prefix} ${n1}${n2} 경주`;
+                    }
+                    return match;
+                });
+
+                const lines = cleanedText.split('\n');
                 const raceData = {}; 
                 const horseData = {}; 
                 
@@ -323,13 +340,21 @@
                     let trimmed = line.trim();
                     if (!trimmed) return;
 
-                    const raceMatch = trimmed.match(/(?:서울|부경|부산|제)?\s*0?(\d+)\s*경주/);
+                    // --- CRITICAL FIX: Limit digits to 1 or 2 to avoid matching dates like '2025' ---
+                    // Matches: "1", "10", "1 0", " 1 0 "
+                    // Does NOT match: "2025", "2025 10"
+                    const raceMatch = trimmed.match(/(?:서울|부경|부산|제)?\s*(?:제)?\s*0?(\d\s?\d?)\s*경주/);
+                    
                     if (raceMatch && !trimmed.includes('기록')) {
-                        currentRaceNo = raceMatch[1];
-                        if (!raceData[currentRaceNo]) raceData[currentRaceNo] = { analysis: { fastStart: [], fastFinish: [], topItems: [] } };
-                        if (!horseData[currentRaceNo]) horseData[currentRaceNo] = {};
-                        currentSection = 'main';
-                        return;
+                        const rawNum = raceMatch[1].replace(/\s/g, '');
+                        // Double check length just in case, though regex \d\s?\d? restricts it mostly
+                        if (rawNum.length > 0 && rawNum.length <= 2) {
+                            currentRaceNo = rawNum;
+                            if (!raceData[currentRaceNo]) raceData[currentRaceNo] = { analysis: { fastStart: [], fastFinish: [], topItems: [] } };
+                            if (!horseData[currentRaceNo]) horseData[currentRaceNo] = {};
+                            currentSection = 'main';
+                            return;
+                        }
                     }
 
                     if (!currentRaceNo) return;
@@ -399,6 +424,7 @@
 
             const parseExpertPick = (text) => {
                 const expertData = {};
+                // Split logic that preserves more content
                 const raceSections = text.split(/(부산|서울|부경)\s*(\d+)\s*경주\s*:/);
                 
                 for (let i = 1; i < raceSections.length; i += 3) {
@@ -429,10 +455,15 @@
                         horseComments: {}
                     };
                     
+                    // Replace newlines with spaces for easier regex matching
                     const fullText = raceContent.replace(/\n/g, ' ');
                     
-                    // FIX: "추천:" 뿐만 아니라 "추천 마번:"도 인식하도록 정규식 수정
-                    const recommendedMatch = fullText.match(/추천(?:\s*마번)?\s*:\s*(.+?)(?=복병|선행|$)/);
+                    // --- IMPROVED REGEX PARSING (Fixed for prose interference + newline safety) ---
+                    // Note: fullText here has newlines replaced by spaces, but just in case, we use [\d, ]+ instead of [\d,\s]+
+                    // to avoid matching too much if we didn't replace.
+                    
+                    // Recommended: 
+                    const recommendedMatch = fullText.match(/추천(?:[*]*)(?:\s*마번)?(?:[*]*)\s*[:：]\s*[*]*\s*(.+?)(?=\s*(?:[*]*)\s*(?:복병|선행)|$)/);
                     if (recommendedMatch) {
                         const recommendedStr = recommendedMatch[1];
                         const horseMatches = recommendedStr.matchAll(/\((\d+)\)\s*([가-힣a-zA-Z\.]+)/g);
@@ -444,18 +475,24 @@
                         }
                     }
                     
-                    const darkHorseMatch = fullText.match(/복병\s*:\s*([\d,\s]+)/);
+                    // Dark Horse: 
+                    // Matches "복병", allow optional stars, then colon, then digits.
+                    const darkHorseMatch = fullText.match(/복병(?:[*]*)\s*[:：]\s*[*]*\s*([\d, ]+)/);
                     if (darkHorseMatch) {
                         const numbers = darkHorseMatch[1].split(',').map(n => n.trim()).filter(n => n);
                         race.darkHorse = numbers;
                     }
                     
-                    const frontRunnerMatch = fullText.match(/선행\s*유력\s*:\s*([\d,\s]+)/);
+                    // Front Runner: 
+                    // Matches "선행", allow optional "유력", optional stars, then colon.
+                    // Does NOT allow general text between "선행" and ":".
+                    const frontRunnerMatch = fullText.match(/선행(?:[*]*)(?:\s*유력)?(?:[*]*)\s*[:：]\s*[*]*\s*([\d, ]+)/);
                     if (frontRunnerMatch) {
                         const numbers = frontRunnerMatch[1].split(',').map(n => n.trim()).filter(n => n);
                         race.frontRunner = numbers;
                     }
                     
+                    // Horse Comments Parsing
                     const horsePattern = /\((\d+)\)\s*([가-힣a-zA-Z]+)/g;
                     let match;
                     const horsePositions = [];
@@ -471,6 +508,7 @@
                     for (let j = 0; j < horsePositions.length; j++) {
                         const horse = horsePositions[j];
                         const nextHorseStart = j < horsePositions.length - 1 ? horsePositions[j + 1].start : fullText.length;
+                        // Find the nearest keyword stop
                         const keywords = ['추천:', '추천 마번:', '복병:', '선행'].map(k => fullText.indexOf(k, horse.end)).filter(i => i > 0);
                         const nextKeyword = keywords.length > 0 ? Math.min(...keywords, nextHorseStart) : nextHorseStart;
                         
@@ -582,11 +620,10 @@
                     return x ? acc : acc.concat([current]);
                 }, []);
 
-                // Fix: 날짜 문자열(예: 2025/11/21-2R)에서 날짜 부분만 추출하여 정렬
                 return uniqueList.sort((a, b) => {
                     const dateA = a.date ? new Date(a.date.split('-')[0]) : new Date(0);
                     const dateB = b.date ? new Date(b.date.split('-')[0]) : new Date(0);
-                    return dateB - dateA; // 내림차순 (최신순)
+                    return dateB - dateA; 
                 });
             };
 
