@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>서울/부산 스마트 통합 경마지</title>
+    <title>서울/부산 스마트 통합 경마지 (JSON)</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -15,46 +15,24 @@
     <!-- Babel for JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
-    <!-- Lucide React Icons (Stable Version) -->
+    <!-- Lucide React Icons -->
     <script src="https://unpkg.com/lucide-react@0.294.0/dist/umd/lucide-react.min.js"></script>
 
-    <!-- PDF.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-
     <style>
-        /* Custom scrollbar hiding */
-        .scrollbar-hide::-webkit-scrollbar {
-            display: none;
-        }
-        .scrollbar-hide {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="bg-slate-100 text-gray-900">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo, useRef } = React;
+        const { useState, useEffect, useMemo } = React;
         
-        // Use window.lucideReact for the UMD build (fallback to window.lucide)
-        const getLucideLib = () => {
-            if (window.lucideReact) return window.lucideReact;
-            if (window.lucide) return window.lucide;
-            return null;
-        };
-        
-        // FallbackIcon renders NOTHING
-        const FallbackIcon = () => null;
-        
-        // Extract icons with fallback
+        // --- Icons Setup ---
         const getIcon = (name) => {
-            const lib = getLucideLib();
-            if (!lib) return FallbackIcon;
-            if (lib[name]) return lib[name];
-            if (lib[name.toLowerCase()]) return lib[name.toLowerCase()];
-            return FallbackIcon;
+            const lib = window.lucideReact || window.lucide;
+            return lib ? (lib[name] || lib[name.toLowerCase()]) : () => null;
         };
         
         const ChevronDown = getIcon('ChevronDown');
@@ -74,16 +52,13 @@
         const Rocket = getIcon('Rocket');
         const Medal = getIcon('Medal');
         const FileText = getIcon('FileText');
-        const Loader2 = getIcon('Loader2');
         const Activity = getIcon('Activity');
         const Crown = getIcon('Crown');
-        const Dumbbell = getIcon('Dumbbell');
         const Repeat = getIcon('Repeat');
         const MapPin = getIcon('MapPin');
-        const Gauge = getIcon('Gauge');
-        const ArrowUpCircle = getIcon('ArrowUpCircle');
         const ArrowDownCircle = getIcon('ArrowDownCircle');
         const Leaf = getIcon('Leaf');
+        const Code = getIcon('Code');
 
         // --- UI Components ---
         const Card = ({ children, className = "" }) => (
@@ -112,7 +87,7 @@
             );
         };
 
-        // --- Colors ---
+        // --- Utils ---
         const getHorseColor = (no) => {
             const num = parseInt(no);
             switch (num) {
@@ -134,75 +109,32 @@
             }
         };
 
-        // --- Helpers ---
         const timeToSeconds = (timeStr) => {
             if (!timeStr || !timeStr.includes(':')) return 9999;
             const parts = timeStr.split(':');
             return parseFloat(parts[0]) * 60 + parseFloat(parts[1]);
         };
 
-        const cleanText = (text) => {
-            if (!text) return "";
-            let cleaned = text.replace(/^[.\s,:\-/>·\[\]]+/, '').replace(/[.\s,:\-/>·\[\]]+$/, '').trim();
-            cleaned = cleaned.replace(/^[은는이가을를의에와과]\s*/, '').trim();
-            return cleaned.replace(/^[.\s,:\-/>·\[\]]+/, '').trim();
-        };
-
+        const cleanText = (text) => text ? text.replace(/^[.\s,:\-/>·\[\]]+/, '').replace(/[.\s,:\-/>·\[\]]+$/, '').trim() : "";
         const normalizeName = (name) => name?.replace(/\s/g, '').replace(/\./g, '');
 
-        // --- PDF Loader Configuration ---
-        const PDFJS_WORKER_CDN = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
-
-        // --- Constants ---
-        const LOCATIONS = {
-            SEOUL: 'seoul',
-            BUSAN: 'busan'
-        };
-
-        const SAMPLE_DATA = {
-            seoul: {
-                entry: `2025년12월27일(토) 제1경주 서울 제97일,10:35\n국6등급 1200M 별정A,일반,R0~0,2세 암,루키\n번호,마명,산지,성별,연령,레이팅,중량,증감,기수명,조교사명,마주명,조교 횟수,출전 주기,장구현황,특이사항,부마,등급\n1,위너스블루,한국,암,2,,54,0,오수철,안병기,김순건,9,,"망사눈+,반가지큰+",,콩코드포인트,국6\n2,갓스피드,한국,암,2,,54,0,김옥성,심승태,송용만,9,,,,나이트러스,국6`,
-                history: `출전_경주일자,출전_경주번호,출전_출발시간,출전_등급,출전_거리,출전마_마번,출전마_마명,출전마_기수,출전마_성별,출전마_나이,출전마_부담중량,순,경주일자,등급,거리,기록,순위,마번,종류,함수율,빠르기,기수명,중량,S-1F,G-3F,G-1F,마체중\n2025년12월27일,1경주,10:35,국6등급,1200M,9,스터닝돌핀,루이스,암,2,54,1,2025/11/21-2R,-,1000,1:04.0,2/10,11,주,3,-,루이스,53,0:14.1,0:39.1,0:13.9,489(0)`,
-                pdf: `[Easy Race 분석 데이터 - 서울]\n서울 1 경주\n국6등급 1200m 우승마 평균기록 1:15.5\n1 위너스블루: [통산] 1전 0승 [복승률 0%] - 데뷔전 아쉬움`
-            },
-            busan: {
-                entry: `2025년12월26일(금) 제1경주 부경 제97일,11:15\n국6등급 1300M 별정A,일반,R0~0,2세 성별오픈,루키\n번호,마명,산지,성별,연령,레이팅,중량,증감,기수명,조교사명,마주명,조교 횟수,출전 주기,장구현황,특이사항,부마,등급\n1,용비짱,한국,거,2,,56,0,박재이,구민성,정성진,15,,"Triabit +,망사+",,지몰로지스트,국6\n2,판타스틱캡틴,한국,수,2,,56,0,송경윤,강은석,무지개렌트카,12,12주,\"계란형큰,망사\",,어플릿익스프레스,국6`,
-                history: `출전_경주일자,출전_경주번호,출전_출발시간,출전_등급,출전_거리,출전마_마번,출전마_마명,출전마_기수,출전마_성별,출전마_나이,출전마_부담중량,순,경주일자,등급,거리,기록,순위,마번,종류,함수율,빠르기,기수명,중량,S-1F,G-3F,G-1F,마체중\n2025년12월26일,1경주,11:15,국6등급,1300M,2,판타스틱캡틴,송경윤,수,2,56,1,2025/10/18-2R,-,1000,1:07.3,9/11,1,주,10,-,신윤섭,55,0:15.0,0:39.6,0:13.8,490(0)`,
-                pdf: `[Easy Race 분석 데이터 - 부산]\n부경 1 경주\n국6등급 1300m 우승마 평균기록 1:21.5\n1 용비짱: [통산] 3전 0승 [복승률 0%] - 걸음 늘고 있음`
-            }
-        };
+        const LOCATIONS = { SEOUL: 'seoul', BUSAN: 'busan' };
 
         function RaceCardApp() {
             const [activeLocation, setActiveLocation] = useState(LOCATIONS.SEOUL);
             const [activeTab, setActiveTab] = useState('view');
             
             const [data, setData] = useState({
-                seoul: { races: [], histories: [], easyRace: { races: {}, horses: {} }, pdfText: SAMPLE_DATA.seoul.pdf, expertPick: {} },
-                busan: { races: [], histories: [], easyRace: { races: {}, horses: {} }, pdfText: SAMPLE_DATA.busan.pdf, expertPick: {} }
+                seoul: { races: [], histories: [], easyRace: { races: {}, horses: {} }, expertPick: {} },
+                busan: { races: [], histories: [], easyRace: { races: {}, horses: {} }, expertPick: {} }
             });
 
             const [selectedRaceIdx, setSelectedRaceIdx] = useState(0);
             const [expandedHorse, setExpandedHorse] = useState(null);
-            const [pdfLibLoaded, setPdfLibLoaded] = useState(false);
-            const [pdfParsing, setPdfParsing] = useState(false);
             const [raceStats, setRaceStats] = useState({});
+            const [showDebug, setShowDebug] = useState(false);
 
-            useEffect(() => {
-                if (window.pdfjsLib) {
-                    window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_CDN;
-                    setPdfLibLoaded(true);
-                    return;
-                }
-                const interval = setInterval(() => {
-                    if (window.pdfjsLib) {
-                        window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_CDN;
-                        setPdfLibLoaded(true);
-                        clearInterval(interval);
-                    }
-                }, 500);
-                return () => clearInterval(interval);
-            }, []);
-
+            // --- Parsers ---
             const parseEntryCSV = (text) => {
                 const lines = text.split('\n');
                 const parsedRaces = [];
@@ -221,7 +153,6 @@
                         const distanceMatch = trimmed.match(/(\d{3,4})M/i);
                         
                         if (currentRace && currentRace.no === raceNo) return; 
-
                         if (currentRace) parsedRaces.push(currentRace);
                         
                         currentRace = {
@@ -311,120 +242,8 @@
                 return historyData;
             };
 
-            const parseEasyRaceText = (text) => {
-                // --- PRE-PROCESSING: FIX BROKEN/SPLIT HEADERS ---
-                // Case 1: "서울 10" \n "0 경주" -> "서울 10 경주" (User's specific case)
-                // Case 2: "서울 1" \n "0 경주" -> "서울 10 경주" (Split digits)
-                // This regex looks for: Location + Digits + Newline + Digits + '경주'
-                let cleanedText = text.replace(/((?:서울|부경|부산|제)\s*)\s*(\d+)\s*[\s\n\r]+\s*(\d+)\s*경주/g, (match, prefix, n1, n2) => {
-                    // If n1 is already a 2-digit number (e.g., 10, 11) and n2 matches the last digit (ghosting) or is just noise
-                    // The user said: "Seoul 10" \n "0 Race"
-                    if (n1.length === 2) {
-                         return `${prefix} ${n1} 경주`; 
-                    }
-                    // If split digits (e.g. 1 and 0 -> 10)
-                    if (n1.length === 1 && n2.length === 1) {
-                        return `${prefix} ${n1}${n2} 경주`;
-                    }
-                    return match;
-                });
-
-                const lines = cleanedText.split('\n');
-                const raceData = {}; 
-                const horseData = {}; 
-                
-                let currentRaceNo = null;
-                let currentSection = 'main';
-
-                lines.forEach(line => {
-                    let trimmed = line.trim();
-                    if (!trimmed) return;
-
-                    // --- CRITICAL FIX: Limit digits to 1 or 2 to avoid matching dates like '2025' ---
-                    // Matches: "1", "10", "1 0", " 1 0 "
-                    // Does NOT match: "2025", "2025 10"
-                    const raceMatch = trimmed.match(/(?:서울|부경|부산|제)?\s*(?:제)?\s*0?(\d\s?\d?)\s*경주/);
-                    
-                    if (raceMatch && !trimmed.includes('기록')) {
-                        const rawNum = raceMatch[1].replace(/\s/g, '');
-                        // Double check length just in case, though regex \d\s?\d? restricts it mostly
-                        if (rawNum.length > 0 && rawNum.length <= 2) {
-                            currentRaceNo = rawNum;
-                            if (!raceData[currentRaceNo]) raceData[currentRaceNo] = { analysis: { fastStart: [], fastFinish: [], topItems: [] } };
-                            if (!horseData[currentRaceNo]) horseData[currentRaceNo] = {};
-                            currentSection = 'main';
-                            return;
-                        }
-                    }
-
-                    if (!currentRaceNo) return;
-
-                    if (trimmed.includes('경주 초반 빠른 말')) {
-                        currentSection = 'fastStart';
-                        return;
-                    } else if (trimmed.includes('경주 후반 빠른 말')) {
-                        currentSection = 'fastFinish';
-                        return;
-                    } else if (trimmed.includes('기타 추리') || trimmed.includes('TOP 5')) {
-                        currentSection = 'top5';
-                        return;
-                    }
-
-                    if (currentSection === 'main') {
-                        const noSpaceLine = trimmed.replace(/\s/g, '');
-                        const recordMatch = noSpaceLine.match(/평균기록[:]?(\d{1,2}:\d{2}\.\d)/);
-                        if (recordMatch) {
-                            raceData[currentRaceNo].avgRecord = recordMatch[1];
-                        }
-
-                        const horseMatch = trimmed.match(/^(\d+)(?:[. ]+|번\s*)([가-힣a-zA-Z]+)/);
-                        if (horseMatch) {
-                            let name = normalizeName(horseMatch[2]);
-                            let stats = "";
-                            let note = "";
-
-                            if (trimmed.includes('[통산]')) {
-                                const statsMatch = trimmed.match(/\[통산\]\s*([^\[]+)/);
-                                if (statsMatch) stats = cleanText(statsMatch[1]);
-                            }
-                            
-                            if (trimmed.includes('-') && !trimmed.match(/\d{4}-\d{2}-\d{2}/) && !trimmed.match(/\d{2}\.\d{2}\.\d{2}/)) {
-                                const parts = trimmed.split('-');
-                                if (parts.length > 1) note = cleanText(parts[parts.length - 1]);
-                            }
-
-                            if (horseData[currentRaceNo][name]) {
-                                if (stats) horseData[currentRaceNo][name].stats = stats;
-                                if (note) horseData[currentRaceNo][name].note = note;
-                            } else {
-                                horseData[currentRaceNo][name] = { stats, note };
-                            }
-                        }
-                    } 
-                    else if (currentSection === 'fastStart' || currentSection === 'fastFinish') {
-                         if(trimmed.includes('경주') && trimmed.includes('빠른 말')) return;
-                        const horseMatch = trimmed.match(/(\d+)(?:[. ]+|번\s*)([가-힣a-zA-Z]+)/);
-                        if (horseMatch) {
-                            const item = { no: horseMatch[1], name: normalizeName(horseMatch[2]) };
-                            if (currentSection === 'fastStart') {
-                                if (!raceData[currentRaceNo].analysis.fastStart.some(h => h.no === item.no)) {
-                                    raceData[currentRaceNo].analysis.fastStart.push(item);
-                                }
-                            } else {
-                                if (!raceData[currentRaceNo].analysis.fastFinish.some(h => h.no === item.no)) {
-                                    raceData[currentRaceNo].analysis.fastFinish.push(item);
-                                }
-                            }
-                        }
-                    }
-                });
-
-                return { races: raceData, horses: horseData };
-            };
-
             const parseExpertPick = (text) => {
                 const expertData = {};
-                // Split logic that preserves more content
                 const raceSections = text.split(/(부산|서울|부경)\s*(\d+)\s*경주\s*:/);
                 
                 for (let i = 1; i < raceSections.length; i += 3) {
@@ -437,62 +256,37 @@
                     
                     const firstLine = raceContent.split('\n')[0]?.trim() || '';
                     const gradeMatch = firstLine.match(/(\d+)등급/);
-                    const distanceMatch = firstLine.match(/\((\d+)m\)/i);
-                    const conditionMatch = firstLine.match(/별정\s*[A-Z]|핸디캡/);
-                    const prizeMatch = firstLine.match(/상금\s*\$?([\d,]+)/);
                     
                     const race = {
                         raceNo: raceNo,
                         location: location,
                         info: firstLine,
-                        grade: gradeMatch ? gradeMatch[1] : '',
-                        distance: distanceMatch ? distanceMatch[1] : '',
-                        condition: conditionMatch ? conditionMatch[0] : '',
-                        prize: prizeMatch ? prizeMatch[1] : '',
                         recommended: [],
                         darkHorse: [],
                         frontRunner: [],
                         horseComments: {}
                     };
                     
-                    // Replace newlines with spaces for easier regex matching
                     const fullText = raceContent.replace(/\n/g, ' ');
                     
-                    // --- IMPROVED REGEX PARSING (Fixed for prose interference + newline safety) ---
-                    // Note: fullText here has newlines replaced by spaces, but just in case, we use [\d, ]+ instead of [\d,\s]+
-                    // to avoid matching too much if we didn't replace.
-                    
-                    // Recommended: 
                     const recommendedMatch = fullText.match(/추천(?:[*]*)(?:\s*마번)?(?:[*]*)\s*[:：]\s*[*]*\s*(.+?)(?=\s*(?:[*]*)\s*(?:복병|선행)|$)/);
                     if (recommendedMatch) {
-                        const recommendedStr = recommendedMatch[1];
-                        const horseMatches = recommendedStr.matchAll(/\((\d+)\)\s*([가-힣a-zA-Z\.]+)/g);
+                        const horseMatches = recommendedMatch[1].matchAll(/\((\d+)\)\s*([가-힣a-zA-Z\.]+)/g);
                         for (const match of horseMatches) {
-                            race.recommended.push({
-                                no: match[1],
-                                name: normalizeName(match[2])
-                            });
+                            race.recommended.push({ no: match[1], name: normalizeName(match[2]) });
                         }
                     }
                     
-                    // Dark Horse: 
-                    // Matches "복병", allow optional stars, then colon, then digits.
                     const darkHorseMatch = fullText.match(/복병(?:[*]*)\s*[:：]\s*[*]*\s*([\d, ]+)/);
                     if (darkHorseMatch) {
-                        const numbers = darkHorseMatch[1].split(',').map(n => n.trim()).filter(n => n);
-                        race.darkHorse = numbers;
+                        race.darkHorse = darkHorseMatch[1].split(',').map(n => n.trim()).filter(n => n);
                     }
                     
-                    // Front Runner: 
-                    // Matches "선행", allow optional "유력", optional stars, then colon.
-                    // Does NOT allow general text between "선행" and ":".
                     const frontRunnerMatch = fullText.match(/선행(?:[*]*)(?:\s*유력)?(?:[*]*)\s*[:：]\s*[*]*\s*([\d, ]+)/);
                     if (frontRunnerMatch) {
-                        const numbers = frontRunnerMatch[1].split(',').map(n => n.trim()).filter(n => n);
-                        race.frontRunner = numbers;
+                        race.frontRunner = frontRunnerMatch[1].split(',').map(n => n.trim()).filter(n => n);
                     }
                     
-                    // Horse Comments Parsing
                     const horsePattern = /\((\d+)\)\s*([가-힣a-zA-Z]+)/g;
                     let match;
                     const horsePositions = [];
@@ -508,19 +302,14 @@
                     for (let j = 0; j < horsePositions.length; j++) {
                         const horse = horsePositions[j];
                         const nextHorseStart = j < horsePositions.length - 1 ? horsePositions[j + 1].start : fullText.length;
-                        // Find the nearest keyword stop
                         const keywords = ['추천:', '추천 마번:', '복병:', '선행'].map(k => fullText.indexOf(k, horse.end)).filter(i => i > 0);
                         const nextKeyword = keywords.length > 0 ? Math.min(...keywords, nextHorseStart) : nextHorseStart;
                         
                         let comment = fullText.substring(horse.end, nextKeyword).trim();
-                        comment = cleanText(comment);
-                        comment = comment.replace(/\s+/g, ' ');
+                        comment = cleanText(comment).replace(/\s+/g, ' ');
                         
                         if (comment && comment.length > 5) {
-                            race.horseComments[horse.no] = {
-                                name: horse.name,
-                                comment: comment
-                            };
+                            race.horseComments[horse.no] = { name: horse.name, comment: comment };
                         }
                     }
                     
@@ -534,97 +323,46 @@
                 const file = e.target.files[0];
                 if (!file) return;
 
-                if (type === 'pdf' && !pdfLibLoaded) return;
-
-                try {
-                    let parsedData;
-                    if (type === 'pdf') {
-                        setPdfParsing(true);
-                        const arrayBuffer = await file.arrayBuffer();
-                        const pdf = await window.pdfjsLib.getDocument(arrayBuffer).promise;
-                        let fullText = "";
-                        for (let i = 1; i <= pdf.numPages; i++) {
-                            const page = await pdf.getPage(i);
-                            const textContent = await page.getTextContent();
-                            const lines = textContent.items.map(item => item.str + (item.hasEOL ? '\n' : ' ')).join('');
-                            fullText += lines + "\n";
-                        }
-                        parsedData = parseEasyRaceText(fullText);
-                        
-                        setData(prev => ({
-                            ...prev,
-                            [location]: {
-                                ...prev[location],
-                                easyRace: parsedData,
-                                pdfText: fullText
-                            }
-                        }));
-                        setPdfParsing(false);
-                    } else {
-                        const reader = new FileReader();
-                        reader.onload = (evt) => {
-                            const text = evt.target.result;
-                            if (type === 'entry') {
-                                parsedData = parseEntryCSV(text);
-                                setData(prev => ({ ...prev, [location]: { ...prev[location], races: parsedData } }));
-                                if (location === activeLocation) setSelectedRaceIdx(0);
-                            } else if (type === 'history') {
-                                parsedData = parseHistoryCSV(text);
-                                setData(prev => ({ ...prev, [location]: { ...prev[location], histories: parsedData } }));
-                            } else if (type === 'expertPick') {
-                                parsedData = parseExpertPick(text);
-                                setData(prev => {
-                                    const newData = { ...prev };
-                                    Object.keys(parsedData).forEach(loc => {
-                                        newData[loc] = { ...newData[loc], expertPick: parsedData[loc] || {} };
-                                    });
-                                    return newData;
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    const text = evt.target.result;
+                    try {
+                        if (type === 'entry') {
+                            const parsedData = parseEntryCSV(text);
+                            setData(prev => ({ ...prev, [location]: { ...prev[location], races: parsedData } }));
+                            if (location === activeLocation) setSelectedRaceIdx(0);
+                        } else if (type === 'history') {
+                            const parsedData = parseHistoryCSV(text);
+                            setData(prev => ({ ...prev, [location]: { ...prev[location], histories: parsedData } }));
+                        } else if (type === 'json') {
+                            const parsedData = JSON.parse(text);
+                            setData(prev => ({ ...prev, [location]: { ...prev[location], easyRace: parsedData } }));
+                        } else if (type === 'expertPick') {
+                            const parsedData = parseExpertPick(text);
+                            setData(prev => {
+                                const newData = { ...prev };
+                                Object.keys(parsedData).forEach(loc => {
+                                    newData[loc] = { ...newData[loc], expertPick: parsedData[loc] || {} };
                                 });
-                            }
-                        };
-                        reader.readAsText(file, 'UTF-8');
+                                return newData;
+                            });
+                        }
+                    } catch (err) {
+                        alert('파일 처리 중 오류: ' + err.message);
                     }
-                } catch (err) {
-                    console.error("Upload Error", err);
-                    setPdfParsing(false);
-                }
-            };
-
-            const handleManualTextChange = (e, location) => {
-                const text = e.target.value;
-                const parsed = parseEasyRaceText(text);
-                setData(prev => ({
-                    ...prev,
-                    [location]: {
-                        ...prev[location],
-                        easyRace: parsed,
-                        pdfText: text
-                    }
-                }));
+                };
+                reader.readAsText(file, 'UTF-8');
             };
 
             const getCurrentLocationData = () => data[activeLocation];
 
             const getHistoryForHorse = (raceNo, horseNo) => {
                 const { histories } = getCurrentLocationData();
-                const targetRace = String(raceNo);
-                const targetHorse = String(horseNo);
-
-                const rawList = histories.filter(h => 
-                    String(h.raceNo) === targetRace && 
-                    String(h.horseNo) === targetHorse
-                );
-
+                const rawList = histories.filter(h => String(h.raceNo) === String(raceNo) && String(h.horseNo) === String(horseNo));
                 const uniqueList = rawList.reduce((acc, current) => {
-                    const x = acc.find(item => item.date === current.date);
-                    return x ? acc : acc.concat([current]);
+                    return acc.find(item => item.date === current.date) ? acc : acc.concat([current]);
                 }, []);
-
-                return uniqueList.sort((a, b) => {
-                    const dateA = a.date ? new Date(a.date.split('-')[0]) : new Date(0);
-                    const dateB = b.date ? new Date(b.date.split('-')[0]) : new Date(0);
-                    return dateB - dateA; 
-                });
+                return uniqueList.sort((a, b) => new Date(b.date?.split('-')[0] || 0) - new Date(a.date?.split('-')[0] || 0));
             };
 
             const calculateRaceStats = (currentRace) => {
@@ -674,21 +412,6 @@
                     setRaceStats(newStats);
                 }
             }, [activeLocation, data]);
-
-            useEffect(() => {
-                const seoulRaces = parseEntryCSV(SAMPLE_DATA.seoul.entry);
-                const seoulHist = parseHistoryCSV(SAMPLE_DATA.seoul.history);
-                const seoulEasy = parseEasyRaceText(SAMPLE_DATA.seoul.pdf);
-
-                const busanRaces = parseEntryCSV(SAMPLE_DATA.busan.entry);
-                const busanHist = parseHistoryCSV(SAMPLE_DATA.busan.history);
-                const busanEasy = parseEasyRaceText(SAMPLE_DATA.busan.pdf);
-
-                setData({
-                    seoul: { races: seoulRaces, histories: seoulHist, easyRace: seoulEasy, pdfText: SAMPLE_DATA.seoul.pdf, expertPick: {} },
-                    busan: { races: busanRaces, histories: busanHist, easyRace: busanEasy, pdfText: SAMPLE_DATA.busan.pdf, expertPick: {} }
-                });
-            }, []);
 
             const { races, easyRace, expertPick } = getCurrentLocationData();
             const currentRace = races[selectedRaceIdx];
@@ -743,22 +466,22 @@
                                             </div>
                                         </div>
                                         <div className="space-y-3">
-                                            <h3 className="text-sm font-bold text-purple-800 flex items-center gap-2"><FileText size={14}/> Easy Race (PDF)</h3>
+                                            <h3 className="text-sm font-bold text-purple-800 flex items-center gap-2"><FileText size={14}/> Easy Race (JSON)</h3>
                                             <div>
-                                                <label className="block text-xs font-bold text-gray-500 mb-1">PDF 파일 (서울)</label>
-                                                <div className="flex gap-2">
-                                                    <input type="file" accept=".pdf" onChange={(e) => handleFileUpload(e, 'pdf', 'seoul')} className="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer"/>
-                                                    {pdfParsing && activeLocation === 'seoul' && <Loader2 className="animate-spin text-purple-600" size={16}/>}
-                                                </div>
+                                                <label className="block text-xs font-bold text-gray-500 mb-1">JSON 파일 (서울)</label>
+                                                <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'json', 'seoul')} className="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer"/>
                                             </div>
-                                            <textarea className="w-full h-24 p-2 text-xs border rounded bg-slate-50" value={data.seoul.pdfText} onChange={(e) => handleManualTextChange(e, 'seoul')} placeholder="텍스트 직접 입력..."/>
                                         </div>
                                         <div className="space-y-3 md:col-span-2">
                                             <h3 className="text-sm font-bold text-orange-800 flex items-center gap-2"><Trophy size={14}/> Expert Pick</h3>
                                             <div>
-                                                <label className="block text-xs font-bold text-gray-500 mb-1">ExpertPick.txt 파일 (서울/부산 통합)</label>
+                                                <label className="block text-xs font-bold text-gray-500 mb-1">ExpertPick.txt (통합)</label>
                                                 <input type="file" accept=".txt" onChange={(e) => handleFileUpload(e, 'expertPick', 'both')} className="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 cursor-pointer"/>
                                             </div>
+                                        </div>
+                                        <div className="md:col-span-2 border-t pt-4">
+                                            <button onClick={() => setShowDebug(!showDebug)} className="w-full flex items-center justify-center gap-2 py-2 text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition-colors"><Code size={14}/> JSON 데이터 확인</button>
+                                            {showDebug && <div className="mt-4 p-4 bg-slate-800 rounded text-xs font-mono overflow-x-auto"><pre className="text-blue-300">{JSON.stringify(data[activeLocation].easyRace, null, 2)}</pre></div>}
                                         </div>
                                     </div>
                                 </div>
@@ -781,15 +504,11 @@
                                             </div>
                                         </div>
                                         <div className="space-y-3">
-                                            <h3 className="text-sm font-bold text-purple-800 flex items-center gap-2"><FileText size={14}/> Easy Race (PDF)</h3>
+                                            <h3 className="text-sm font-bold text-purple-800 flex items-center gap-2"><FileText size={14}/> Easy Race (JSON)</h3>
                                             <div>
-                                                <label className="block text-xs font-bold text-gray-500 mb-1">PDF 파일 (부산)</label>
-                                                <div className="flex gap-2">
-                                                    <input type="file" accept=".pdf" onChange={(e) => handleFileUpload(e, 'pdf', 'busan')} className="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer"/>
-                                                    {pdfParsing && activeLocation === 'busan' && <Loader2 className="animate-spin text-purple-600" size={16}/>}
-                                                </div>
+                                                <label className="block text-xs font-bold text-gray-500 mb-1">JSON 파일 (부산)</label>
+                                                <input type="file" accept=".json" onChange={(e) => handleFileUpload(e, 'json', 'busan')} className="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer"/>
                                             </div>
-                                            <textarea className="w-full h-24 p-2 text-xs border rounded bg-slate-50" value={data.busan.pdfText} onChange={(e) => handleManualTextChange(e, 'busan')} placeholder="텍스트 직접 입력..."/>
                                         </div>
                                     </div>
                                 </div>
@@ -833,7 +552,7 @@
                                                     </div>
                                                 ) : (
                                                     <div className="text-xs text-gray-400 text-right">
-                                                        PDF 데이터 없음
+                                                        Easy Race 데이터 없음
                                                     </div>
                                                 )}
                                             </div>
@@ -841,46 +560,10 @@
                                             {currentExpertPick && (
                                                 <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-2 rounded-lg border border-orange-200">
                                                     <div className="flex flex-wrap items-center gap-2 text-xs">
-                                                        <div className="flex items-center gap-1">
-                                                            <Trophy className="w-3 h-3 text-orange-600"/>
-                                                            <span className="font-bold text-orange-800">Expert Pick:</span>
-                                                        </div>
-                                                        {currentExpertPick.recommended && currentExpertPick.recommended.length > 0 && (
-                                                            <span className="flex items-center gap-1">
-                                                                <span className="font-bold text-green-700">추천</span>
-                                                                <span className="text-gray-700">
-                                                                    {currentExpertPick.recommended.map((r, idx) => (
-                                                                        <span key={idx}>
-                                                                            {idx > 0 && ', '}({r.no}){r.name}
-                                                                        </span>
-                                                                    ))}
-                                                                </span>
-                                                            </span>
-                                                        )}
-                                                        {currentExpertPick.darkHorse && currentExpertPick.darkHorse.length > 0 && (
-                                                            <span className="flex items-center gap-1">
-                                                                <span className="font-bold text-purple-700">복병</span>
-                                                                <span className="text-gray-700">
-                                                                    {currentExpertPick.darkHorse.map((d, idx) => (
-                                                                        <span key={idx}>
-                                                                            {idx > 0 && ', '}{d}
-                                                                        </span>
-                                                                    ))}
-                                                                </span>
-                                                            </span>
-                                                        )}
-                                                        {currentExpertPick.frontRunner && currentExpertPick.frontRunner.length > 0 && (
-                                                            <span className="flex items-center gap-1">
-                                                                <span className="font-bold text-blue-700">선행</span>
-                                                                <span className="text-gray-700">
-                                                                    {currentExpertPick.frontRunner.map((f, idx) => (
-                                                                        <span key={idx}>
-                                                                            {idx > 0 && ', '}{f}
-                                                                        </span>
-                                                                    ))}
-                                                                </span>
-                                                            </span>
-                                                        )}
+                                                        <div className="flex items-center gap-1"><Trophy className="w-3 h-3 text-orange-600"/><span className="font-bold text-orange-800">Expert Pick:</span></div>
+                                                        {currentExpertPick.recommended?.length > 0 && <span className="flex items-center gap-1"><span className="font-bold text-green-700">추천</span><span className="text-gray-700">{currentExpertPick.recommended.map((r, idx) => <span key={idx}>{idx > 0 && ', '}({r.no}){r.name}</span>)}</span></span>}
+                                                        {currentExpertPick.darkHorse?.length > 0 && <span className="flex items-center gap-1"><span className="font-bold text-purple-700">복병</span><span className="text-gray-700">{currentExpertPick.darkHorse.map((d, idx) => <span key={idx}>{idx > 0 && ', '}{d}</span>)}</span></span>}
+                                                        {currentExpertPick.frontRunner?.length > 0 && <span className="flex items-center gap-1"><span className="font-bold text-blue-700">선행</span><span className="text-gray-700">{currentExpertPick.frontRunner.map((f, idx) => <span key={idx}>{idx > 0 && ', '}{f}</span>)}</span></span>}
                                                     </div>
                                                 </div>
                                             )}
@@ -906,56 +589,31 @@
                                                 const cleanCurrentJockey = normalizeJockeyName(horse.jockey);
                                                 const cleanLastJockey = normalizeJockeyName(lastRace?.jockey);
                                                 const isJockeyChanged = lastRace && cleanLastJockey && cleanCurrentJockey !== cleanLastJockey;
+                                                const isSuperFast = bestRecord && currentEasyRace?.avgRecord && timeToSeconds(bestRecord) < timeToSeconds(currentEasyRace.avgRecord);
 
-                                                const isSuperFast = bestRecord && currentEasyRace?.avgRecord && 
-                                                                    timeToSeconds(bestRecord) < timeToSeconds(currentEasyRace.avgRecord);
-
-                                                // ExpertPick 정보
                                                 const expertHorseComment = currentExpertPick?.horseComments?.[horse.no];
                                                 const isRecommended = currentExpertPick?.recommended?.some(r => r.no === horse.no);
                                                 const isDarkHorse = currentExpertPick?.darkHorse?.includes(horse.no);
                                                 const isFrontRunner = currentExpertPick?.frontRunner?.includes(horse.no);
 
-                                                // Grade Change Logic
                                                 let gradeChangeInfo = null;
-                                                const lastRaceGrade = lastRace?.grade; // e.g., "국6등급", "-", "혼4"
-                                                
-                                                // FIX: Use currentRace.conditions instead of currentRace.info
-                                                // parseEntryCSV stores the race details line in 'conditions'
+                                                const lastRaceGrade = lastRace?.grade;
                                                 const raceInfoString = currentRace.conditions || currentRace.info;
 
                                                 if (raceInfoString && horse.horseGrade) {
-                                                    // "등급" 글자 유무와 상관없이 숫자만 추출
                                                     const raceGradeMatch = raceInfoString.match(/(\d+)등급/) || raceInfoString.match(/(\d+)/);
                                                     const horseGradeMatch = horse.horseGrade.match(/(\d+)/);
-                                                    // lastRaceGrade가 존재하고 '-'가 아닐 때 숫자 추출
-                                                    const lastRaceGradeMatch = lastRaceGrade && !lastRaceGrade.includes('주행') && lastRaceGrade.trim() !== '-' 
-                                                                             ? lastRaceGrade.match(/(\d+)/) : null;
+                                                    const lastRaceGradeMatch = lastRaceGrade && !lastRaceGrade.includes('주행') && lastRaceGrade.trim() !== '-' ? lastRaceGrade.match(/(\d+)/) : null;
                                                     
                                                     if (raceGradeMatch && horseGradeMatch) {
-                                                        const raceGradeNum = parseInt(raceGradeMatch[1]); // 이번 경주 등급 (예: 5)
-                                                        const horseGradeNum = parseInt(horseGradeMatch[1]); // 말의 현재 등급 (예: 5)
+                                                        const raceGradeNum = parseInt(raceGradeMatch[1]);
+                                                        const horseGradeNum = parseInt(horseGradeMatch[1]);
                                                         
-                                                        // 1. 점핑 출전: 말 등급(6) > 경주 등급(5) (숫자가 클수록 하위 등급)
-                                                        if (horseGradeNum > raceGradeNum) {
-                                                            gradeChangeInfo = { type: 'jump', text: '점핑출전' };
-                                                        } 
-                                                        // 2. 강급: 말 등급(4) < 경주 등급(5)
-                                                        else if (horseGradeNum < raceGradeNum) {
-                                                            gradeChangeInfo = { type: 'down', text: '강급' };
-                                                        }
-                                                        // 3. 적정 등급(동일 등급)인 경우 과거 비교
+                                                        if (horseGradeNum > raceGradeNum) gradeChangeInfo = { type: 'jump', text: '점핑출전' };
+                                                        else if (horseGradeNum < raceGradeNum) gradeChangeInfo = { type: 'down', text: '강급' };
                                                         else if (horseGradeNum === raceGradeNum) {
-                                                            if (lastRaceGradeMatch) {
-                                                                const lastRaceGradeNum = parseInt(lastRaceGradeMatch[1]); // 직전 경주 등급 (예: 6)
-                                                                // 직전 등급(6) > 현 등급(5) -> 이번에 승급해서 온 것임
-                                                                if (lastRaceGradeNum > raceGradeNum) {
-                                                                    gradeChangeInfo = { type: 'up', text: '승급전' };
-                                                                }
-                                                            } else if (lastRaceGrade && (lastRaceGrade.includes('주행') || lastRaceGrade.trim() === '-')) {
-                                                                // 직전 경주가 등급 없음(주행심사 등) -> 등급 경주 첫 진입 (데뷔/복귀)
-                                                                gradeChangeInfo = { type: 'new', text: '전적진입' };
-                                                            }
+                                                            if (lastRaceGradeMatch && parseInt(lastRaceGradeMatch[1]) > raceGradeNum) gradeChangeInfo = { type: 'up', text: '승급전' };
+                                                            else if (lastRaceGrade && (lastRaceGrade.includes('주행') || lastRaceGrade.trim() === '-')) gradeChangeInfo = { type: 'new', text: '전적진입' };
                                                         }
                                                     }
                                                 }
@@ -964,204 +622,63 @@
                                                     <Card key={horse.no} className={`transition-all duration-200 ${isExpanded ? 'ring-2 ring-blue-500 shadow-md' : 'hover:shadow'}`}>
                                                         <div className="p-3 flex items-start sm:items-center cursor-pointer relative" onClick={() => setExpandedHorse(isExpanded ? null : horse.no)}>
                                                             <div className="flex flex-col items-center mr-3 mt-1 sm:mt-0 min-w-[3rem]">
-                                                                <div className={`w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-full shadow-inner font-black text-xl sm:text-2xl ${colors.bg} ${colors.text} mb-1`}>
-                                                                    {horse.no}
-                                                                </div>
-                                                                <span className={`text-[10px] font-bold flex items-center gap-0.5 ${isTopRating ? 'text-blue-600 bg-blue-50 px-1 rounded ring-1 ring-blue-200 shadow-sm' : 'text-gray-400'}`}>
-                                                                    {horse.rating ? `R${horse.rating}` : '-'}
-                                                                    {isTopRating && <Crown size={10} className="fill-current"/>}
-                                                                </span>
+                                                                <div className={`w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-full shadow-inner font-black text-xl sm:text-2xl ${colors.bg} ${colors.text} mb-1`}>{horse.no}</div>
+                                                                <span className={`text-[10px] font-bold flex items-center gap-0.5 ${isTopRating ? 'text-blue-600 bg-blue-50 px-1 rounded ring-1 ring-blue-200 shadow-sm' : 'text-gray-400'}`}>{horse.rating ? `R${horse.rating}` : '-'}{isTopRating && <Crown size={10} className="fill-current"/>}</span>
                                                             </div>
 
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="flex flex-wrap items-center gap-2 mb-1">
                                                                     <h3 className="text-lg font-bold text-gray-900 leading-none">{horse.name}</h3>
-                                                                    
-                                                                    {gradeChangeInfo && gradeChangeInfo.type === 'jump' && (
-                                                                        <Badge color="purple" className="animate-pulse border-purple-300 bg-purple-100 text-purple-800">
-                                                                            <TrendingUp size={10} className="mr-1"/> {gradeChangeInfo.text}
-                                                                        </Badge>
-                                                                    )}
-                                                                    {gradeChangeInfo && gradeChangeInfo.type === 'up' && (
-                                                                        <Badge color="red" className="animate-pulse border-red-300 bg-red-100 text-red-800">
-                                                                            <Rocket size={10} className="mr-1"/> {gradeChangeInfo.text}
-                                                                        </Badge>
-                                                                    )}
-                                                                    {gradeChangeInfo && gradeChangeInfo.type === 'new' && (
-                                                                        <Badge color="green" className="bg-green-100 text-green-800 border-green-200">
-                                                                            <Leaf size={10} className="mr-1"/> {gradeChangeInfo.text}
-                                                                        </Badge>
-                                                                    )}
-                                                                    {gradeChangeInfo && gradeChangeInfo.type === 'down' && (
-                                                                        <Badge color="teal">
-                                                                            <ArrowDownCircle size={10}/> {gradeChangeInfo.text}
-                                                                        </Badge>
-                                                                    )}
-
+                                                                    {gradeChangeInfo && <Badge color={gradeChangeInfo.type === 'jump' ? 'purple' : gradeChangeInfo.type === 'up' ? 'red' : gradeChangeInfo.type === 'new' ? 'green' : 'teal'} className="animate-pulse">{gradeChangeInfo.text}</Badge>}
                                                                     {isRecommended && <Badge color="green"><Trophy size={10}/> 추천</Badge>}
                                                                     {isDarkHorse && <Badge color="purple"><Flame size={10}/> 복병</Badge>}
                                                                     {isFrontRunner && <Badge color="blue"><Rocket size={10}/> 선행</Badge>}
                                                                     {(isFastStart || isEasyFastStart) && <Badge color="red"><Rocket size={10}/> 초반빠름</Badge>}
                                                                     {(isFastFinish || isEasyFastFinish) && <Badge color="blue"><Zap size={10}/> 후반빠름</Badge>}
-                                                                    {Math.abs(parseInt(horse.weightDiff || 0)) >= 10 && (
-                                                                        <Badge color="orange"><Scale size={10}/> 체중{horse.weightDiff}</Badge>
-                                                                    )}
+                                                                    {Math.abs(parseInt(horse.weightDiff || 0)) >= 10 && <Badge color="orange"><Scale size={10}/> 체중{horse.weightDiff}</Badge>}
                                                                 </div>
 
                                                                 <div className="flex flex-wrap text-xs text-gray-500 gap-x-3 gap-y-1 mb-1 items-center">
-                                                                    <span className={`flex items-center gap-1 font-medium px-1.5 py-0.5 rounded transition-all ${isJockeyChanged ? 'bg-red-50 text-red-700 ring-1 ring-red-200 font-bold shadow-sm' : 'text-gray-700'}`}>
-                                                                        <User size={12}/> 
-                                                                        {horse.jockey}
-                                                                        {isJockeyChanged && (
-                                                                            <span className="text-[9px] bg-white text-red-600 border border-red-200 px-0.5 rounded flex items-center">
-                                                                                <Repeat size={8} className="mr-0.5"/>교체
-                                                                            </span>
-                                                                        )}
-                                                                    </span>
+                                                                    <span className={`flex items-center gap-1 font-medium px-1.5 py-0.5 rounded transition-all ${isJockeyChanged ? 'bg-red-50 text-red-700 ring-1 ring-red-200 font-bold shadow-sm' : 'text-gray-700'}`}><User size={12}/> {horse.jockey}{isJockeyChanged && <span className="text-[9px] bg-white text-red-600 border border-red-200 px-0.5 rounded flex items-center"><Repeat size={8} className="mr-0.5"/>교체</span>}</span>
                                                                     <span className="text-gray-400">({horse.trainer})</span>
                                                                     <span className="w-px h-3 bg-gray-300"></span>
-                                                                    <span className="flex items-center gap-1">
-                                                                        {horse.weight}kg
-                                                                        {horse.weightDiff !== '0' && (
-                                                                            <span className={horse.weightDiff.includes('-') ? 'text-blue-600' : 'text-red-500'}>
-                                                                                ({horse.weightDiff})
-                                                                            </span>
-                                                                        )}
-                                                                    </span>
+                                                                    <span className="flex items-center gap-1">{horse.weight}kg{horse.weightDiff !== '0' && <span className={horse.weightDiff.includes('-') ? 'text-blue-600' : 'text-red-500'}>({horse.weightDiff})</span>}</span>
                                                                     <span className="w-px h-3 bg-gray-300"></span>
-                                                                    <span className="text-gray-600 font-medium bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
-                                                                        {horse.origin}/{horse.sex}/{horse.age}세
-                                                                        {horse.horseGrade && ` (${horse.horseGrade})`}
-                                                                    </span>
+                                                                    <span className="text-gray-600 font-medium bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">{horse.origin}/{horse.sex}/{horse.age}세{horse.horseGrade && ` (${horse.horseGrade})`}</span>
                                                                 </div>
 
                                                                 <div className="flex flex-wrap gap-2 mt-1 items-center">
-                                                                    <span className={`flex items-center gap-1 text-[10px] sm:text-xs font-medium px-1.5 py-0.5 rounded transition-all ${isTopTraining ? 'bg-orange-100 text-orange-800 ring-1 ring-orange-200 shadow-sm' : 'bg-slate-100 text-slate-700'}`}>
-                                                                        <Activity size={10}/> 
-                                                                        {horse.trainingCount}회
-                                                                        {isTopTraining && <span className="text-[9px] font-black bg-white px-0.5 rounded text-orange-600 border border-orange-200">TOP</span>}
-                                                                        <span className={isTopTraining ? "text-orange-300" : "text-gray-400"}>/</span> 
-                                                                        {horse.cycle || '-'}
-                                                                    </span>
-
-                                                                    {bestRecord ? (
-                                                                        <div className={`text-[10px] sm:text-xs px-2 py-0.5 rounded font-mono font-bold flex items-center gap-1 border ${isSuperFast ? 'bg-yellow-100 text-yellow-800 border-yellow-300' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
-                                                                            <Medal size={10}/> {currentRace.distance} Best: {bestRecord}
-                                                                        </div>
-                                                                    ) : (
-                                                                        <span className="text-[10px] text-gray-400 self-center">해당 거리 기록 없음</span>
-                                                                    )}
-
-                                                                    {(easyInfo?.stats) && (
-                                                                        <div className="text-[10px] sm:text-xs bg-purple-50 text-purple-800 px-2 py-0.5 rounded font-medium border border-purple-100 flex items-center">
-                                                                        {cleanText(easyInfo.stats)}
-                                                                        </div>
-                                                                    )}
+                                                                    <span className={`flex items-center gap-1 text-[10px] sm:text-xs font-medium px-1.5 py-0.5 rounded transition-all ${isTopTraining ? 'bg-orange-100 text-orange-800 ring-1 ring-orange-200 shadow-sm' : 'bg-slate-100 text-slate-700'}`}><Activity size={10}/> {horse.trainingCount}회{isTopTraining && <span className="text-[9px] font-black bg-white px-0.5 rounded text-orange-600 border border-orange-200">TOP</span>}<span className={isTopTraining ? "text-orange-300" : "text-gray-400"}>/</span> {horse.cycle || '-'}</span>
+                                                                    {bestRecord ? <div className={`text-[10px] sm:text-xs px-2 py-0.5 rounded font-mono font-bold flex items-center gap-1 border ${isSuperFast ? 'bg-yellow-100 text-yellow-800 border-yellow-300' : 'bg-gray-100 text-gray-600 border-gray-200'}`}><Medal size={10}/> {currentRace.distance} Best: {bestRecord}</div> : <span className="text-[10px] text-gray-400 self-center">해당 거리 기록 없음</span>}
+                                                                    {(easyInfo?.stats) && <div className="text-[10px] sm:text-xs bg-purple-50 text-purple-800 px-2 py-0.5 rounded font-medium border border-purple-100 flex items-center">{cleanText(easyInfo.stats)}</div>}
                                                                 </div>
                                                             </div>
-
-                                                            <div className="absolute top-3 right-3 sm:static">
-                                                                {isExpanded ? <ChevronUp className="text-gray-300"/> : <ChevronDown className="text-gray-300"/>}
-                                                            </div>
+                                                            <div className="absolute top-3 right-3 sm:static">{isExpanded ? <ChevronUp className="text-gray-300"/> : <ChevronDown className="text-gray-300"/>}</div>
                                                         </div>
 
                                                         {isExpanded && (
                                                             <div className="bg-slate-50 border-t border-gray-200 p-4 text-sm animate-in slide-in-from-top-1">
-                                                                {isJockeyChanged && (
-                                                                    <div className="mb-3 flex items-center text-xs text-red-600 bg-red-50 p-2 rounded border border-red-100">
-                                                                        <AlertTriangle size={12} className="mr-1.5"/>
-                                                                        <span>
-                                                                            <b>기수 변경 감지:</b> 직전 경주({lastRace.date})에서는 
-                                                                            <span className="font-bold underline ml-1">{lastRace.jockey}</span> 기수가 기승했습니다.
-                                                                        </span>
-                                                                    </div>
-                                                                )}
-
-                                                                {easyInfo?.note && (
-                                                                    <div className="mb-4 bg-white p-3 rounded border-l-4 border-purple-500 shadow-sm">
-                                                                        <h4 className="text-xs font-bold text-purple-700 uppercase mb-1 flex items-center gap-1">
-                                                                            <Info size={12}/> Easy Race 분석
-                                                                        </h4>
-                                                                        <p className="text-gray-700 text-xs sm:text-sm">{cleanText(easyInfo.note)}</p>
-                                                                    </div>
-                                                                )}
-
-                                                                {expertHorseComment && (
-                                                                    <div className="mb-4 bg-gradient-to-r from-orange-50 to-amber-50 p-3 rounded border-l-4 border-orange-500 shadow-sm">
-                                                                        <h4 className="text-xs font-bold text-orange-700 uppercase mb-1 flex items-center gap-1">
-                                                                            <Trophy size={12}/> Expert Pick 분석
-                                                                        </h4>
-                                                                        <p className="text-gray-700 text-xs sm:text-sm leading-relaxed">
-                                                                            {cleanText(expertHorseComment.comment)}
-                                                                        </p>
-                                                                    </div>
-                                                                )}
-
+                                                                {isJockeyChanged && <div className="mb-3 flex items-center text-xs text-red-600 bg-red-50 p-2 rounded border border-red-100"><AlertTriangle size={12} className="mr-1.5"/><span><b>기수 변경 감지:</b> 직전 경주({lastRace.date})에서는 <span className="font-bold underline ml-1">{lastRace.jockey}</span> 기수가 기승했습니다.</span></div>}
+                                                                {easyInfo?.note && <div className="mb-4 bg-white p-3 rounded border-l-4 border-purple-500 shadow-sm"><h4 className="text-xs font-bold text-purple-700 uppercase mb-1 flex items-center gap-1"><Info size={12}/> Easy Race 분석</h4><p className="text-gray-700 text-xs sm:text-sm">{cleanText(easyInfo.note)}</p></div>}
+                                                                {expertHorseComment && <div className="mb-4 bg-gradient-to-r from-orange-50 to-amber-50 p-3 rounded border-l-4 border-orange-500 shadow-sm"><h4 className="text-xs font-bold text-orange-700 uppercase mb-1 flex items-center gap-1"><Trophy size={12}/> Expert Pick 분석</h4><p className="text-gray-700 text-xs sm:text-sm leading-relaxed">{cleanText(expertHorseComment.comment)}</p></div>}
                                                                 <div className="grid grid-cols-2 gap-3 mb-4 text-xs">
-                                                                    <div className="bg-white p-2 rounded border border-gray-100">
-                                                                        <span className="text-gray-400 block mb-0.5">부마</span>
-                                                                        <span className="font-semibold">{horse.sire || '-'}</span>
-                                                                    </div>
-                                                                    <div className="bg-white p-2 rounded border border-gray-100">
-                                                                        <span className="text-gray-400 block mb-0.5">장구현황</span>
-                                                                        <span className="font-semibold truncate">{horse.equipment || '-'}</span>
-                                                                    </div>
+                                                                    <div className="bg-white p-2 rounded border border-gray-100"><span className="text-gray-400 block mb-0.5">부마</span><span className="font-semibold">{horse.sire || '-'}</span></div>
+                                                                    <div className="bg-white p-2 rounded border border-gray-100"><span className="text-gray-400 block mb-0.5">장구현황</span><span className="font-semibold truncate">{horse.equipment || '-'}</span></div>
                                                                 </div>
-
-                                                                <h4 className="font-bold text-gray-700 mb-2 text-xs uppercase tracking-wider flex items-center gap-1">
-                                                                    <Calendar size={14}/> 최근 전적
-                                                                </h4>
-                                                                
+                                                                <h4 className="font-bold text-gray-700 mb-2 text-xs uppercase tracking-wider flex items-center gap-1"><Calendar size={14}/> 최근 전적</h4>
                                                                 {horseHistories.length > 0 ? (
                                                                     <div className="overflow-x-auto rounded border border-gray-200">
                                                                         <table className="w-full text-xs text-center whitespace-nowrap bg-white">
-                                                                            <thead className="bg-gray-100 text-gray-600 font-semibold">
-                                                                            <tr>
-                                                                                <th className="p-2 border-b">일자</th>
-                                                                                <th className="p-2 border-b">등급</th>
-                                                                                <th className="p-2 border-b">거리</th>
-                                                                                <th className="p-2 border-b">기록</th>
-                                                                                <th className="p-2 border-b">순위</th>
-                                                                                <th className="p-2 border-b">기수</th>
-                                                                                <th className="p-2 border-b">부중</th>
-                                                                                <th className="p-2 border-b text-red-500">S-1F</th>
-                                                                                <th className="p-2 border-b text-yellow-600">G-3F</th>
-                                                                                <th className="p-2 border-b text-blue-500">G-1F</th>
-                                                                                <th className="p-2 border-b">체중</th>
-                                                                            </tr>
-                                                                            </thead>
-                                                                            <tbody>
-                                                                            {horseHistories.map((h, idx) => {
+                                                                            <thead className="bg-gray-100 text-gray-600 font-semibold"><tr><th className="p-2 border-b">일자</th><th className="p-2 border-b">등급</th><th className="p-2 border-b">거리</th><th className="p-2 border-b">기록</th><th className="p-2 border-b">순위</th><th className="p-2 border-b">기수</th><th className="p-2 border-b">부중</th><th className="p-2 border-b text-red-500">S-1F</th><th className="p-2 border-b text-yellow-600">G-3F</th><th className="p-2 border-b text-blue-500">G-1F</th><th className="p-2 border-b">체중</th></tr></thead>
+                                                                            <tbody>{horseHistories.map((h, idx) => {
                                                                                 const rankNum = parseInt(h.rank?.split('/')[0]);
-                                                                                const rankClass = rankNum === 1 ? 'bg-yellow-100 text-yellow-800 font-bold' : 
-                                                                                                rankNum === 2 ? 'bg-gray-100 text-gray-800 font-bold' : 
-                                                                                                rankNum === 3 ? 'bg-orange-100 text-orange-800 font-bold' : '';
-                                                                                
+                                                                                const rankClass = rankNum === 1 ? 'bg-yellow-100 text-yellow-800 font-bold' : rankNum === 2 ? 'bg-gray-100 text-gray-800 font-bold' : rankNum === 3 ? 'bg-orange-100 text-orange-800 font-bold' : '';
                                                                                 const distClass = h.distance == currentRace.distance?.replace('M','') ? 'bg-blue-50 font-bold text-blue-900' : '';
-
-                                                                                return (
-                                                                                <tr key={idx} className="hover:bg-gray-50 border-b last:border-0">
-                                                                                    <td className="p-2 text-gray-600">{h.date}</td>
-                                                                                    <td className="p-2">{h.grade}</td>
-                                                                                    <td className={`p-2 ${distClass}`}>{h.distance}</td>
-                                                                                    <td className={`p-2 font-mono ${distClass}`}>{h.record}</td>
-                                                                                    <td className={`p-2 ${rankClass}`}>{h.rank}</td>                                                                                    <td className="p-2 text-gray-600">{h.jockey}</td>
-                                                                                    <td className="p-2 text-gray-800 font-medium">{h.weight}</td>
-                                                                                    <td className="p-2 text-gray-500">{h.s1f}</td>
-                                                                                    <td className="p-2 text-yellow-700">{h.g3f}</td>
-                                                                                    <td className="p-2 text-gray-500">{h.g1f}</td>
-                                                                                    <td className="p-2 text-gray-400">{h.runningWeight}</td>
-                                                                                </tr>
-                                                                                );
-                                                                            })}
-                                                                            </tbody>
+                                                                                return (<tr key={idx} className="hover:bg-gray-50 border-b last:border-0"><td className="p-2 text-gray-600">{h.date}</td><td className="p-2">{h.grade}</td><td className={`p-2 ${distClass}`}>{h.distance}</td><td className={`p-2 font-mono ${distClass}`}>{h.record}</td><td className={`p-2 ${rankClass}`}>{h.rank}</td><td className="p-2 text-gray-600">{h.jockey}</td><td className="p-2 text-gray-800 font-medium">{h.weight}</td><td className="p-2 text-gray-500">{h.s1f}</td><td className="p-2 text-yellow-700">{h.g3f}</td><td className="p-2 text-gray-500">{h.g1f}</td><td className="p-2 text-gray-400">{h.runningWeight}</td></tr>);
+                                                                            })}</tbody>
                                                                         </table>
                                                                     </div>
-                                                                ) : (
-                                                                    <div className="text-center py-4 text-gray-400 bg-white rounded border border-gray-200">
-                                                                        상세 전적 없음
-                                                                    </div>
-                                                                )}
+                                                                ) : <div className="text-center py-4 text-gray-400 bg-white rounded border border-gray-200">상세 전적 없음</div>}
                                                             </div>
                                                         )}
                                                     </Card>
@@ -1177,43 +694,8 @@
             );
         }
 
-        // Wait for DOM and libraries to be ready
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initApp);
-        } else {
-            initApp();
-        }
-
-        function initApp() {
-            try {
-                if (!window.React || !window.ReactDOM) {
-                    console.error('React or ReactDOM is not loaded');
-                    document.getElementById('root').innerHTML = '<div style="padding: 20px; text-align: center; color: red;">React 라이브러리를 로드할 수 없습니다. 페이지를 새로고침해주세요.</div>';
-                    return;
-                }
-
-                const rootElement = document.getElementById('root');
-                if (!rootElement) {
-                    console.error('Root element not found');
-                    return;
-                }
-
-                // Check if createRoot is available (React 18+)
-                if (ReactDOM.createRoot) {
-                    const root = ReactDOM.createRoot(rootElement);
-                    root.render(<RaceCardApp />);
-                } else {
-                    // Fallback for React 17
-                    ReactDOM.render(<RaceCardApp />, rootElement);
-                }
-            } catch (error) {
-                console.error('Error initializing app:', error);
-                const rootElement = document.getElementById('root');
-                if (rootElement) {
-                    rootElement.innerHTML = `<div style="padding: 20px; text-align: center; color: red;">앱 초기화 오류: ${error.message}</div>`;
-                }
-            }
-        }
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<RaceCardApp />);
     </script>
 </body>
 </html>
