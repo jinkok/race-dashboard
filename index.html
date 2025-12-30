@@ -1,476 +1,507 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
-import { 
-  Trophy, Rocket, Calendar, Database, FileUp, CloudUpload, 
-  Clock, User, Zap, Info, ChevronDown, ChevronUp, Activity,
-  MapPin, CheckCircle2, AlertCircle, Search, Hash, Star, Flame
-} from 'lucide-react';
-
-// --- Firebase 초기화 (Rule 3 준수) ---
-const firebaseConfig = JSON.parse(__firebase_config);
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'racing-pro-final-v4';
-
-// --- 데이터 파싱 엔진 ---
-const Parser = {
-  // 출전표 파싱
-  entry: (text) => {
-    const lines = text.split('\n');
-    const races = [];
-    let current = null;
-    let isTable = false;
-    lines.forEach(line => {
-      const t = line.trim();
-      if (!t) return;
-      if (t.includes('제') && t.includes('경주')) {
-        if (current) races.push(current);
-        const no = (t.match(/제(\d+)경주/) || [])[1] || '?';
-        const time = t.split(',')[1]?.trim() || '';
-        const dist = (t.match(/(\d{3,4})M/i) || [])[1];
-        current = { no, startTime: time, distance: dist, horses: [] };
-        isTable = false;
-        return;
-      }
-      if (t.startsWith('번호')) { isTable = true; return; }
-      if (current && isTable) {
-        const cols = t.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-        if (cols.length > 5) {
-          current.horses.push({
-            no: cols[0]?.replace(/[▲*]/g, ''),
-            name: cols[1]?.trim(),
-            origin: cols[2], sex: cols[3], age: cols[4],
-            rating: cols[5], weight: cols[6], weightDiff: cols[7],
-            jockey: cols[8], trainer: cols[9], trainingCount: cols[11],
-            cycle: cols[12], gear: cols[13], father: cols[15], grade: cols[16]
-          });
-        }
-      }
-    });
-    if (current) races.push(current);
-    return races;
-  },
-  // 상세 전적 파싱
-  history: (text) => {
-    const lines = text.split('\n');
-    return lines.slice(1).map(line => {
-      const c = line.split(',');
-      if (c.length < 25) return null;
-      return {
-        horseName: c[6]?.trim(),
-        date: c[12], dist: c[14], rec: c[15],
-        rank: c[16], s1f: c[23], g1f: c[25], bodyW: c[26]
-      };
-    }).filter(Boolean);
-  },
-  // 전문가 코멘트 정밀 파싱 (ExpertPick.txt 규격 대응)
-  expert: (text) => {
-    const result = { seoul: {}, busan: {} };
-    // 경주별 섹션 분할
-    const sections = text.split(/\*\*(서울|부산|부경)\s*(\d+)경주/);
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMART RACING PRO - 통합 분석 시스템</title>
     
-    for (let i = 1; i < sections.length; i += 3) {
-      const locStr = sections[i];
-      const loc = (locStr === '서울') ? 'seoul' : 'busan';
-      const no = sections[i+1];
-      const content = sections[i+2] || '';
-      
-      // 1. 추천 마번 추출 (**추천:** (번호) 마명 형식)
-      const recLineMatch = content.match(/\*\*추천.*?\*\*[:：]\s*(.+?)(?=\r?\n|$)/);
-      const recommended = [];
-      if (recLineMatch) {
-        const matches = recLineMatch[1].matchAll(/\((\d+)\)\s*([가-힣A-Z]+)/g);
-        for (const m of matches) {
-          recommended.push({ no: m[1], name: m[2] });
-        }
-      }
+    <!-- 필수 라이브러리 로드 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide-react@0.294.0/dist/umd/lucide-react.min.js"></script>
 
-      // 2. 복병/선행 번호 추출
-      const darkMatch = content.match(/\*\*복병.*?\*\*[:：]\s*([\d, ]+)/);
-      const leadMatch = content.match(/\*\*선행.*?\*\*[:：]\s*([\d, ]+)/);
-      const dark = darkMatch ? darkMatch[1].split(',').map(s => s.trim()).filter(s => s) : [];
-      const lead = leadMatch ? leadMatch[1].split(',').map(s => s.trim()).filter(s => s) : [];
+    <!-- Firebase SDK (호환성 높은 버전) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-      // 3. 개별 마필 코멘트 추출 (**(번호) 마명**... 형식)
-      const horseComments = {};
-      const commentPattern = /\*\*\s*\((\d+)\)\s*([가-힣A-Z\s()]+)\s*\*\*\s*은?(.+?)(?=\s*(?:\r?\n\r?\n|\*\*\(|\*\*추천|\*\*복병|\*\*선행|$))/gs;
-      let m;
-      while ((m = commentPattern.exec(content)) !== null) {
-        horseComments[m[1]] = m[3].trim().replace(/\s+/g, ' ');
-      }
+        // 환경 변수 또는 기본값 처리
+        const configStr = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
+        const firebaseConfig = JSON.parse(configStr);
+        
+        // 앱 초기화
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'racing-pro-final-v9';
+        const initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-      // 4. 경주 전체 요약 (분석 헤더 제외한 첫 문단)
-      const summaryLines = content.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('**') && !l.includes('등급 ('));
-      const summary = summaryLines.length > 0 ? summaryLines[0] : "";
+        // 전역 객체로 노출 (React 컴포넌트에서 사용)
+        window.fb = { auth, db, appId, initialToken, doc, setDoc, onSnapshot, signInAnonymously, signInWithCustomToken, onAuthStateChanged };
+    </script>
 
-      result[loc][no] = { 
-        recommended, 
-        dark, 
-        lead, 
-        horseComments, 
-        comment: summary 
-      };
-    }
-    return result;
-  }
-};
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap');
+        body { font-family: 'Pretendard', sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; }
+        
+        /* 마번별 공식 색상 */
+        .h-1 { @apply bg-white text-gray-900 border-2 border-gray-300; }
+        .h-2 { @apply bg-yellow-400 text-gray-900 border-none; }
+        .h-3 { @apply bg-red-600 text-white border-none; }
+        .h-4 { @apply bg-gray-900 text-white border-none; }
+        .h-5 { @apply bg-blue-600 text-white border-none; }
+        .h-6 { @apply bg-green-600 text-white border-none; }
+        .h-7 { @apply bg-amber-800 text-white border-none; }
+        .h-8 { @apply bg-pink-400 text-white border-none; }
+        .h-9 { @apply bg-purple-600 text-white border-none; }
+        .h-10 { @apply bg-sky-300 text-gray-900 border-none; }
+        .h-11 { @apply bg-white text-green-700 border-4 border-green-600; }
+        .h-12 { @apply bg-yellow-400 text-green-700 border-4 border-green-600; }
 
-const HORSE_COLORS = {
-  1: "bg-white text-slate-800 border border-slate-200",
-  2: "bg-yellow-400 text-slate-900",
-  3: "bg-red-500 text-white",
-  4: "bg-slate-900 text-white",
-  5: "bg-blue-600 text-white",
-  6: "bg-green-600 text-white",
-  7: "bg-amber-800 text-white",
-  8: "bg-pink-400 text-white",
-  9: "bg-purple-600 text-white",
-  10: "bg-sky-400 text-slate-900",
-  11: "bg-white text-green-600 border-4 border-green-600",
-  12: "bg-yellow-400 text-green-600 border-4 border-green-600"
-};
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .animate-in { animation: slideUp 0.4s ease-out forwards; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
 
-// --- 메인 App 컴포넌트 ---
-export default function App() {
-  const [user, setUser] = useState(null);
-  const [syncStatus, setSyncStatus] = useState('connecting');
-  const [view, setView] = useState('view');
-  const [activeLoc, setActiveLoc] = useState('seoul');
-  const [selectedDate, setSelectedDate] = useState('2025-12-28');
-  const [raceIdx, setRaceIdx] = useState(0);
-  const [expanded, setExpanded] = useState(null);
-  const [toast, setToast] = useState(null);
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+        const { Trophy, Calendar, Upload, Cloud, Save, MapPin, Clock, Info, ChevronDown, ChevronUp, Search, Zap, Star, Flame, FileText } = lucide;
 
-  const [dbData, setDbData] = useState({
-    seoul: { races: [], histories: [], analysis: { races: {} }, expert: {} },
-    busan: { races: [], histories: [], analysis: { races: {} }, expert: {} }
-  });
+        // --- 1. 데이터 파싱 엔진 (Parser) ---
+        const Parser = {
+            // 출전표 파싱
+            entry: (text) => {
+                const lines = text.split('\n');
+                const races = [];
+                let current = null;
+                let isTable = false;
 
-  // 인증 처리 (Rule 3)
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    };
-    initAuth();
-    return onAuthStateChanged(auth, setUser);
-  }, []);
-
-  // 데이터 동기화 (Rule 1, 3)
-  useEffect(() => {
-    if (!user) return;
-    setSyncStatus('loading');
-    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'dailyRacing', selectedDate);
-    
-    return onSnapshot(docRef, (snap) => {
-      if (snap.exists()) {
-        setDbData(snap.data());
-        setSyncStatus('synced');
-      } else {
-        setDbData({
-          seoul: { races: [], histories: [], analysis: { races: {} }, expert: {} },
-          busan: { races: [], histories: [], analysis: { races: {} }, expert: {} }
-        });
-        setSyncStatus('empty');
-      }
-    }, (err) => {
-      console.error(err);
-      setSyncStatus('error');
-    });
-  }, [user, selectedDate]);
-
-  const saveToCloud = async () => {
-    if (!user) return;
-    setSyncStatus('syncing');
-    try {
-      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'dailyRacing', selectedDate);
-      await setDoc(docRef, { ...dbData, lastUpdated: new Date().toISOString() });
-      setSyncStatus('synced');
-      triggerToast("클라우드 저장 성공!");
-    } catch (e) {
-      setSyncStatus('error');
-      triggerToast("저장 실패", "error");
-    }
-  };
-
-  const triggerToast = (msg, type = "success") => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
-  };
-
-  const handleFileUpload = (e, type, loc) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const text = ev.target.result;
-      setDbData(prev => {
-        const next = JSON.parse(JSON.stringify(prev));
-        if (type === 'entry') next[loc].races = Parser.entry(text);
-        if (type === 'history') next[loc].histories = Parser.history(text);
-        if (type === 'analysis') next[loc].analysis = JSON.parse(text);
-        if (type === 'expert') {
-          const p = Parser.expert(text);
-          next.seoul.expert = p.seoul || {};
-          next.busan.expert = p.busan || {};
-        }
-        return next;
-      });
-      setSyncStatus('modified');
-    };
-    reader.readAsText(file, 'UTF-8');
-  };
-
-  const current = dbData[activeLoc];
-  const race = current?.races[raceIdx];
-  const expertInfo = current?.expert?.[race?.no];
-  const analysisInfo = current?.analysis?.races?.[race?.no];
-
-  return (
-    <div className="max-w-2xl mx-auto min-h-screen flex flex-col bg-slate-50 relative font-sans text-slate-800 shadow-2xl">
-      {/* 알림 토스트 */}
-      {toast && (
-        <div className={`fixed top-10 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 animate-bounce border ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-600 text-white'}`}>
-          {toast.type === 'error' ? <AlertCircle size={18}/> : <CheckCircle2 size={18}/>}
-          <span className="text-sm font-bold">{toast.msg}</span>
-        </div>
-      )}
-
-      {/* 헤더 섹션 */}
-      <header className="bg-slate-900 text-white p-6 sticky top-0 z-40 shadow-xl">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-yellow-400 rounded-2xl text-slate-900 shadow-lg">
-              <Rocket size={24} />
-            </div>
-            <div>
-              <h1 className="text-xl font-black tracking-tighter uppercase italic leading-none">Smart Racing <span className="text-yellow-400">Pro</span></h1>
-              <p className="text-[10px] text-slate-400 font-bold mt-1 tracking-widest uppercase flex items-center gap-1">
-                <Database size={8}/> {syncStatus} | Cloud Sync
-              </p>
-            </div>
-          </div>
-          <div className="flex bg-slate-800 p-1 rounded-2xl border border-slate-700">
-            <button onClick={() => setView('view')} className={`px-5 py-2 rounded-xl text-xs font-black transition-all ${view === 'view' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-500'}`}>VIEW</button>
-            <button onClick={() => setView('admin')} className={`px-5 py-2 rounded-xl text-xs font-black transition-all ${view === 'admin' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500'}`}>ADMIN</button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 bg-slate-800/40 p-2 rounded-2xl backdrop-blur-md">
-          <div className="flex items-center gap-2 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-700 flex-1">
-            <Calendar size={14} className="text-slate-500"/>
-            <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="bg-transparent text-xs font-black focus:outline-none text-white w-full"/>
-          </div>
-          <div className="flex gap-1">
-            <button onClick={() => setActiveLoc('seoul')} className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all ${activeLoc === 'seoul' ? 'bg-slate-100 text-slate-900' : 'text-slate-500'}`}>서울</button>
-            <button onClick={() => setActiveLoc('busan')} className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all ${activeLoc === 'busan' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}>부산</button>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1 p-4 overflow-y-auto pb-10">
-        {view === 'admin' ? (
-          <section className="space-y-4">
-            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-black flex items-center gap-2"><FileUp className="text-indigo-600"/> 데이터 업로드</h3>
-                {syncStatus === 'modified' && (
-                  <button onClick={saveToCloud} className="bg-orange-600 text-white px-5 py-2 rounded-xl text-xs font-black shadow-lg animate-pulse flex items-center gap-2">
-                    <CloudUpload size={16}/> 클라우드에 저장
-                  </button>
-                )}
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {[
-                  { id: 'entry', label: '출전표 CSV' },
-                  { id: 'history', label: '10회전적 CSV' },
-                  { id: 'analysis', label: 'AI분석 JSON' },
-                  { id: 'expert', label: '전문가 코멘트 TXT' }
-                ].map(item => (
-                  <div key={item.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                    <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">{item.label}</label>
-                    <input type="file" onChange={e => handleFileUpload(e, item.id, activeLoc)} className="w-full text-[10px] cursor-pointer"/>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        ) : (
-          <section className="space-y-4">
-            {/* 경주 네비게이션 */}
-            <div className="flex overflow-x-auto gap-2.5 pb-2 scrollbar-hide">
-              {current?.races.length > 0 ? current.races.map((r, i) => (
-                <button key={i} onClick={() => {setRaceIdx(i); setExpanded(null);}} className={`flex-shrink-0 w-12 h-12 rounded-2xl font-black text-sm transition-all ${raceIdx === i ? 'bg-slate-900 text-white scale-110 shadow-lg' : 'bg-white text-slate-400 border border-slate-100'}`}>{r.no}</button>
-              )) : <div className="py-10 text-center w-full text-slate-300 font-black">데이터 없음</div>}
-            </div>
-
-            {race && (
-              <div className="space-y-4">
-                {/* 경주 정보 카드 */}
-                <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border-l-[12px] border-yellow-400">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h2 className="text-3xl font-black italic text-slate-900 underline decoration-yellow-400 decoration-4 underline-offset-4 decoration-skip-ink-none">제 {race.no} R</h2>
-                      <div className="flex items-center gap-3 text-xs font-bold text-slate-400 mt-2">
-                        <span>{race.startTime}</span>
-                        <span className="w-1 h-1 bg-slate-200 rounded-full"/>
-                        <span className="text-indigo-600 font-black">{race.distance}M</span>
-                      </div>
-                    </div>
-                    {analysisInfo?.avgRecord && (
-                      <div className="text-right">
-                        <span className="text-[9px] font-black text-slate-300 uppercase block tracking-widest">Avg Winner Rec</span>
-                        <div className="text-2xl font-black text-slate-900 font-mono italic">{analysisInfo.avgRecord}</div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {expertInfo && (
-                    <div className="mt-6 p-5 bg-orange-50 rounded-3xl border border-orange-100 shadow-inner">
-                      <div className="flex flex-wrap gap-2 items-center mb-3">
-                        <span className="bg-orange-600 text-white text-[9px] px-2.5 py-1 rounded-full font-black uppercase flex items-center gap-1"><Trophy size={10}/> Expert Recommended</span>
-                        <div className="flex gap-1.5 ml-auto">
-                          {expertInfo.recommended?.map(h => (
-                            <span key={h.no} className="w-8 h-8 rounded-full bg-white text-orange-600 border border-orange-200 flex items-center justify-center text-xs font-black shadow-sm">{h.no}</span>
-                          ))}
-                        </div>
-                      </div>
-                      <p className="text-[12px] text-orange-900/80 font-bold leading-relaxed italic">{expertInfo.comment || '상세 경주 전개 분석 데이터가 준비되었습니다.'}</p>
-                      
-                      {(expertInfo.dark?.length > 0 || expertInfo.lead?.length > 0) && (
-                        <div className="flex gap-4 mt-3 pt-3 border-t border-orange-100">
-                           {expertInfo.dark?.length > 0 && (
-                             <div className="flex items-center gap-1.5">
-                               <span className="text-[10px] font-black text-purple-600 uppercase tracking-tighter">복병:</span>
-                               <span className="text-xs font-black text-slate-700">{expertInfo.dark.join(', ')}</span>
-                             </div>
-                           )}
-                           {expertInfo.lead?.length > 0 && (
-                             <div className="flex items-center gap-1.5">
-                               <span className="text-[10px] font-black text-red-600 uppercase tracking-tighter">선행:</span>
-                               <span className="text-xs font-black text-slate-700">{expertInfo.lead.join(', ')}</span>
-                             </div>
-                           )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* 마필 리스트 */}
-                <div className="grid grid-cols-1 gap-3">
-                  {race.horses.map((h) => {
-                    const isExp = expanded === h.no;
-                    const hist = current.histories.filter(v => v.horseName === h.name).slice(0, 5);
-                    const expComment = expertInfo?.horseComments?.[h.no];
+                lines.forEach(line => {
+                    const t = line.trim();
+                    if (!t) return;
+                    // 경주 헤더 (예: 제1경주 ...)
+                    if (t.includes('제') && t.includes('경주') && (t.includes('서울') || t.includes('부산') || t.includes('부경'))) {
+                        if (current) races.push(current);
+                        const no = (t.match(/제(\d+)경주/) || [])[1] || '?';
+                        const dist = (t.match(/(\d{3,4})M/i) || [])[1] || '';
+                        // 시간 추출 (xx:xx 형식)
+                        const timeMatch = t.match(/(\d{1,2}:\d{2})/);
+                        const time = timeMatch ? timeMatch[1] : '';
+                        current = { no, distance: dist, startTime: time, horses: [] };
+                        isTable = false;
+                        return;
+                    }
+                    if (t.startsWith('번호')) { isTable = true; return; }
+                    if (current && isTable) {
+                        const cols = t.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                        if (cols.length > 5) {
+                            current.horses.push({
+                                no: cols[0]?.replace(/[▲*]/g, ''),
+                                name: cols[1]?.trim(),
+                                origin: cols[2], sex: cols[3], age: cols[4],
+                                rating: cols[5], weight: cols[6]?.replace('*',''), weightDiff: cols[7],
+                                jockey: cols[8], trainer: cols[9], 
+                                trainingCount: cols[11], cycle: cols[12],
+                                gear: cols[13]?.replace(/"/g, ''), 
+                                father: cols[15], grade: cols[16]
+                            });
+                        }
+                    }
+                });
+                if (current) races.push(current);
+                return races;
+            },
+            // 상세 전적 파싱
+            history: (text) => {
+                const lines = text.split('\n');
+                return lines.slice(1).map(line => {
+                    const c = line.split(',');
+                    if (c.length < 20) return null;
+                    return {
+                        horseName: c[6]?.trim(),
+                        date: c[12], dist: c[14]?.replace('M',''), 
+                        rec: c[15], rank: c[16], 
+                        s1f: c[23], g1f: c[25]
+                    };
+                }).filter(Boolean);
+            },
+            // 전문가 픽 파싱
+            expert: (text) => {
+                const result = { seoul: {}, busan: {} };
+                const chunks = text.split(/\*\*(서울|부산|부경)\s*(\d+)경주/);
+                for (let i = 1; i < chunks.length; i += 3) {
+                    const loc = (chunks[i] === '서울') ? 'seoul' : 'busan';
+                    const no = chunks[i+1];
+                    const content = chunks[i+2] || '';
                     
-                    const isRec = expertInfo?.recommended?.some(r => r.no === h.no);
-                    const isDark = expertInfo?.dark?.includes(h.no);
-                    const isLead = expertInfo?.lead?.includes(h.no);
+                    // 추천 마번
+                    const recMatch = content.match(/\*\*추천.*?\*\*[:：]\s*(.+?)(?=\r?\n|$)/);
+                    const recommended = [];
+                    if (recMatch) {
+                        const matches = recMatch[1].matchAll(/\((\d+)\)\s*([가-힣A-Z]+)/g);
+                        for (const m of matches) recommended.push({ no: m[1], name: m[2] });
+                    }
 
-                    return (
-                      <div key={h.no} className={`bg-white rounded-[2rem] border transition-all duration-300 overflow-hidden ${isExp ? 'ring-2 ring-slate-900 shadow-xl scale-[1.01]' : 'border-slate-100 shadow-sm opacity-95 hover:opacity-100 hover:border-slate-300'}`}>
-                        <div className="p-4 flex items-center gap-4 cursor-pointer" onClick={() => setExpanded(isExp ? null : h.no)}>
-                          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-inner ${HORSE_COLORS[h.no] || 'bg-slate-200'}`}>
-                            <span className="text-2xl font-black italic">{h.no}</span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-0.5">
-                              <h3 className="text-lg font-black text-slate-800 truncate">{h.name}</h3>
-                              <div className="flex gap-1">
-                                {isRec && <Star size={12} className="text-orange-500 fill-orange-500" />}
-                                {isDark && <Zap size={12} className="text-purple-500 fill-purple-500" />}
-                                {isLead && <Flame size={12} className="text-red-500 fill-red-500" />}
-                              </div>
+                    // 복병/선행
+                    const dark = (content.match(/\*\*복병.*?\*\*[:：]\s*([\d, ]+)/) || [])[1]?.split(',').map(s=>s.trim()).filter(Boolean) || [];
+                    const lead = (content.match(/\*\*선행.*?\*\*[:：]\s*([\d, ]+)/) || [])[1]?.split(',').map(s=>s.trim()).filter(Boolean) || [];
+
+                    // 마필별 상세 코멘트
+                    const horseComments = {};
+                    const cMatch = content.matchAll(/\*\*\s*\((\d+)\)\s*([가-힣A-Z\s()]+)\s*\*\*\s*은?(.+?)(?=\s*(?:\r?\n\r?\n|\*\*\(|\*\*추천|\*\*복병|\*\*선행|$))/gs);
+                    for (const m of cMatch) horseComments[m[1]] = m[3].trim().replace(/\s+/g, ' ');
+
+                    // 전체 평
+                    const summary = content.split('\n').find(l => l.trim() && !l.startsWith('**') && !l.includes('등급')) || "";
+
+                    result[loc][no] = { recommended, dark, lead, horseComments, summary };
+                }
+                return result;
+            }
+        };
+
+        // --- 마번 스타일 ---
+        const getBadgeStyle = (no) => {
+            const n = parseInt(no);
+            if (n===1) return "h-1"; if (n===2) return "h-2"; if (n===3) return "h-3";
+            if (n===4) return "h-4"; if (n===5) return "h-5"; if (n===6) return "h-6";
+            if (n===7) return "h-7"; if (n===8) return "h-8"; if (n===9) return "h-9";
+            if (n===10) return "h-10"; if (n===11) return "h-11"; if (n===12) return "h-12";
+            return "bg-gray-200 text-gray-500";
+        };
+
+        // --- 2. 메인 App 컴포넌트 ---
+        function App() {
+            const [user, setUser] = useState(null);
+            const [status, setStatus] = useState('connecting');
+            const [view, setView] = useState('view');
+            const [loc, setLoc] = useState('seoul');
+            const [date, setDate] = useState('2025-12-28');
+            const [raceIdx, setRaceIdx] = useState(0);
+            const [expanded, setExpanded] = useState(null);
+
+            const [dbData, setDbData] = useState({
+                seoul: { races: [], histories: [], analysis: { races: {} }, expert: {} },
+                busan: { races: [], histories: [], analysis: { races: {} }, expert: {} }
+            });
+
+            // Firebase 인증 및 데이터 로드 (날짜별)
+            useEffect(() => {
+                const { auth, db, appId, initialToken, doc, onSnapshot, signInAnonymously, signInWithCustomToken, onAuthStateChanged } = window.fb;
+                
+                const initAuth = async () => {
+                    try {
+                        if (initialToken) await signInWithCustomToken(auth, initialToken);
+                        else await signInAnonymously(auth);
+                        
+                        onAuthStateChanged(auth, (u) => {
+                            setUser(u);
+                            if (u) {
+                                // 경로: dailyRacing 컬렉션 -> 날짜 문서
+                                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'dailyRacing', date);
+                                onSnapshot(docRef, (snap) => {
+                                    if (snap.exists()) {
+                                        setDbData(snap.data());
+                                        setStatus('synced');
+                                    } else {
+                                        // 데이터 없음 -> 초기화
+                                        setDbData({
+                                            seoul: { races: [], histories: [], analysis: { races: {} }, expert: {} },
+                                            busan: { races: [], histories: [], analysis: { races: {} }, expert: {} }
+                                        });
+                                        setStatus('empty');
+                                    }
+                                });
+                            }
+                        });
+                    } catch (err) { setStatus('error'); }
+                };
+                initAuth();
+            }, [date]);
+
+            // 데이터 서버 저장
+            const saveToCloud = async () => {
+                if (!user) return;
+                const { db, appId, doc, setDoc } = window.fb;
+                setStatus('saving');
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'dailyRacing', date);
+                    await setDoc(docRef, { ...dbData, lastUpdated: new Date().toISOString() });
+                    setStatus('synced');
+                    alert(`✅ ${date} 데이터가 저장되었습니다.`);
+                } catch (e) {
+                    alert("저장 실패: " + e.message);
+                    setStatus('error');
+                }
+            };
+
+            const handleFileUpload = (e, type, location) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const text = ev.target.result;
+                    setDbData(prev => {
+                        const next = JSON.parse(JSON.stringify(prev));
+                        if (type === 'entry') next[location].races = Parser.entry(text);
+                        if (type === 'history') next[location].histories = Parser.history(text);
+                        if (type === 'analysis') next[location].analysis = JSON.parse(text);
+                        if (type === 'expert') {
+                            const p = Parser.expert(text);
+                            next.seoul.expert = p.seoul;
+                            next.busan.expert = p.busan;
+                        }
+                        return next;
+                    });
+                    setStatus('modified');
+                };
+                reader.readAsText(file, 'UTF-8');
+            };
+
+            const current = dbData[loc];
+            const race = current?.races[raceIdx];
+            const expertInfo = current?.expert?.[race?.no];
+            const analysisInfo = current?.analysis?.races?.[race?.no];
+
+            return (
+                <div className="max-w-2xl mx-auto min-h-screen flex flex-col bg-slate-50 relative shadow-2xl">
+                    {/* 상단 헤더 */}
+                    <header className="bg-slate-900 text-white p-5 sticky top-0 z-50 shadow-lg">
+                        <div className="flex justify-between items-center mb-4">
+                            <div className="flex items-center gap-2">
+                                <Trophy className="text-yellow-400" size={20}/>
+                                <h1 className="text-lg font-black italic tracking-tighter">SMART <span className="text-yellow-400">PRO</span></h1>
                             </div>
-                            <div className="text-[11px] font-bold text-slate-400 flex gap-2">
-                              <span className="text-indigo-600">{h.jockey}</span><span>/</span>
-                              <span>{h.weight}kg ({h.weightDiff})</span><span>/</span>
-                              <span className="bg-slate-100 px-1.5 rounded">R{h.rating}</span>
+                            <div className="flex gap-2">
+                                <button onClick={() => setView('view')} className={`px-4 py-1.5 rounded text-xs font-bold ${view === 'view' ? 'bg-white text-slate-900' : 'text-slate-400 bg-slate-800'}`}>경마지</button>
+                                <button onClick={() => setView('admin')} className={`px-4 py-1.5 rounded text-xs font-bold ${view === 'admin' ? 'bg-indigo-600' : 'text-slate-400 bg-slate-800'}`}>관리</button>
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-[9px] text-slate-300 font-black uppercase tracking-tighter">Training</div>
-                            <div className="text-sm font-black italic">{h.trainingCount}회</div>
-                          </div>
-                          <div className="text-slate-200">{isExp ? <ChevronUp size={24}/> : <ChevronDown size={24}/>}</div>
                         </div>
+                        <div className="flex gap-2 items-center bg-slate-800 p-2 rounded-xl">
+                            <Calendar size={16} className="text-slate-400 ml-2"/>
+                            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="bg-transparent text-sm font-bold text-white outline-none w-32"/>
+                            <div className="h-4 w-px bg-slate-600 mx-1"></div>
+                            <div className="flex-1 flex gap-1">
+                                <button onClick={() => setLoc('seoul')} className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${loc === 'seoul' ? 'bg-slate-100 text-slate-900' : 'text-slate-500'}`}>서울</button>
+                                <button onClick={() => setLoc('busan')} className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${loc === 'busan' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}>부산</button>
+                            </div>
+                        </div>
+                        <div className="text-[10px] text-center mt-2 text-slate-500 font-bold uppercase tracking-widest flex justify-center items-center gap-2">
+                            <Cloud size={10}/> Status: {status.toUpperCase()}
+                        </div>
+                    </header>
 
-                        {isExp && (
-                          <div className="px-5 pb-6 pt-2 animate-in fade-in bg-slate-50/40">
-                            <div className="h-px bg-slate-100 mb-4"/>
-                            {expComment && (
-                              <div className="mb-4 bg-white p-5 rounded-3xl border-l-8 border-orange-400 shadow-sm">
-                                <h4 className="text-[10px] font-black text-orange-600 uppercase mb-2 flex items-center gap-1 tracking-widest font-black"><Icon name="Zap" size={10}/> Expert Tactical Point</h4>
-                                <p className="text-[12px] text-slate-700 font-bold leading-relaxed">{expComment}</p>
-                              </div>
-                            )}
-                            <div className="grid grid-cols-2 gap-3 mb-4">
-                              <div className="bg-white p-4 rounded-3xl border border-slate-100 text-xs shadow-sm">
-                                <div className="space-y-1.5 font-bold">
-                                  <div className="flex justify-between border-b border-slate-50 pb-1"><span className="text-slate-400 italic font-medium">Trainer</span><span className="truncate max-w-[80px]">{h.trainer}</span></div>
-                                  <div className="flex justify-between border-b border-slate-50 pb-1"><span className="text-slate-400 italic font-medium">Sire</span><span className="truncate max-w-[80px] font-black">{h.father}</span></div>
-                                  <div className="flex justify-between text-indigo-600"><span className="font-medium italic">Cycle</span><span>{h.cycle}주</span></div>
+                    <main className="flex-1 p-4 overflow-y-auto pb-20">
+                        {view === 'admin' ? (
+                            <div className="space-y-4 animate-in">
+                                <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h3 className="font-black text-lg flex items-center gap-2 text-slate-800"><Upload size={18} className="text-indigo-600"/> 데이터 업로드</h3>
+                                        {status === 'modified' && (
+                                            <button onClick={saveToCloud} className="bg-orange-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg flex items-center gap-2 animate-bounce">
+                                                <Save size={14}/> 서버 저장
+                                            </button>
+                                        )}
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {[
+                                            { id: 'entry', label: '1. 출전표 (CSV)' },
+                                            { id: 'history', label: '2. 전적 (CSV)' },
+                                            { id: 'analysis', label: '3. AI 분석 (JSON)' },
+                                            { id: 'expert', label: '4. 전문가 픽 (TXT)' }
+                                        ].map(item => (
+                                            <div key={item.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                                <label className="text-xs font-bold text-slate-500 block mb-1">{item.label}</label>
+                                                <input type="file" onChange={e => handleFileUpload(e, item.id, loc)} className="text-xs w-full"/>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                              </div>
-                              <div className="bg-white p-4 rounded-3xl border border-slate-100 text-[11px] font-bold text-slate-500 italic flex items-center justify-center text-center shadow-sm">
-                                {h.gear || 'No Gear'}
-                              </div>
                             </div>
-                            <div className="bg-slate-900 rounded-3xl overflow-hidden shadow-xl overflow-x-auto border-4 border-slate-800">
-                              <table className="w-full text-[10px] text-center text-slate-300 font-bold">
-                                <thead className="bg-slate-800 text-slate-500 font-black uppercase italic">
-                                  <tr>
-                                    <th className="py-3 px-1">Date</th>
-                                    <th className="py-3 px-1">Dist</th>
-                                    <th className="py-3 px-1 text-white">Rec</th>
-                                    <th className="py-3 px-1">Rank</th>
-                                    <th className="py-3 px-1 text-red-400 border-b-2 border-red-500/20">S1F</th>
-                                    <th className="py-3 px-1 text-blue-400 border-b-2 border-blue-500/20">G1F</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-800">
-                                  {hist.map((v, idx) => (
-                                    <tr key={idx} className="hover:bg-slate-800 transition-colors">
-                                      <td className="py-2.5 px-1 text-slate-500 font-mono italic">{v.date}</td>
-                                      <td className="py-2.5 px-1 text-slate-400">{v.dist}</td>
-                                      <td className="py-2.5 px-1 text-yellow-400 font-mono italic">{v.rec}</td>
-                                      <td className={`py-2.5 px-1 ${v.rank?.startsWith('1/') ? 'text-white' : 'text-slate-600'}`}>{v.rank}</td>
-                                      <td className="py-2.5 px-1 text-red-500/80 font-mono">{v.s1f}</td>
-                                      <td className="py-2.5 px-1 text-blue-500/80 font-mono">{v.g1f}</td>
-                                    </tr>
-                                  ))}
-                                  {hist.length === 0 && <tr><td colSpan="6" className="py-8 text-slate-600 font-black italic uppercase tracking-widest">No Record</td></tr>}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </section>
-        )}
-      </main>
+                        ) : (
+                            <div className="space-y-4">
+                                {/* 경주 번호 탭 */}
+                                <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-hide">
+                                    {current?.races.length > 0 ? current.races.map((r, i) => (
+                                        <button key={i} onClick={() => {setRaceIdx(i); setExpanded(null);}} className={`flex-shrink-0 w-14 h-14 rounded-2xl font-black text-lg transition-all shadow-sm border ${raceIdx === i ? 'bg-slate-900 text-white border-slate-900 scale-105' : 'bg-white text-slate-300 border-slate-100'}`}>
+                                            {r.no}
+                                        </button>
+                                    )) : <div className="w-full py-10 text-center text-slate-300 font-bold border-2 border-dashed rounded-3xl">데이터 없음</div>}
+                                </div>
 
-      <footer className="p-8 text-center border-t border-slate-100 bg-white">
-        <div className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] italic">
-          Smart Racing Cloud Pro &copy; 2025 v2.6 Tactical
-        </div>
-      </footer>
-    </div>
-  );
-}
+                                {race && (
+                                    <div className="space-y-4 animate-in">
+                                        {/* 경주 정보 카드 */}
+                                        <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border-l-8 border-yellow-400 relative overflow-hidden">
+                                            <div className="flex justify-between items-start relative z-10">
+                                                <div>
+                                                    <h2 className="text-3xl font-black text-slate-900 italic tracking-tighter">제 {race.no} 경주</h2>
+                                                    <div className="flex items-center gap-2 text-xs font-bold text-slate-400 mt-2">
+                                                        <Clock size={14}/> {race.startTime}
+                                                        <span className="w-1 h-1 bg-slate-300 rounded-full"/>
+                                                        <span className="text-indigo-600 bg-indigo-50 px-2 rounded font-black">{race.distance}M</span>
+                                                    </div>
+                                                </div>
+                                                {analysisInfo?.avgRecord && (
+                                                    <div className="text-right">
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Avg Rec</span>
+                                                        <div className="text-2xl font-black text-slate-800 font-mono tracking-tight">{analysisInfo.avgRecord}</div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            
+                                            {expertInfo && (
+                                                <div className="mt-4 p-4 bg-orange-50 rounded-2xl border border-orange-100 relative">
+                                                    <div className="flex flex-wrap gap-2 items-center mb-2">
+                                                        <span className="bg-orange-600 text-white text-[9px] px-2 py-0.5 rounded-full font-black uppercase flex items-center gap-1"><Trophy size={10}/> Expert</span>
+                                                        <div className="flex gap-1 ml-auto">
+                                                            {expertInfo.recommended?.map(h => (
+                                                                <span key={h.no} className="w-6 h-6 rounded-full bg-white text-orange-600 border border-orange-200 flex items-center justify-center text-xs font-black shadow-sm">{h.no}</span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-xs text-orange-900 font-medium leading-relaxed italic">
+                                                        {expertInfo.summary ? expertInfo.summary.substring(0, 100) + "..." : "전문가 상세 분석 참조"}
+                                                    </p>
+                                                    <div className="mt-2 pt-2 border-t border-orange-100 flex gap-3 text-[10px] font-bold">
+                                                        {expertInfo.dark.length > 0 && <span className="text-purple-600">⚡ 복병: {expertInfo.dark.join(', ')}</span>}
+                                                        {expertInfo.lead.length > 0 && <span className="text-red-600">🔥 선행: {expertInfo.lead.join(', ')}</span>}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* 마필 리스트 */}
+                                        <div className="flex flex-col gap-3 pb-10">
+                                            {race.horses.map((h) => {
+                                                const isExp = expanded === h.no;
+                                                const hist = current.histories.filter(v => v.horseName === h.name).slice(0, 5);
+                                                const expComment = expertInfo?.horseComments?.[h.no];
+                                                
+                                                const isRec = expertInfo?.recommended?.some(r => r.no === h.no);
+                                                const isDark = expertInfo?.dark?.includes(h.no);
+                                                const isLead = expertInfo?.lead?.includes(h.no);
+                                                
+                                                const isFastS = analysisInfo?.analysis?.fastStart.some(v => v.no === h.no);
+                                                const isFastF = analysisInfo?.analysis?.fastFinish.some(v => v.no === h.no);
+
+                                                return (
+                                                    <div key={h.no} className={`bg-white rounded-2xl shadow-sm border overflow-hidden transition-all ${isExp ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-slate-100'}`}>
+                                                        <div className="p-4 flex items-center gap-4 cursor-pointer" onClick={() => setExpanded(isExp ? null : h.no)}>
+                                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-inner font-black text-xl italic tracking-tighter ${getBadgeStyle(h.no)}`}>
+                                                                {h.no}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    <h3 className="font-bold text-slate-800 truncate text-lg">{h.name}</h3>
+                                                                    <div className="flex gap-1">
+                                                                        {isRec && <Star size={12} className="text-orange-400 fill-orange-400" />}
+                                                                        {isDark && <Zap size={12} className="text-purple-600 fill-purple-600" />}
+                                                                        {isLead && <Flame size={12} className="text-red-500 fill-red-500" />}
+                                                                        {isFastS && <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"/>}
+                                                                        {isFastF && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"/>}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="text-xs text-slate-500 flex gap-2 font-bold uppercase">
+                                                                    <span className="text-indigo-600">{h.jockey}</span>
+                                                                    <span className="text-slate-300">|</span>
+                                                                    <span>{h.weight}kg</span>
+                                                                    <span className="text-slate-300">|</span>
+                                                                    <span className="bg-slate-100 px-1.5 rounded text-slate-600">R{h.rating}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-right pr-1">
+                                                                <div className="text-[9px] text-slate-400 font-bold uppercase">Train</div>
+                                                                <div className="font-black text-slate-800">{h.trainingCount}</div>
+                                                            </div>
+                                                            <div className="text-slate-300">
+                                                                {isExp ? <ChevronUp size={20}/> : <ChevronDown size={20}/>}
+                                                            </div>
+                                                        </div>
+
+                                                        {isExp && (
+                                                            <div className="bg-slate-50 border-t border-slate-100 p-4 animate-in">
+                                                                {/* 전문가 코멘트 */}
+                                                                {expComment && (
+                                                                    <div className="mb-4 bg-white p-3 rounded-xl border-l-4 border-orange-400 shadow-sm">
+                                                                        <div className="flex items-center gap-2 mb-1 text-orange-600 font-black text-[10px] uppercase tracking-wider">
+                                                                            <Zap size={10}/> Expert Insight
+                                                                        </div>
+                                                                        <p className="text-xs font-medium text-slate-700 leading-relaxed">
+                                                                            {expComment}
+                                                                        </p>
+                                                                    </div>
+                                                                )}
+
+                                                                <div className="grid grid-cols-2 gap-2 mb-4 text-xs text-slate-600">
+                                                                    <div className="bg-white p-2 rounded-lg border border-slate-200">
+                                                                        <div className="text-[10px] text-slate-400 font-bold mb-1">조교사</div>
+                                                                        <div className="font-bold">{h.trainer}</div>
+                                                                    </div>
+                                                                    <div className="bg-white p-2 rounded-lg border border-slate-200">
+                                                                        <div className="text-[10px] text-slate-400 font-bold mb-1">부마</div>
+                                                                        <div className="font-bold truncate">{h.father}</div>
+                                                                    </div>
+                                                                    <div className="bg-white p-2 rounded-lg border border-slate-200">
+                                                                        <div className="text-[10px] text-slate-400 font-bold mb-1">출전주기</div>
+                                                                        <div className="font-bold text-indigo-600">{h.cycle}주</div>
+                                                                    </div>
+                                                                    <div className="bg-white p-2 rounded-lg border border-slate-200">
+                                                                        <div className="text-[10px] text-slate-400 font-bold mb-1">장구</div>
+                                                                        <div className="font-bold truncate">{h.gear || '-'}</div>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* 전적 테이블 */}
+                                                                <div className="bg-slate-900 rounded-xl overflow-hidden shadow-inner">
+                                                                    <table className="w-full text-[10px] text-center text-slate-400">
+                                                                        <thead className="bg-slate-800 text-slate-500 font-bold uppercase">
+                                                                            <tr>
+                                                                                <th className="py-2">Date</th>
+                                                                                <th>Dist</th>
+                                                                                <th className="text-white">Rec</th>
+                                                                                <th>Rank</th>
+                                                                                <th className="text-red-400">S1F</th>
+                                                                                <th className="text-blue-400">G1F</th>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody className="divide-y divide-slate-800 font-mono">
+                                                                            {hist.map((v, i) => (
+                                                                                <tr key={i}>
+                                                                                    <td className="py-2 text-slate-500">{v.date}</td>
+                                                                                    <td>{v.dist}</td>
+                                                                                    <td className="text-yellow-400">{v.rec}</td>
+                                                                                    <td className={v.rank?.startsWith('1/') ? 'text-white font-bold' : ''}>{v.rank}</td>
+                                                                                    <td className="text-red-500">{v.s1f}</td>
+                                                                                    <td className="text-blue-500">{v.g1f}</td>
+                                                                                </tr>
+                                                                            ))}
+                                                                            {hist.length === 0 && <tr><td colSpan="6" className="py-4 text-slate-600">기록 없음</td></tr>}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </main>
+
+                    <footer className="p-8 text-center border-t border-slate-100 bg-white">
+                        <div className="text-[10px] font-black text-slate-300 uppercase tracking-[0.5em] italic">
+                            Integrated Smart Racing Cloud Pro &copy; 2025 v7.0
+                        </div>
+                    </footer>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
