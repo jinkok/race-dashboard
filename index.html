@@ -3,58 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SMART RACING PRO</title>
+    <title>SMART RACING PRO - 통합 분석 시스템</title>
     
-    <!-- 1. 스타일 및 라이브러리 로드 -->
+    <!-- 1. 필수 라이브러리 (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- React 관련 -->
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- 아이콘 -->
-    <script src="https://unpkg.com/lucide-react@0.294.0/dist/umd/lucide-react.min.js"></script>
-
-    <!-- 2. Firebase SDK 설정 -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-        // 환경 변수가 없으면 빈 객체 처리 (오류 방지)
-        const configStr = (typeof window.__firebase_config !== 'undefined') ? window.__firebase_config : '{}';
-        let firebaseConfig;
-        try {
-            firebaseConfig = JSON.parse(configStr);
-        } catch (e) {
-            console.error("Firebase Config Parsing Error", e);
-            firebaseConfig = {};
-        }
-
-        // Firebase 초기화 시도
-        try {
-            if (firebaseConfig.apiKey) {
-                const app = initializeApp(firebaseConfig);
-                const auth = getAuth(app);
-                const db = getFirestore(app);
-                const appId = (typeof window.__app_id !== 'undefined') ? window.__app_id : 'racing-pro-v11';
-                const initialToken = window.__initial_auth_token;
-
-                window.fb = { auth, db, appId, initialToken, doc, setDoc, onSnapshot, signInAnonymously, signInWithCustomToken, onAuthStateChanged, isReady: true };
-            } else {
-                console.warn("Firebase Config missing. Running in Offline Mode.");
-                window.fb = { isReady: false };
-            }
-        } catch (e) {
-            console.error("Firebase Init Failed:", e);
-            window.fb = { isReady: false };
-        }
-    </script>
+    <!-- Lucide 아이콘 (Global 로드 방식 변경) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;600;800&display=swap');
-        body { font-family: 'Pretendard', sans-serif; background-color: #f1f5f9; color: #1e293b; -webkit-tap-highlight-color: transparent; }
-        
-        /* 마번 색상표 */
+        body { font-family: 'Pretendard', sans-serif; background-color: #f8fafc; color: #1e293b; }
         .h-1 { @apply bg-white text-gray-900 border-2 border-gray-300; }
         .h-2 { @apply bg-yellow-400 text-gray-900 border-none; }
         .h-3 { @apply bg-red-600 text-white border-none; }
@@ -67,7 +28,6 @@
         .h-10 { @apply bg-sky-300 text-gray-900 border-none; }
         .h-11 { @apply bg-white text-green-700 border-4 border-green-600; }
         .h-12 { @apply bg-yellow-400 text-green-700 border-4 border-green-600; }
-
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .animate-up { animation: slideUp 0.3s ease-out forwards; }
         @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -75,68 +35,98 @@
 </head>
 <body>
     <div id="root">
-        <div class="flex items-center justify-center min-h-screen text-slate-400 font-bold">
-            시스템 로딩 중... (화면이 안 나오면 새로고침 해주세요)
+        <div style="display:flex; justify-content:center; align-items:center; height:100vh; flex-direction:column; color:#94a3b8;">
+            <div style="font-weight:bold; font-size:1.2rem;">시스템 초기화 중...</div>
+            <div style="font-size:0.8rem; margin-top:10px;">잠시만 기다려주세요.</div>
         </div>
     </div>
 
+    <!-- 2. Firebase SDK 설정 -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // 사용자 제공 Config 적용
+        const firebaseConfig = {
+            apiKey: "AIzaSyDVJRqmpFjR9g91AgQsJIV65_7BJ7yYEOU",
+            authDomain: "race-app-3e41d.firebaseapp.com",
+            projectId: "race-app-3e41d",
+            storageBucket: "race-app-3e41d.firebasestorage.app",
+            messagingSenderId: "232853669556",
+            appId: "1:232853669556:web:f9e7c8ccfde227f50679e1",
+            measurementId: "G-H6MB9KZ8M8"
+        };
+
+        try {
+            const app = initializeApp(firebaseConfig);
+            const auth = getAuth(app);
+            const db = getFirestore(app);
+            
+            // 전역 객체에 저장 (React에서 사용)
+            window.fb = { 
+                auth, db, doc, setDoc, onSnapshot, signInAnonymously, onAuthStateChanged,
+                isReady: true 
+            };
+            console.log("Firebase initialized successfully");
+        } catch (e) {
+            console.error("Firebase Init Failed:", e);
+            window.fb = { isReady: false, error: e.message };
+        }
+    </script>
+
+    <!-- 3. React 애플리케이션 -->
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
-        const { Trophy, Calendar, Upload, Cloud, Save, MapPin, Clock, Info, ChevronDown, ChevronUp, Search, Zap, Star, Flame, FileText, Activity } = lucide;
+        
+        // 아이콘 래퍼 컴포넌트 (Lucide 로드 문제 해결)
+        const Icon = ({ name, size = 16, className = "" }) => {
+            useEffect(() => {
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            }, [name]);
 
-        // --- 3. 데이터 파싱 엔진 ---
+            return <i data-lucide={name} style={{ width: size, height: size }} className={className}></i>;
+        };
+
+        // --- 파서 엔진 ---
         const Parser = {
-            // 출전표 파싱
             entry: (text) => {
+                if (!text) return [];
                 const lines = text.split('\n');
                 const races = [];
                 let current = null;
                 let isTable = false;
-
                 lines.forEach(line => {
                     const t = line.trim();
                     if (!t) return;
-                    
-                    // 경주 헤더 인식 (예: 2025년... 제1경주 ...)
                     if (t.includes('제') && t.includes('경주') && (t.includes('서울') || t.includes('부산') || t.includes('부경'))) {
                         if (current) races.push(current);
                         const noMatch = t.match(/제(\d+)경주/);
-                        const no = noMatch ? noMatch[1] : '?';
-                        
                         const distMatch = t.match(/(\d{3,4})M/i);
-                        const dist = distMatch ? distMatch[1] : '';
-                        
-                        // 시간 추출 (10:35 같은 패턴)
                         const timeMatch = t.match(/(\d{1,2}:\d{2})/);
-                        const time = timeMatch ? timeMatch[1] : '';
-                        
-                        current = { no, distance: dist, startTime: time, horses: [] };
+                        current = { 
+                            no: noMatch ? noMatch[1] : '?', 
+                            distance: distMatch ? distMatch[1] : '', 
+                            startTime: timeMatch ? timeMatch[1] : '', 
+                            horses: [] 
+                        };
                         isTable = false;
                         return;
                     }
-                    
                     if (t.startsWith('번호')) { isTable = true; return; }
-                    
                     if (current && isTable) {
-                        // CSV 파싱 (따옴표 처리 포함)
                         const cols = t.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-                        if (cols.length > 5 && /^\d/.test(cols[0])) { // 번호로 시작하는 행만
+                        if (cols.length > 5 && /^\d/.test(cols[0])) {
                             current.horses.push({
                                 no: cols[0]?.replace(/[▲*]/g, '').trim(),
                                 name: cols[1]?.trim(),
-                                origin: cols[2]?.trim(),
-                                sex: cols[3]?.trim(),
-                                age: cols[4]?.trim(),
-                                rating: cols[5]?.trim(),
-                                weight: cols[6]?.replace('*','').trim(),
-                                weightDiff: cols[7]?.trim(),
-                                jockey: cols[8]?.trim(),
-                                trainer: cols[9]?.trim(),
-                                trainingCount: cols[11]?.trim(),
-                                cycle: cols[12]?.trim(),
-                                gear: cols[13]?.replace(/"/g, '').trim(),
-                                father: cols[15]?.trim(),
-                                grade: cols[16]?.trim()
+                                origin: cols[2]?.trim(), sex: cols[3]?.trim(), age: cols[4]?.trim(),
+                                rating: cols[5]?.trim(), weight: cols[6]?.replace('*','').trim(), weightDiff: cols[7]?.trim(),
+                                jockey: cols[8]?.trim(), trainer: cols[9]?.trim(), trainingCount: cols[11]?.trim(),
+                                cycle: cols[12]?.trim(), gear: cols[13]?.replace(/"/g, '').trim(),
+                                father: cols[15]?.trim(), grade: cols[16]?.trim()
                             });
                         }
                     }
@@ -144,62 +134,40 @@
                 if (current) races.push(current);
                 return races;
             },
-            
-            // 상세 전적 파싱
             history: (text) => {
+                if (!text) return [];
                 const lines = text.split('\n');
                 return lines.slice(1).map(line => {
                     const c = line.split(',');
                     if (c.length < 20) return null;
                     return {
-                        horseName: c[6]?.trim(),
-                        date: c[12]?.trim(),
-                        dist: c[14]?.replace('M','').trim(),
-                        rec: c[15]?.trim(),
-                        rank: c[16]?.trim(),
-                        s1f: c[23]?.trim(),
-                        g1f: c[25]?.trim()
+                        horseName: c[6]?.trim(), date: c[12]?.trim(), dist: c[14]?.replace('M','').trim(),
+                        rec: c[15]?.trim(), rank: c[16]?.trim(), s1f: c[23]?.trim(), g1f: c[25]?.trim()
                     };
                 }).filter(Boolean);
             },
-            
-            // 전문가 픽 파싱
             expert: (text) => {
+                if (!text) return { seoul: {}, busan: {} };
                 const result = { seoul: {}, busan: {} };
-                // 경주별 쪼개기 (서울/부산/부경 + 숫자 + 경주)
                 const chunks = text.split(/\*\*(서울|부산|부경)\s*(\d+)경주/);
-                
-                // split 결과: [서문, "서울", "1", "내용...", "부산", "1", "내용..."]
                 for (let i = 1; i < chunks.length; i += 3) {
                     const locStr = chunks[i];
                     const loc = (locStr === '서울') ? 'seoul' : 'busan';
                     const no = chunks[i+1];
                     const content = chunks[i+2] || '';
                     
-                    // 추천 마번 파싱
                     const recMatch = content.match(/\*\*추천.*?\*\*[:：]\s*(.+?)(?=\r?\n|$)/);
                     const recommended = [];
                     if (recMatch) {
-                        const mAll = recMatch[1].matchAll(/\((\d+)\)\s*([가-힣A-Z]+)/g);
-                        for (const m of mAll) recommended.push({ no: m[1], name: m[2] });
+                        const matches = recMatch[1].matchAll(/\((\d+)\)\s*([가-힣A-Z]+)/g);
+                        for (const m of matches) recommended.push({ no: m[1], name: m[2] });
                     }
-
-                    // 복병/선행
-                    const darkMatch = content.match(/\*\*복병.*?\*\*[:：]\s*([\d, ]+)/);
-                    const leadMatch = content.match(/\*\*선행.*?\*\*[:：]\s*([\d, ]+)/);
-                    const dark = darkMatch ? darkMatch[1].split(',').map(s=>s.trim()).filter(Boolean) : [];
-                    const lead = leadMatch ? leadMatch[1].split(',').map(s=>s.trim()).filter(Boolean) : [];
-
-                    // 마필별 상세 코멘트 (**(번호) 마명** ... )
+                    const dark = (content.match(/\*\*복병.*?\*\*[:：]\s*([\d, ]+)/) || [])[1]?.split(',').map(s=>s.trim()).filter(Boolean) || [];
+                    const lead = (content.match(/\*\*선행.*?\*\*[:：]\s*([\d, ]+)/) || [])[1]?.split(',').map(s=>s.trim()).filter(Boolean) || [];
                     const horseComments = {};
                     const cMatch = content.matchAll(/\*\*\s*\((\d+)\)\s*([가-힣A-Z\s()]+)\s*\*\*\s*은?(.+?)(?=\s*(?:\r?\n\r?\n|\*\*\(|\*\*추천|\*\*복병|\*\*선행|$))/gs);
-                    for (const m of cMatch) {
-                        horseComments[m[1]] = m[3].trim().replace(/\s+/g, ' ');
-                    }
-
-                    // 전체 평 (헤더 제외 첫 문단)
+                    for (const m of cMatch) horseComments[m[1]] = m[3].trim().replace(/\s+/g, ' ');
                     const summary = content.split('\n').find(l => l.trim() && !l.startsWith('**') && !l.includes('등급')) || "";
-
                     result[loc][no] = { recommended, dark, lead, horseComments, summary };
                 }
                 return result;
@@ -215,81 +183,70 @@
             return "bg-gray-200 text-gray-500";
         };
 
-        // --- 4. 메인 애플리케이션 ---
         function App() {
             const [user, setUser] = useState(null);
-            const [status, setStatus] = useState('offline'); // offline, connecting, synced, error
+            const [status, setStatus] = useState('connecting');
             const [view, setView] = useState('view');
             const [loc, setLoc] = useState('seoul');
-            const [date, setDate] = useState('2025-12-28'); // 기본값 설정
+            const [date, setDate] = useState('2025-12-28');
             const [raceIdx, setRaceIdx] = useState(0);
             const [expanded, setExpanded] = useState(null);
-            const [toast, setToast] = useState(null);
+            const [dbData, setDbData] = useState({ seoul: { races: [], histories: [], analysis: { races: {} }, expert: {} }, busan: { races: [], histories: [], analysis: { races: {} }, expert: {} } });
 
-            const [dbData, setDbData] = useState({
-                seoul: { races: [], histories: [], analysis: { races: {} }, expert: {} },
-                busan: { races: [], histories: [], analysis: { races: {} }, expert: {} }
-            });
-
-            // Firebase 연결
+            // Firebase Logic
             useEffect(() => {
-                const fb = window.fb;
-                if (!fb || !fb.isReady) {
-                    console.log("Firebase not ready");
-                    return;
-                }
-
-                const initAuth = async () => {
-                    setStatus('connecting');
-                    try {
-                        if (fb.initialToken) await fb.signInWithCustomToken(fb.auth, fb.initialToken);
-                        else await fb.signInAnonymously(fb.auth);
-                        
-                        fb.onAuthStateChanged(fb.auth, (u) => {
-                            setUser(u);
-                            if (u) {
-                                // 날짜별 데이터 불러오기 (dailyRacing/{YYYY-MM-DD})
-                                const docRef = fb.doc(fb.db, 'artifacts', fb.appId, 'public', 'data', 'dailyRacing', date);
-                                fb.onSnapshot(docRef, (snap) => {
-                                    if (snap.exists()) {
-                                        setDbData(snap.data());
-                                        setStatus('synced');
-                                    } else {
-                                        setDbData({
-                                            seoul: { races: [], histories: [], analysis: { races: {} }, expert: {} },
-                                            busan: { races: [], histories: [], analysis: { races: {} }, expert: {} }
-                                        });
-                                        setStatus('empty');
-                                    }
-                                });
-                            }
-                        });
-                    } catch (err) { 
-                        console.error(err);
+                const checkFb = setInterval(() => {
+                    if (window.fb && window.fb.isReady) {
+                        clearInterval(checkFb);
+                        initializeFirebase();
+                    } else if (window.fb && window.fb.error) {
+                        clearInterval(checkFb);
                         setStatus('error');
+                        alert("Firebase 오류: " + window.fb.error);
                     }
-                };
-                initAuth();
+                }, 100);
+                return () => clearInterval(checkFb);
             }, [date]);
 
-            const saveToCloud = async () => {
-                if (!user) return;
-                const fb = window.fb;
-                setStatus('saving');
+            const initializeFirebase = async () => {
+                const { auth, db, doc, onSnapshot, signInAnonymously, onAuthStateChanged } = window.fb;
                 try {
-                    const docRef = fb.doc(fb.db, 'artifacts', fb.appId, 'public', 'data', 'dailyRacing', date);
-                    await fb.setDoc(docRef, { ...dbData, lastUpdated: new Date().toISOString() });
-                    setStatus('synced');
-                    showToast("서버 저장 완료!");
+                    await signInAnonymously(auth);
+                    onAuthStateChanged(auth, (u) => {
+                        setUser(u);
+                        if (u) {
+                            // 날짜별 경로: dailyRacing/{YYYY-MM-DD}
+                            const docRef = doc(db, 'artifacts', 'race-app-3e41d', 'public', 'data', 'dailyRacing', date);
+                            onSnapshot(docRef, (snap) => {
+                                if (snap.exists()) {
+                                    setDbData(snap.data());
+                                    setStatus('synced');
+                                } else {
+                                    setDbData({ seoul: { races: [], histories: [], analysis: { races: {} }, expert: {} }, busan: { races: [], histories: [], analysis: { races: {} }, expert: {} } });
+                                    setStatus('ready');
+                                }
+                            });
+                        }
+                    });
                 } catch (e) {
-                    showToast("저장 실패: " + e.message, "error");
+                    console.error(e);
                     setStatus('error');
                 }
             };
 
-            const showToast = (msg, type = "success") => {
-                setToast({ msg, type });
-                setTimeout(() => setToast(null), 3000);
+            const saveToCloud = async () => {
+                if (!user) return alert("로그인 필요");
+                const { db, doc, setDoc } = window.fb;
+                setStatus('saving');
+                try {
+                    const docRef = doc(db, 'artifacts', 'race-app-3e41d', 'public', 'data', 'dailyRacing', date);
+                    await setDoc(docRef, { ...dbData, lastUpdated: new Date().toISOString() });
+                    setStatus('synced');
+                    alert("저장 완료!");
+                } catch (e) {
+                    alert("저장 실패: " + e.message);
+                    setStatus('error');
+                }
             };
 
             const handleFileUpload = (e, type, targetLoc) => {
@@ -298,24 +255,19 @@
                 const reader = new FileReader();
                 reader.onload = (ev) => {
                     const text = ev.target.result;
-                    try {
-                        setDbData(prev => {
-                            const next = JSON.parse(JSON.stringify(prev));
-                            if (type === 'entry') next[targetLoc].races = Parser.entry(text);
-                            if (type === 'history') next[targetLoc].histories = Parser.history(text);
-                            if (type === 'analysis') next[targetLoc].analysis = JSON.parse(text);
-                            if (type === 'expert') {
-                                const p = Parser.expert(text);
-                                next.seoul.expert = p.seoul;
-                                next.busan.expert = p.busan;
-                            }
-                            return next;
-                        });
-                        showToast(`${type} 로드 성공!`);
-                        setStatus('modified');
-                    } catch (err) {
-                        showToast("파일 파싱 오류: " + err.message, "error");
-                    }
+                    setDbData(prev => {
+                        const next = JSON.parse(JSON.stringify(prev));
+                        if (type === 'entry') next[targetLoc].races = Parser.entry(text);
+                        if (type === 'history') next[targetLoc].histories = Parser.history(text);
+                        if (type === 'analysis') next[targetLoc].analysis = JSON.parse(text);
+                        if (type === 'expert') {
+                            const p = Parser.expert(text);
+                            next.seoul.expert = p.seoul;
+                            next.busan.expert = p.busan;
+                        }
+                        return next;
+                    });
+                    setStatus('modified');
                 };
                 reader.readAsText(file, 'UTF-8');
             };
@@ -325,89 +277,79 @@
             const expertInfo = current?.expert?.[race?.no];
             const analysisInfo = current?.analysis?.races?.[race?.no];
 
-            return (
-                <div className="max-w-xl mx-auto min-h-screen flex flex-col bg-slate-50 relative font-sans shadow-2xl">
-                    {/* 토스트 알림 */}
-                    {toast && (
-                        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-4 py-2 rounded-full shadow-xl flex items-center gap-2 animate-bounce text-xs font-bold ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-600 text-white'}`}>
-                            {toast.msg}
-                        </div>
-                    )}
+            // 화면 렌더링 후 아이콘 갱신
+            useEffect(() => {
+                if (window.lucide) window.lucide.createIcons();
+            });
 
-                    {/* 헤더 */}
-                    <header className="bg-slate-900 text-white p-4 sticky top-0 z-50 shadow-md">
-                        <div className="flex justify-between items-center mb-3">
+            return (
+                <div className="max-w-2xl mx-auto min-h-screen flex flex-col bg-slate-50 relative font-sans shadow-2xl">
+                    {/* Header */}
+                    <header className="bg-slate-900 text-white p-5 sticky top-0 z-50 shadow-lg">
+                        <div className="flex justify-between items-center mb-4">
                             <div className="flex items-center gap-2">
-                                <Trophy className="text-yellow-400" size={20}/>
-                                <h1 className="text-lg font-black italic tracking-tighter">SMART <span className="text-yellow-400">PRO</span></h1>
+                                <Icon name="trophy" size={24} className="text-yellow-400"/>
+                                <h1 className="text-xl font-black italic tracking-tighter">SMART RACING</h1>
                             </div>
                             <div className="flex gap-2">
-                                <button onClick={() => setView('view')} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${view === 'view' ? 'bg-white text-slate-900' : 'text-slate-400 bg-slate-800'}`}>경마지</button>
-                                <button onClick={() => setView('admin')} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${view === 'admin' ? 'bg-indigo-600 text-white' : 'text-slate-400 bg-slate-800'}`}>관리</button>
+                                <button onClick={() => setView('view')} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${view === 'view' ? 'bg-white text-slate-900' : 'text-slate-400 bg-slate-800'}`}>경마지</button>
+                                <button onClick={() => setView('admin')} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${view === 'admin' ? 'bg-indigo-600 text-white' : 'text-slate-400 bg-slate-800'}`}>관리</button>
                             </div>
                         </div>
-                        <div className="flex gap-2 items-center bg-slate-800 p-1.5 rounded-xl">
-                            <Calendar size={14} className="text-slate-400 ml-1"/>
-                            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="bg-transparent text-xs font-bold text-white outline-none w-28"/>
-                            <div className="h-3 w-px bg-slate-600 mx-1"></div>
+                        <div className="flex gap-2 items-center bg-slate-800 p-2 rounded-xl">
+                            <Icon name="calendar" size={16} className="text-slate-400 ml-2"/>
+                            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="bg-transparent text-sm font-bold text-white outline-none w-32"/>
+                            <div className="h-4 w-px bg-slate-600 mx-1"></div>
                             <div className="flex-1 flex gap-1">
-                                <button onClick={() => setLoc('seoul')} className={`flex-1 py-1 rounded text-xs font-bold ${loc === 'seoul' ? 'bg-slate-100 text-slate-900' : 'text-slate-500'}`}>서울</button>
-                                <button onClick={() => setLoc('busan')} className={`flex-1 py-1 rounded text-xs font-bold ${loc === 'busan' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}>부산</button>
+                                <button onClick={() => setLoc('seoul')} className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${loc === 'seoul' ? 'bg-slate-100 text-slate-900' : 'text-slate-500'}`}>서울</button>
+                                <button onClick={() => setLoc('busan')} className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${loc === 'busan' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}>부산</button>
                             </div>
                         </div>
-                        <div className="text-[10px] text-center mt-1 text-slate-500 font-bold uppercase tracking-widest flex justify-center items-center gap-1">
-                            <Cloud size={10}/> {status.toUpperCase()}
+                        <div className="text-[10px] text-center mt-2 text-slate-500 font-bold uppercase tracking-widest flex justify-center items-center gap-2">
+                            <Icon name="cloud" size={10}/> STATUS: {status.toUpperCase()}
                         </div>
                     </header>
 
-                    <main className="flex-1 p-3 overflow-y-auto pb-20">
+                    <main className="flex-1 p-4 overflow-y-auto pb-20">
                         {view === 'admin' ? (
                             <div className="space-y-4 animate-up">
-                                <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200">
+                                <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
                                     <div className="flex justify-between items-center mb-4">
-                                        <h3 className="font-black text-sm flex items-center gap-2 text-slate-800"><Upload size={16} className="text-indigo-600"/> 데이터 업로드</h3>
+                                        <h3 className="font-black text-lg flex items-center gap-2 text-slate-800"><Icon name="upload" size={18} className="text-indigo-600"/> 데이터 업로드</h3>
                                         {status === 'modified' && (
-                                            <button onClick={saveToCloud} className="bg-orange-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg animate-pulse flex items-center gap-1">
-                                                <Save size={12}/> 저장
+                                            <button onClick={saveToCloud} className="bg-orange-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg flex items-center gap-2 animate-bounce">
+                                                <Icon name="save" size={14}/> 서버 저장
                                             </button>
                                         )}
                                     </div>
-                                    
                                     <div className="grid grid-cols-1 gap-3">
-                                        {[
-                                            { id: 'entry', label: '1. 출전표 (CSV)' },
-                                            { id: 'history', label: '2. 전적 (CSV)' },
-                                            { id: 'analysis', label: '3. AI 분석 (JSON)' },
-                                            { id: 'expert', label: '4. 전문가 픽 (TXT)' }
-                                        ].map(item => (
-                                            <div key={item.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                                                <label className="text-[10px] font-bold text-slate-500 block mb-1">{item.label}</label>
-                                                <input type="file" onChange={e => handleFileUpload(e, item.id, loc)} className="text-xs w-full"/>
+                                        {['entry', 'history', 'analysis', 'expert'].map((type, idx) => (
+                                            <div key={type} className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                                <label className="text-xs font-bold text-slate-500 block mb-1">{idx+1}. {type.toUpperCase()} File</label>
+                                                <input type="file" onChange={e => handleFileUpload(e, type, loc)} className="text-xs w-full"/>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                             </div>
                         ) : (
-                            <div className="space-y-3">
-                                {/* 경주 번호 선택 */}
+                            <div className="space-y-4">
                                 <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-hide">
                                     {current?.races.length > 0 ? current.races.map((r, i) => (
                                         <button key={i} onClick={() => {setRaceIdx(i); setExpanded(null);}} className={`flex-shrink-0 w-12 h-12 rounded-xl font-black text-lg transition-all shadow-sm border ${raceIdx === i ? 'bg-slate-900 text-white border-slate-900 scale-105' : 'bg-white text-slate-300 border-slate-100'}`}>
                                             {r.no}
                                         </button>
-                                    )) : <div className="w-full py-10 text-center text-slate-400 font-bold text-xs border-2 border-dashed rounded-3xl">데이터가 없습니다.<br/>관리 탭에서 업로드하세요.</div>}
+                                    )) : <div className="w-full py-10 text-center text-slate-400 font-bold text-xs border-2 border-dashed rounded-3xl">데이터 없음</div>}
                                 </div>
 
                                 {race && (
                                     <div className="space-y-4 animate-up">
-                                        {/* 경주 정보 카드 */}
                                         <div className="bg-white p-5 rounded-3xl shadow-sm border-l-8 border-yellow-400 relative overflow-hidden">
                                             <div className="flex justify-between items-start relative z-10">
                                                 <div>
                                                     <h2 className="text-2xl font-black text-slate-900 italic tracking-tighter">제 {race.no} 경주</h2>
                                                     <div className="flex items-center gap-2 text-xs font-bold text-slate-400 mt-2">
-                                                        <Clock size={14}/> {race.startTime}
+                                                        <Icon name="clock" size={14}/> {race.startTime}
                                                         <span className="w-1 h-1 bg-slate-300 rounded-full"/>
                                                         <span className="text-indigo-600 font-black">{race.distance}M</span>
                                                     </div>
@@ -423,7 +365,7 @@
                                             {expertInfo && (
                                                 <div className="mt-4 p-3 bg-orange-50 rounded-xl border border-orange-100 relative">
                                                     <div className="flex flex-wrap gap-2 items-center mb-2">
-                                                        <span className="bg-orange-600 text-white text-[9px] px-2 py-0.5 rounded-full font-black uppercase flex items-center gap-1"><Star size={10} fill="white"/> 추천</span>
+                                                        <span className="bg-orange-600 text-white text-[9px] px-2 py-0.5 rounded-full font-black uppercase flex items-center gap-1"><Icon name="star" size={10} fill="white"/> 추천</span>
                                                         <div className="flex gap-1 ml-auto">
                                                             {expertInfo.recommended?.map(h => (
                                                                 <span key={h.no} className="w-6 h-6 rounded-full bg-white text-orange-600 border border-orange-200 flex items-center justify-center text-xs font-black shadow-sm">{h.no}</span>
@@ -441,16 +383,13 @@
                                             )}
                                         </div>
 
-                                        {/* 마필 리스트 */}
                                         <div className="flex flex-col gap-3 pb-10">
                                             {race.horses.map((h) => {
                                                 const isExp = expanded === h.no;
                                                 const hist = current.histories.filter(v => v.horseName === h.name).slice(0, 5);
                                                 const expComment = expertInfo?.horseComments?.[h.no];
-                                                
                                                 const isRec = expertInfo?.recommended?.some(r => r.no === h.no);
                                                 const isDark = expertInfo?.dark?.includes(h.no);
-                                                const isLead = expertInfo?.lead?.includes(h.no);
                                                 const isFastS = analysisInfo?.analysis?.fastStart.some(v => v.no === h.no);
 
                                                 return (
@@ -463,9 +402,8 @@
                                                                 <div className="flex items-center gap-2 mb-1">
                                                                     <h3 className="font-bold text-slate-800 truncate text-base">{h.name}</h3>
                                                                     <div className="flex gap-1">
-                                                                        {isRec && <Star size={12} className="text-orange-400 fill-orange-400" />}
-                                                                        {isDark && <Zap size={12} className="text-purple-600 fill-purple-600" />}
-                                                                        {isLead && <Flame size={12} className="text-red-500 fill-red-500" />}
+                                                                        {isRec && <Icon name="star" size={12} className="text-orange-400 fill-orange-400" />}
+                                                                        {isDark && <Icon name="zap" size={12} className="text-purple-600 fill-purple-600" />}
                                                                         {isFastS && <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"/>}
                                                                     </div>
                                                                 </div>
@@ -481,25 +419,21 @@
                                                                 <div className="text-[9px] text-slate-400 font-bold uppercase">Train</div>
                                                                 <div className="font-black text-slate-800">{h.trainingCount}</div>
                                                             </div>
-                                                            <div className="text-slate-300">
-                                                                {isExp ? <ChevronUp size={20}/> : <ChevronDown size={20}/>}
-                                                            </div>
+                                                            <div className="text-slate-300">{isExp ? <Icon name="chevron-up" size={20}/> : <Icon name="chevron-down" size={20}/>}</div>
                                                         </div>
 
                                                         {isExp && (
                                                             <div className="bg-slate-50 border-t border-slate-100 p-4 animate-in">
-                                                                {/* 전문가 코멘트 */}
                                                                 {expComment && (
                                                                     <div className="mb-4 bg-white p-3 rounded-xl border-l-4 border-orange-400 shadow-sm">
                                                                         <div className="flex items-center gap-2 mb-1 text-orange-600 font-black text-[10px] uppercase tracking-wider">
-                                                                            <Zap size={10}/> Expert Insight
+                                                                            <Icon name="zap" size={10}/> Expert Insight
                                                                         </div>
                                                                         <p className="text-xs font-medium text-slate-700 leading-relaxed">
                                                                             {expComment}
                                                                         </p>
                                                                     </div>
                                                                 )}
-
                                                                 <div className="grid grid-cols-2 gap-2 mb-4 text-xs text-slate-600">
                                                                     <div className="bg-white p-2 rounded-lg border border-slate-200">
                                                                         <div className="text-[10px] text-slate-400 font-bold mb-1">조교사</div>
@@ -518,19 +452,10 @@
                                                                         <div className="font-bold truncate">{h.gear || '-'}</div>
                                                                     </div>
                                                                 </div>
-
-                                                                {/* 전적 테이블 */}
                                                                 <div className="bg-slate-900 rounded-xl overflow-hidden shadow-inner">
                                                                     <table className="w-full text-[10px] text-center text-slate-400">
                                                                         <thead className="bg-slate-800 text-slate-500 font-bold uppercase">
-                                                                            <tr>
-                                                                                <th className="py-2">날짜</th>
-                                                                                <th>거리</th>
-                                                                                <th className="text-white">기록</th>
-                                                                                <th>순위</th>
-                                                                                <th className="text-red-400">S1F</th>
-                                                                                <th className="text-blue-400">G1F</th>
-                                                                            </tr>
+                                                                            <tr><th className="py-2">날짜</th><th>거리</th><th className="text-white">기록</th><th>순위</th><th className="text-red-400">S1F</th><th className="text-blue-400">G1F</th></tr>
                                                                         </thead>
                                                                         <tbody className="divide-y divide-slate-800 font-mono">
                                                                             {hist.map((v, i) => (
@@ -543,7 +468,7 @@
                                                                                     <td className="text-blue-500">{v.g1f}</td>
                                                                                 </tr>
                                                                             ))}
-                                                                            {hist.length === 0 && <tr><td colSpan="6" className="py-4 text-slate-600">기록 없음</td></tr>}
+                                                                            {hist.length === 0 && <tr><td colSpan="6" className="py-4 text-slate-600">전적 없음</td></tr>}
                                                                         </tbody>
                                                                     </table>
                                                                 </div>
