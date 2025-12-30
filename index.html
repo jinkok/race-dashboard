@@ -1,23 +1,23 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { 
   Trophy, Rocket, Calendar, Database, FileUp, CloudUpload, 
   Clock, User, Zap, Info, ChevronDown, ChevronUp, Activity,
-  MapPin, CheckCircle2, AlertCircle, Search
+  MapPin, CheckCircle2, AlertCircle, Search, Hash
 } from 'lucide-react';
 
-// --- Firebase 초기화 ---
+// --- Firebase Configuration ---
 const firebaseConfig = JSON.parse(__firebase_config);
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'racing-pro-final';
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'racing-pro-final-v3';
 
-// --- 유틸리티 및 데이터 엔진 ---
+// --- Data Parsing Engines ---
 const Parser = {
-  // 출전표 CSV 파싱
+  // 출전표 CSV 파싱 (제공해주신 20251228_서울_통합_출전표.csv 규격)
   entry: (text) => {
     const lines = text.split('\n');
     const races = [];
@@ -26,26 +26,28 @@ const Parser = {
     lines.forEach(line => {
       const t = line.trim();
       if (!t) return;
+      // 경주 정보 라인 감지
       if (t.includes('제') && t.includes('경주')) {
         if (current) races.push(current);
         const no = (t.match(/제(\d+)경주/) || [])[1] || '?';
         const time = t.split(',')[1]?.trim() || '';
         const dist = (t.match(/(\d{3,4})M/i) || [])[1];
-        current = { no, startTime: time, distance: dist, conditions: t, horses: [] };
+        current = { no, startTime: time, distance: dist, header: t, horses: [] };
         isTable = false;
         return;
       }
       if (t.startsWith('번호')) { isTable = true; return; }
       if (current && isTable) {
         const cols = t.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-        if (cols.length > 5) {
+        if (cols.length > 10) {
           current.horses.push({
             no: cols[0]?.replace(/[▲*]/g, ''),
             name: cols[1]?.trim(),
             origin: cols[2], sex: cols[3], age: cols[4],
             rating: cols[5], weight: cols[6], weightDiff: cols[7],
             jockey: cols[8], trainer: cols[9], trainingCount: cols[11],
-            cycle: cols[12], gear: cols[13], father: cols[15], grade: cols[16]
+            cycle: cols[12], gear: cols[13]?.replace(/"/g, ''),
+            father: cols[15], grade: cols[16]
           });
         }
       }
@@ -53,20 +55,22 @@ const Parser = {
     if (current) races.push(current);
     return races;
   },
-  // 전적 CSV 파싱
+  // 상세 전적 CSV 파싱 (20251228_서울_경마_통합10회전적_상세.csv 규격)
   history: (text) => {
     const lines = text.split('\n');
     return lines.slice(1).map(line => {
       const c = line.split(',');
       if (c.length < 25) return null;
       return {
+        raceNo: c[1]?.replace(/[^0-9]/g, ''),
+        horseNo: c[5]?.trim(),
         horseName: c[6]?.trim(),
         date: c[12], dist: c[14], rec: c[15],
-        rank: c[16], s1f: c[23], g1f: c[25], bodyW: c[26]
+        rank: c[16], jockey: c[21], s1f: c[23], g1f: c[25], bodyW: c[26]
       };
     }).filter(Boolean);
   },
-  // 전문가 분석 TXT 파싱
+  // 전문가 분석 TXT 파싱 (ExpertPick.txt 규격)
   expert: (text) => {
     const result = { seoul: {}, busan: {} };
     const chunks = text.split(/\*\*(서울|부산|부경)\s*(\d+)경주/);
@@ -74,6 +78,7 @@ const Parser = {
       const loc = (chunks[i] === '서울') ? 'seoul' : 'busan';
       const no = chunks[i+1];
       const content = chunks[i+2] || '';
+      
       const rec = [];
       const mAll = content.matchAll(/\((\d+)\)\s*([가-힣A-Z]+)/g);
       for (const m of mAll) rec.push({ no: m[1], name: m[2] });
@@ -84,8 +89,9 @@ const Parser = {
 
       result[loc][no] = { 
         recommended: rec, 
-        dark: (content.match(/복병.*?[:：]\s*([\d, ]+)/) || [])[1]?.split(',') || [],
-        lead: (content.match(/선행.*?[:：]\s*([\d, ]+)/) || [])[1]?.split(',') || [],
+        dark: (content.match(/복병.*?[:：]\s*([\d, ]+)/) || [])[1]?.split(',').map(s => s.trim()) || [],
+        lead: (content.match(/선행.*?[:：]\s*([\d, ]+)/) || [])[1]?.split(',').map(s => s.trim()) || [],
+        comment: content.split('\n')[1]?.trim() || '',
         horseComments 
       };
     }
@@ -112,63 +118,60 @@ const getHorseBadgeStyle = (no) => {
   return styles[n - 1] || "bg-slate-100 text-slate-400";
 };
 
-// --- 메인 컴포넌트 ---
+// --- Main Application Component ---
 export default function App() {
   const [user, setUser] = useState(null);
-  const [syncStatus, setSyncStatus] = useState('idle'); // idle, loading, synced, modified, error
+  const [syncStatus, setSyncStatus] = useState('connecting');
   const [view, setView] = useState('view');
   const [activeLoc, setActiveLoc] = useState('seoul');
   const [selectedDate, setSelectedDate] = useState('2025-12-28');
   const [raceIdx, setRaceIdx] = useState(0);
   const [expanded, setExpanded] = useState(null);
-  const [feedback, setFeedback] = useState(null);
+  const [toast, setToast] = useState(null);
 
   const [dbData, setDbData] = useState({
     seoul: { races: [], histories: [], analysis: { races: {} }, expert: {} },
     busan: { races: [], histories: [], analysis: { races: {} }, expert: {} }
   });
 
-  // RULE 3: Auth Logic
+  // RULE 3: Initial Auth
   useEffect(() => {
     const initAuth = async () => {
       try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
-        }
+        await signInAnonymously(auth);
       } catch (err) {
-        console.error("Auth error", err);
+        console.error("Auth initialization failed", err);
       }
     };
     initAuth();
     return onAuthStateChanged(auth, setUser);
   }, []);
 
-  // RULE 3 & RULE 1: Data Sync
+  // RULE 3 & RULE 1: Sync Data per Date
   useEffect(() => {
     if (!user) return;
     setSyncStatus('loading');
+    
+    // Path includes the date for independent storage
     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'dailyRacing', selectedDate, 'master');
     
-    return onSnapshot(docRef, 
-      (snap) => {
-        if (snap.exists()) {
-          setDbData(snap.data());
-          setSyncStatus('synced');
-        } else {
-          setSyncStatus('empty');
-          setDbData({
-            seoul: { races: [], histories: [], analysis: { races: {} }, expert: {} },
-            busan: { races: [], histories: [], analysis: { races: {} }, expert: {} }
-          });
-        }
-      },
-      (err) => {
-        console.error("Firestore error", err);
-        setSyncStatus('error');
+    const unsubscribe = onSnapshot(docRef, (snap) => {
+      if (snap.exists()) {
+        setDbData(snap.data());
+        setSyncStatus('synced');
+      } else {
+        setDbData({
+          seoul: { races: [], histories: [], analysis: { races: {} }, expert: {} },
+          busan: { races: [], histories: [], analysis: { races: {} }, expert: {} }
+        });
+        setSyncStatus('empty');
       }
-    );
+    }, (err) => {
+      console.error("Firestore sync error", err);
+      setSyncStatus('error');
+    });
+    
+    return () => unsubscribe();
   }, [user, selectedDate]);
 
   const saveToCloud = async () => {
@@ -178,16 +181,16 @@ export default function App() {
       const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'dailyRacing', selectedDate, 'master');
       await setDoc(docRef, { ...dbData, lastUpdated: new Date().toISOString() });
       setSyncStatus('synced');
-      showFeedback("데이터가 클라우드에 영구 저장되었습니다.");
+      triggerToast("클라우드 저장 성공!");
     } catch (e) {
       setSyncStatus('error');
-      showFeedback("저장 실패: " + e.message, "error");
+      triggerToast("저장 중 오류 발생", "error");
     }
   };
 
-  const showFeedback = (msg, type = "success") => {
-    setFeedback({ msg, type });
-    setTimeout(() => setFeedback(null), 3000);
+  const triggerToast = (msg, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
   };
 
   const handleFileUpload = (e, type, loc) => {
@@ -197,7 +200,7 @@ export default function App() {
     reader.onload = (ev) => {
       const text = ev.target.result;
       setDbData(prev => {
-        const next = JSON.parse(JSON.stringify(prev)); // Deep copy
+        const next = JSON.parse(JSON.stringify(prev));
         if (type === 'entry') next[loc].races = Parser.entry(text);
         if (type === 'history') next[loc].histories = Parser.history(text);
         if (type === 'analysis') next[loc].analysis = JSON.parse(text);
@@ -220,15 +223,15 @@ export default function App() {
 
   return (
     <div className="max-w-2xl mx-auto min-h-screen flex flex-col bg-slate-50 shadow-2xl relative font-sans text-slate-800">
-      {/* Toast Feedback */}
-      {feedback && (
-        <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 animate-bounce border ${feedback.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-600 text-white'}`}>
-          {feedback.type === 'error' ? <AlertCircle size={18}/> : <CheckCircle2 size={18}/>}
-          <span className="text-sm font-bold">{feedback.msg}</span>
+      {/* Dynamic Toast Message */}
+      {toast && (
+        <div className={`fixed top-10 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 animate-in fade-in slide-in-from-top-4 border ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-600 text-white'}`}>
+          {toast.type === 'error' ? <AlertCircle size={18}/> : <CheckCircle2 size={18}/>}
+          <span className="text-sm font-bold">{toast.msg}</span>
         </div>
       )}
 
-      {/* Modern Header */}
+      {/* Premium Navigation Header */}
       <header className="bg-slate-900 text-white p-6 sticky top-0 z-50 shadow-xl">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-3">
@@ -236,9 +239,9 @@ export default function App() {
               <Rocket size={28} />
             </div>
             <div>
-              <h1 className="text-2xl font-black tracking-tighter uppercase leading-none italic">Smart Racing <span className="text-yellow-400">Pro</span></h1>
+              <h1 className="text-2xl font-black tracking-tighter uppercase leading-none italic">Smart Racing <span className="text-yellow-400 font-black">Pro</span></h1>
               <div className="flex items-center gap-2 mt-2">
-                <div className={`w-2 h-2 rounded-full ${syncStatus === 'synced' ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.5)]' : 'bg-orange-400 animate-pulse'}`} />
+                <div className={`w-2 h-2 rounded-full ${syncStatus === 'synced' ? 'bg-green-400' : 'bg-orange-400 animate-pulse'}`} />
                 <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{syncStatus}</span>
               </div>
             </div>
@@ -249,8 +252,8 @@ export default function App() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4 bg-slate-800/40 p-2.5 rounded-3xl backdrop-blur-md border border-white/5">
-          <div className="flex items-center gap-3 bg-slate-900 px-4 py-2 rounded-2xl border border-slate-700 shadow-inner">
+        <div className="flex items-center gap-4 bg-slate-800/40 p-2.5 rounded-3xl backdrop-blur-md border border-white/5 shadow-inner">
+          <div className="flex items-center gap-3 bg-slate-900 px-4 py-2 rounded-2xl border border-slate-700">
             <Calendar size={16} className="text-slate-500"/>
             <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="bg-transparent text-sm font-black focus:outline-none w-32 text-white cursor-pointer"/>
           </div>
@@ -268,72 +271,73 @@ export default function App() {
 
       <main className="flex-1 p-5 overflow-y-auto pb-24">
         {view === 'admin' ? (
-          <section className="space-y-6 animate-fade-in">
-            <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-xl relative overflow-hidden">
+          <section className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+            <div className="bg-white p-8 rounded-[3.5rem] border border-slate-100 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-16 -mt-16 opacity-50"/>
               
               <div className="flex justify-between items-start mb-8 relative z-10">
                 <div>
-                  <h3 className="text-xl font-black flex items-center gap-2 text-slate-800"><FileUp className="text-indigo-600"/> Data Orchestrator</h3>
-                  <p className="text-xs text-slate-400 mt-2 font-bold uppercase tracking-wider">{selectedDate} 시스템 구성</p>
+                  <h3 className="text-2xl font-black flex items-center gap-3 text-slate-800"><FileUp className="text-indigo-600" size={24}/> Data Dashboard</h3>
+                  <p className="text-xs text-slate-400 mt-2 font-bold uppercase tracking-wider">{selectedDate} 날짜용 데이터 구축</p>
                 </div>
                 {syncStatus === 'modified' && (
-                  <button onClick={saveToCloud} className="bg-orange-600 text-white px-6 py-3 rounded-2xl text-xs font-black shadow-2xl animate-pulse flex items-center gap-2 active:scale-95 transition-transform">
-                    <CloudUpload size={18}/> 서버 동기화 실행
+                  <button onClick={saveToCloud} className="bg-orange-600 text-white px-7 py-4 rounded-3xl text-sm font-black shadow-2xl animate-pulse flex items-center gap-3 active:scale-95 transition-all">
+                    <CloudUpload size={20}/> 모든 데이터 영구 저장
                   </button>
                 )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10 relative z-10">
                 {[
-                  { id: 'entry', label: '출전표 CSV', icon: <Calendar size={14}/>, color: 'hover:border-blue-300' },
-                  { id: 'history', label: '10회전적 CSV', icon: <Activity size={14}/>, color: 'hover:border-green-300' },
-                  { id: 'analysis', label: 'AI분석 JSON', icon: <Zap size={14}/>, color: 'hover:border-purple-300' },
-                  { id: 'expert', label: '전문가 코멘트 TXT', icon: <Trophy size={14}/>, color: 'hover:border-orange-300' }
+                  { id: 'entry', label: '출전표 CSV', icon: <Calendar size={14}/>, col: 'border-blue-100' },
+                  { id: 'history', label: '10회전적 CSV', icon: <Activity size={14}/>, col: 'border-green-100' },
+                  { id: 'analysis', label: 'AI분석 JSON', icon: <Zap size={14}/>, col: 'border-purple-100' },
+                  { id: 'expert', label: '전문가 코멘트 TXT', icon: <Trophy size={14}/>, col: 'border-orange-100' }
                 ].map(item => (
-                  <div key={item.id} className={`p-5 bg-slate-50/50 rounded-3xl border border-slate-100 transition-all ${item.color} group`}>
-                    <label className="text-[10px] font-black text-slate-400 uppercase mb-3 flex items-center gap-1.5 tracking-widest">{item.icon} {item.label}</label>
-                    <input type="file" onChange={e => handleFileUpload(e, item.id, activeLoc)} className="w-full text-[11px] font-bold file:bg-white file:border-slate-200 file:rounded-xl file:px-3 file:py-1.5 cursor-pointer file:text-slate-600 file:font-black"/>
+                  <div key={item.id} className={`p-6 bg-slate-50/50 rounded-[2.5rem] border ${item.col} transition-all hover:bg-white hover:shadow-lg group`}>
+                    <label className="text-[10px] font-black text-slate-400 uppercase mb-4 flex items-center gap-1.5 tracking-[0.2em]">{item.icon} {item.label}</label>
+                    <input type="file" onChange={e => handleFileUpload(e, item.id, activeLoc)} className="w-full text-[11px] font-black file:bg-slate-900 file:text-white file:border-0 file:rounded-xl file:px-4 file:py-2 cursor-pointer file:mr-2"/>
                   </div>
                 ))}
               </div>
 
-              <div className="pt-8 border-t border-slate-50 flex justify-between items-center text-[11px] font-black uppercase tracking-[0.2em] text-slate-300">
+              <div className="pt-8 border-t border-slate-50 flex justify-between items-center text-[11px] font-black uppercase tracking-[0.3em] text-slate-300">
                 <span className="flex items-center gap-2">
-                  <Database size={14}/> DB {user ? 'Online' : 'Offline'}
+                  <Database size={14}/> Cloud: {user ? 'Online' : 'Offline'}
                 </span>
-                <span>Version 1.6.8 PRO</span>
+                <span>Pro Engine v2.1.2</span>
               </div>
             </div>
           </section>
         ) : (
-          <section className="space-y-6 animate-fade-in">
-            {/* Race Number Tabs */}
+          <section className="space-y-6 animate-in fade-in duration-500">
+            {/* Horizontal Race Navigator */}
             <div className="flex overflow-x-auto gap-3 py-2 scrollbar-hide">
               {current?.races.length > 0 ? current.races.map((r, i) => (
-                <button key={i} onClick={() => {setRaceIdx(i); setExpanded(null);}} className={`flex-shrink-0 w-14 h-14 rounded-2xl font-black text-lg transition-all shadow-md ${raceIdx === i ? 'bg-slate-900 text-white scale-110 shadow-slate-300 rotate-3' : 'bg-white text-slate-400 border border-slate-100 hover:border-slate-200 hover:-translate-y-1'}`}>{r.no}</button>
+                <button key={i} onClick={() => {setRaceIdx(i); setExpanded(null);}} className={`flex-shrink-0 w-14 h-14 rounded-2xl font-black text-lg transition-all shadow-md ${raceIdx === i ? 'bg-slate-900 text-white scale-110 shadow-slate-300 rotate-2' : 'bg-white text-slate-400 border border-slate-100 hover:border-slate-200 hover:-translate-y-1'}`}>{r.no}</button>
               )) : (
-                <div className="py-20 text-center w-full bg-white rounded-[3rem] border-2 border-dashed border-slate-100 flex flex-col items-center">
-                  <Database size={40} className="text-slate-200 mb-3"/>
-                  <span className="text-slate-300 font-black uppercase tracking-widest text-[11px]">No Race Data Available</span>
+                <div className="py-24 text-center w-full bg-white rounded-[3.5rem] border-2 border-dashed border-slate-100 flex flex-col items-center">
+                  <div className="bg-slate-50 p-6 rounded-full mb-4"><Database size={40} className="text-slate-200"/></div>
+                  <span className="text-slate-300 font-black uppercase tracking-widest text-xs leading-relaxed">No Data Loaded for<br/>{selectedDate}</span>
+                  <button onClick={() => setView('admin')} className="mt-8 px-8 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all">Go to Upload</button>
                 </div>
               )}
             </div>
 
             {race ? (
               <div className="space-y-6">
-                {/* Master Race Card */}
-                <div className="bg-white p-8 rounded-[3.5rem] shadow-xl border-l-[16px] border-yellow-400 relative overflow-hidden group">
+                {/* Race Identity Card */}
+                <div className="bg-white p-8 rounded-[4rem] shadow-xl border-l-[18px] border-yellow-400 relative overflow-hidden group">
                   <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
-                    <Trophy size={120} />
+                    <Trophy size={140} />
                   </div>
                   <div className="relative z-10 flex justify-between items-start">
                     <div>
                       <div className="flex items-center gap-3 mb-2">
-                        <span className="bg-slate-900 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter italic">Grade Analysis</span>
-                        <h2 className="text-4xl font-black italic tracking-tighter text-slate-900">제 {race.no} R</h2>
+                        <span className="bg-slate-900 text-white text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter italic">Integrated Analysis</span>
+                        <h2 className="text-4xl font-black italic tracking-tighter text-slate-900 flex items-baseline gap-2">제 {race.no} <span className="text-xl">Race</span></h2>
                       </div>
-                      <div className="flex items-center gap-3 text-xs font-bold text-slate-400 mt-3">
+                      <div className="flex items-center gap-4 text-xs font-bold text-slate-400 mt-4">
                         <span className="flex items-center gap-1.5"><Clock size={16} className="text-yellow-500"/> {race.startTime}</span>
                         <div className="w-1.5 h-1.5 bg-slate-200 rounded-full"/>
                         <span className="text-indigo-600 bg-indigo-50 px-3 py-1 rounded-xl font-black text-[13px]">{race.distance}M</span>
@@ -341,44 +345,43 @@ export default function App() {
                     </div>
                     {analysisInfo?.avgRecord && (
                       <div className="text-right">
-                        <span className="text-[10px] font-black text-slate-300 uppercase block mb-1 tracking-[0.2em]">AVG Winner Rec</span>
+                        <span className="text-[9px] font-black text-slate-300 uppercase block mb-1 tracking-[0.2em]">AVG Record</span>
                         <div className="text-3xl font-black text-slate-900 font-mono italic tracking-tight">{analysisInfo.avgRecord}</div>
                       </div>
                     )}
                   </div>
                   
                   {expertInfo && (
-                    <div className="mt-8 p-5 bg-orange-50/70 rounded-[2.5rem] border border-orange-100/50 backdrop-blur-sm shadow-inner">
+                    <div className="mt-10 p-5 bg-orange-50/70 rounded-[2.5rem] border border-orange-100/50 backdrop-blur-sm shadow-inner">
                       <div className="flex flex-wrap gap-3 items-center mb-3">
                         <div className="bg-orange-600 text-white text-[10px] px-3 py-1.5 rounded-full font-black uppercase flex items-center gap-1.5 shadow-lg shadow-orange-500/20">
-                          <Trophy size={12}/> PRO Pick
+                          <Trophy size={12}/> Best Predict
                         </div>
-                        <div className="flex gap-2 ml-auto">
+                        <div className="flex gap-2.5 ml-auto">
                           {expertInfo.recommended.map(h => (
                             <div key={h.no} className="relative group">
-                              <span className="w-9 h-9 rounded-full bg-white text-orange-600 border-2 border-orange-200 flex items-center justify-center text-sm font-black shadow-md hover:scale-110 transition-transform cursor-help">{h.no}</span>
-                              <span className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[9px] px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">{h.name}</span>
+                              <span className="w-10 h-10 rounded-full bg-white text-orange-600 border-2 border-orange-200 flex items-center justify-center text-sm font-black shadow-md hover:scale-110 transition-transform cursor-help">{h.no}</span>
                             </div>
                           ))}
                         </div>
                       </div>
-                      <p className="text-[12px] text-orange-950 font-bold leading-relaxed italic opacity-80 border-t border-orange-100 pt-3 mt-1">"{expertInfo.comment || '상세 경주 전개 분석이 준비되었습니다.'}"</p>
+                      <p className="text-[12px] text-orange-950 font-bold leading-relaxed italic opacity-85 border-t border-orange-100/50 pt-4 mt-1">"{expertInfo.comment || '상세 경주 전개 분석 데이터가 구축되었습니다.'}"</p>
                     </div>
                   )}
                 </div>
 
-                {/* Intelligent Horse List */}
-                <div className="grid grid-cols-1 gap-4 pb-10">
+                {/* Tactical Horse List */}
+                <div className="grid grid-cols-1 gap-4 pb-20">
                   {race.horses.map((h) => {
                     const isExp = expanded === h.no;
-                    const horseHist = current.histories.filter(v => v.horseName === h.name).slice(0, 6);
+                    const horseHist = current.histories.filter(v => v.horseName === h.name).slice(0, 5);
                     const expComment = expertInfo?.horseComments?.[h.no];
                     const isFastStart = analysisInfo?.analysis?.fastStart.some(v => v.no === h.no);
                     const isFastFinish = analysisInfo?.analysis?.fastFinish.some(v => v.no === h.no);
                     const isDark = expertInfo?.dark.includes(h.no);
 
                     return (
-                      <div key={h.no} className={`bg-white rounded-[2.5rem] border transition-all duration-500 overflow-hidden ${isExp ? 'ring-2 ring-slate-900 shadow-2xl scale-[1.03] z-20' : 'border-slate-100 shadow-md opacity-95 hover:opacity-100 hover:border-slate-300'}`}>
+                      <div key={h.no} className={`bg-white rounded-[3rem] border transition-all duration-500 overflow-hidden ${isExp ? 'ring-2 ring-slate-900 shadow-2xl scale-[1.02] z-20' : 'border-slate-100 shadow-md opacity-95 hover:opacity-100 hover:border-slate-300'}`}>
                         <div className="p-5 flex items-center gap-5 cursor-pointer" onClick={() => setExpanded(isExp ? null : h.no)}>
                           <div className={`w-16 h-16 rounded-3xl flex items-center justify-center flex-shrink-0 shadow-lg ${getHorseBadgeStyle(h.no)}`}>
                             <span className="text-3xl font-black italic tracking-tighter">{h.no}</span>
@@ -386,84 +389,85 @@ export default function App() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-3 mb-1.5">
                               <h3 className="text-xl font-black text-slate-800 truncate tracking-tight">{h.name}</h3>
-                              <div className="flex gap-1.5">
-                                {isFastStart && <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]"/>}
-                                {isFastFinish && <div className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.6)]"/>}
-                                {isDark && <div className="w-2.5 h-2.5 bg-purple-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(147,51,234,0.6)]"/>}
+                              <div className="flex gap-2">
+                                {isFastStart && <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]" title="Fast Start"/>}
+                                {isFastFinish && <div className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.6)]" title="Fast Finish"/>}
+                                {isDark && <div className="w-2.5 h-2.5 bg-purple-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(147,51,234,0.6)]" title="Dark Horse"/>}
                               </div>
                             </div>
-                            <div className="flex flex-wrap items-center gap-x-3 text-xs font-black text-slate-400 uppercase tracking-tight">
+                            <div className="flex flex-wrap items-center gap-x-3 text-[11px] font-black text-slate-400 uppercase tracking-tight">
                               <span className="text-indigo-600 border-b-2 border-indigo-100">{h.jockey}</span>
                               <span className="text-slate-200">/</span>
-                              <span className="text-slate-600">{h.weight}kg <span className={`text-[11px] ${parseInt(h.weightDiff) < 0 ? 'text-blue-500' : 'text-red-500'}`}>({h.weightDiff})</span></span>
+                              <span className="text-slate-600">{h.weight}kg <span className={`text-[10px] ${parseInt(h.weightDiff) < 0 ? 'text-blue-500' : 'text-red-500'}`}>({h.weightDiff})</span></span>
                               <span className="text-slate-200">/</span>
-                              <span className="bg-slate-100 px-2.5 py-0.5 rounded-lg text-[10px]">R{h.rating}</span>
+                              <span className="bg-slate-100 px-2.5 py-0.5 rounded-lg text-[9px]">R{h.rating}</span>
                             </div>
                           </div>
                           <div className="text-right flex-shrink-0 pr-4">
-                            <div className="text-[10px] font-black text-slate-300 uppercase mb-1 tracking-widest">Train</div>
+                            <div className="text-[9px] font-black text-slate-300 uppercase mb-0.5 tracking-tighter">Train</div>
                             <div className="text-lg font-black text-slate-700 italic tracking-tighter">{h.trainingCount}회</div>
                           </div>
-                          <div className="text-slate-200 pr-1 group">
-                            {isExp ? <ChevronUp size={24} className="group-hover:text-slate-400 transition-colors"/> : <ChevronDown size={24} className="group-hover:text-slate-400 transition-colors"/>}
+                          <div className="text-slate-200 group">
+                            {isExp ? <ChevronUp size={28}/> : <ChevronDown size={28}/>}
                           </div>
                         </div>
 
                         {isExp && (
-                          <div className="px-6 pb-8 pt-2 animate-fade-in bg-slate-50/40">
-                            <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent mb-6"/>
+                          <div className="px-6 pb-10 pt-2 animate-fade-in bg-slate-50/50">
+                            <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent mb-8"/>
                             
                             {expComment && (
-                              <div className="mb-6 bg-gradient-to-r from-orange-100/50 to-amber-50/50 p-6 rounded-[2.5rem] border-l-[12px] border-orange-400 shadow-sm relative overflow-hidden">
-                                <Trophy className="absolute -right-4 -top-4 text-orange-200/20" size={100}/>
-                                <h4 className="text-[11px] font-black text-orange-600 uppercase mb-3 flex items-center gap-2 tracking-[0.2em] relative z-10"><Zap size={12}/> Inside Analysis</h4>
-                                <p className="text-[13px] text-orange-950 font-black leading-relaxed relative z-10">"{expComment}"</p>
+                              <div className="mb-8 bg-gradient-to-br from-orange-100/50 to-amber-50/50 p-6 rounded-[3rem] border-l-[14px] border-orange-400 shadow-sm relative overflow-hidden">
+                                <Trophy className="absolute -right-6 -top-6 text-orange-200/20" size={120}/>
+                                <h4 className="text-[11px] font-black text-orange-600 uppercase mb-4 flex items-center gap-2 tracking-[0.25em] relative z-10"><Zap size={14} fill="currentColor"/> Strategic Insight</h4>
+                                <p className="text-[14px] text-orange-950 font-black leading-relaxed relative z-10">"{expComment}"</p>
                               </div>
                             )}
 
-                            <div className="grid grid-cols-2 gap-4 mb-6">
-                              <div className="bg-white p-5 rounded-[2.5rem] border border-slate-100 shadow-sm">
-                                <h4 className="text-[10px] font-black text-slate-300 uppercase mb-4 flex items-center gap-2 tracking-widest"><Info size={12}/> Pedigree Specs</h4>
-                                <div className="space-y-2 text-[12px] font-black">
+                            <div className="grid grid-cols-2 gap-4 mb-8">
+                              <div className="bg-white p-6 rounded-[3rem] border border-slate-100 shadow-lg">
+                                <h4 className="text-[10px] font-black text-slate-300 uppercase mb-5 flex items-center gap-2 tracking-widest"><Info size={12}/> Physical Specs</h4>
+                                <div className="space-y-3 text-[12px] font-black">
                                   <div className="flex justify-between border-b border-slate-50 pb-2"><span className="text-slate-400 font-medium italic">Trainer</span><span className="text-slate-700">{h.trainer}</span></div>
+                                  <div className="flex justify-between border-b border-slate-50 pb-2"><span className="text-slate-400 font-medium italic">Age/Sex</span><span className="text-slate-700">{h.sex}/{h.age}세</span></div>
                                   <div className="flex justify-between border-b border-slate-50 pb-2"><span className="text-slate-400 font-medium italic">Sire</span><span className="text-slate-700 truncate max-w-[120px]">{h.father}</span></div>
                                   <div className="flex justify-between"><span className="text-slate-400 font-medium italic">Cycle</span><span className="text-indigo-600 underline decoration-indigo-200 decoration-4 underline-offset-4">{h.cycle}주</span></div>
                                 </div>
                               </div>
-                              <div className="bg-white p-5 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col items-center justify-center">
-                                <div className="text-[10px] font-black text-slate-300 uppercase mb-3 tracking-widest italic flex items-center gap-1"><Search size={10}/> Equipment</div>
-                                <div className="font-black text-slate-600 text-center leading-tight text-sm bg-slate-50 w-full p-4 rounded-3xl border border-dashed border-slate-200 h-full flex items-center justify-center italic">
-                                  {h.gear || 'No Gear Info'}
+                              <div className="bg-white p-6 rounded-[3rem] border border-slate-100 shadow-lg flex flex-col items-center justify-center">
+                                <div className="text-[10px] font-black text-slate-300 uppercase mb-4 tracking-widest italic flex items-center gap-2"><Search size={14}/> Mounted Gear</div>
+                                <div className="font-black text-slate-600 text-center leading-relaxed text-sm bg-slate-50/50 w-full p-5 rounded-[2rem] border border-dashed border-slate-200 h-full flex items-center justify-center italic">
+                                  {h.gear || 'Standard Equipment'}
                                 </div>
                               </div>
                             </div>
 
-                            {/* Ultra High-Res History Table */}
-                            <div className="bg-slate-900 rounded-[2.5rem] overflow-hidden shadow-2xl overflow-x-auto border-4 border-slate-800">
+                            {/* Ultra High-Res History Architecture */}
+                            <div className="bg-slate-900 rounded-[3rem] overflow-hidden shadow-2xl overflow-x-auto border-4 border-slate-800">
                               <table className="w-full text-[11px] whitespace-nowrap">
                                 <thead className="bg-slate-800 text-slate-400 uppercase tracking-widest italic font-black">
                                   <tr>
-                                    <th className="px-5 py-4">Date</th>
-                                    <th className="px-3 py-4">Dist</th>
-                                    <th className="px-3 py-4 text-white">Record</th>
-                                    <th className="px-3 py-4">Rank</th>
-                                    <th className="px-3 py-4 text-red-400 border-b-4 border-red-500/30">S1F</th>
-                                    <th className="px-3 py-4 text-blue-400 border-b-4 border-blue-500/30">G1F</th>
+                                    <th className="px-6 py-5">Date</th>
+                                    <th className="px-4 py-5">Dist</th>
+                                    <th className="px-4 py-5 text-white">Record</th>
+                                    <th className="px-4 py-5">Rank</th>
+                                    <th className="px-4 py-5 text-red-400 border-b-4 border-red-500/30">S1F</th>
+                                    <th className="px-4 py-5 text-blue-400 border-b-4 border-blue-500/30">G1F</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-800 text-center font-black text-slate-300">
                                   {horseHist.map((v, idx) => (
                                     <tr key={idx} className="hover:bg-slate-800/50 transition-colors">
-                                      <td className="px-5 py-4 text-slate-500 font-mono text-[10px] italic">{v.date}</td>
-                                      <td className="px-3 py-4 text-slate-200 font-bold">{v.dist}</td>
-                                      <td className="px-3 py-4 font-mono text-yellow-400 italic tracking-tighter text-[13px]">{v.rec}</td>
-                                      <td className={`px-3 py-4 ${v.rank?.startsWith('1/') ? 'text-white bg-slate-800' : 'text-slate-400'}`}>{v.rank}</td>
-                                      <td className="px-3 py-4 text-red-500 bg-red-500/5 font-mono text-[12px]">{v.s1f}</td>
-                                      <td className="px-3 py-4 text-blue-500 bg-blue-500/5 font-mono text-[12px]">{v.g1f}</td>
+                                      <td className="px-6 py-5 text-slate-500 font-mono text-[10px] italic">{v.date}</td>
+                                      <td className="px-4 py-5 text-slate-200">{v.dist}</td>
+                                      <td className="px-4 py-5 font-mono text-yellow-400 italic tracking-tighter text-[14px]">{v.rec}</td>
+                                      <td className={`px-4 py-5 ${v.rank?.startsWith('1/') ? 'text-white bg-slate-800/50' : 'text-slate-400'}`}>{v.rank}</td>
+                                      <td className="px-4 py-5 text-red-500 bg-red-500/5 font-mono text-[13px]">{v.s1f}</td>
+                                      <td className="px-4 py-5 text-blue-500 bg-blue-500/5 font-mono text-[13px]">{v.g1f}</td>
                                     </tr>
                                   ))}
                                   {horseHist.length === 0 && (
-                                    <tr><td colSpan="6" className="py-12 text-slate-600 font-black uppercase italic tracking-[0.4em]">Historical Data Void</td></tr>
+                                    <tr><td colSpan="6" className="py-16 text-slate-600 font-black uppercase italic tracking-[0.5em]">Empty Record Core</td></tr>
                                   )}
                                 </tbody>
                               </table>
@@ -475,30 +479,21 @@ export default function App() {
                   })}
                 </div>
               </div>
-            ) : (
-              <div className="py-48 text-center bg-white rounded-[4rem] border-2 border-dashed border-slate-100 shadow-2xl flex flex-col items-center justify-center animate-in zoom-in duration-700">
-                <div className="bg-slate-50 p-8 rounded-full mb-8 relative">
-                  <Database size={64} className="text-slate-200 relative z-10"/>
-                  <div className="absolute inset-0 bg-indigo-100 rounded-full animate-ping opacity-20"/>
-                </div>
-                <p className="text-slate-500 font-black text-2xl italic tracking-tighter uppercase">Cloud Engine Offline</p>
-                <p className="text-[11px] text-slate-300 uppercase mt-4 tracking-[0.4em] font-black max-w-[250px] leading-relaxed">System is awaiting data injection for target date {selectedDate}</p>
-                <button onClick={() => setView('admin')} className="mt-10 px-10 py-4 bg-indigo-600 text-white rounded-3xl text-xs font-black uppercase tracking-widest shadow-[0_20px_40px_rgba(79,70,229,0.3)] hover:translate-y-[-4px] active:scale-95 transition-all">Go to Admin Hub</button>
-              </div>
-            )}
+            ) : null}
           </section>
         )}
       </main>
 
-      <footer className="p-10 text-center border-t border-slate-100 bg-white">
-        <div className="flex flex-col gap-4">
-          <div className="text-[11px] font-black text-slate-300 uppercase tracking-[0.6em] italic">
-            Integrated Smart Racing Cloud &copy; 2025 v1.6.8 PRO Stable
+      {/* Futuristic Global Footer */}
+      <footer className="p-12 text-center border-t border-slate-100 bg-white z-40">
+        <div className="flex flex-col gap-5">
+          <div className="text-[11px] font-black text-slate-300 uppercase tracking-[0.7em] italic">
+            Integrated Smart Racing Cloud &copy; 2025 v2.1.8 PRO Stable
           </div>
-          <div className="flex justify-center gap-6 text-[9px] font-bold text-slate-200 uppercase tracking-widest">
-            <span className="flex items-center gap-1.5"><Database size={10}/> Global Cloud Storage</span>
+          <div className="flex justify-center gap-8 text-[9px] font-bold text-slate-200 uppercase tracking-widest">
+            <span className="flex items-center gap-2"><Database size={12}/> Global Data Mesh</span>
             <div className="w-1.5 h-1.5 bg-slate-100 rounded-full my-auto"/>
-            <span className="flex items-center gap-1.5"><Rocket size={10}/> Real-time Logic Engine</span>
+            <span className="flex items-center gap-2"><Rocket size={12}/> AI Inference Logic</span>
           </div>
         </div>
       </footer>
