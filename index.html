@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { 
   Trophy, Rocket, Calendar, Database, FileUp, CloudUpload, 
   Clock, User, Zap, Info, ChevronDown, ChevronUp, Activity,
-  MapPin, CheckCircle2, AlertCircle, Search, Hash, Star
+  MapPin, CheckCircle2, AlertCircle, Search, Hash, Star, Flame
 } from 'lucide-react';
 
 // --- Firebase 초기화 (Rule 3 준수) ---
@@ -66,21 +66,53 @@ const Parser = {
       };
     }).filter(Boolean);
   },
-  // 전문가 코멘트 파싱
+  // 전문가 코멘트 정밀 파싱 (ExpertPick.txt 규격 대응)
   expert: (text) => {
     const result = { seoul: {}, busan: {} };
-    const chunks = text.split(/\*\*(서울|부산|부경)\s*(\d+)경주/);
-    for (let i = 1; i < chunks.length; i += 3) {
-      const loc = (chunks[i] === '서울') ? 'seoul' : 'busan';
-      const no = chunks[i+1];
-      const content = chunks[i+2] || '';
-      const rec = [];
-      const mAll = content.matchAll(/\((\d+)\)\s*([가-힣A-Z]+)/g);
-      for (const m of mAll) rec.push({ no: m[1], name: m[2] });
+    // 경주별 섹션 분할
+    const sections = text.split(/\*\*(서울|부산|부경)\s*(\d+)경주/);
+    
+    for (let i = 1; i < sections.length; i += 3) {
+      const locStr = sections[i];
+      const loc = (locStr === '서울') ? 'seoul' : 'busan';
+      const no = sections[i+1];
+      const content = sections[i+2] || '';
+      
+      // 1. 추천 마번 추출 (**추천:** (번호) 마명 형식)
+      const recLineMatch = content.match(/\*\*추천.*?\*\*[:：]\s*(.+?)(?=\r?\n|$)/);
+      const recommended = [];
+      if (recLineMatch) {
+        const matches = recLineMatch[1].matchAll(/\((\d+)\)\s*([가-힣A-Z]+)/g);
+        for (const m of matches) {
+          recommended.push({ no: m[1], name: m[2] });
+        }
+      }
+
+      // 2. 복병/선행 번호 추출
+      const darkMatch = content.match(/\*\*복병.*?\*\*[:：]\s*([\d, ]+)/);
+      const leadMatch = content.match(/\*\*선행.*?\*\*[:：]\s*([\d, ]+)/);
+      const dark = darkMatch ? darkMatch[1].split(',').map(s => s.trim()).filter(s => s) : [];
+      const lead = leadMatch ? leadMatch[1].split(',').map(s => s.trim()).filter(s => s) : [];
+
+      // 3. 개별 마필 코멘트 추출 (**(번호) 마명**... 형식)
       const horseComments = {};
-      const cMatch = content.matchAll(/\((\d+)\)\s*([가-힣A-Z\s]+)\*\*은?(.+?)(?=\s*(?:\(\d+\)|\*\*|$))/gs);
-      for (const m of cMatch) horseComments[m[1]] = m[3].trim();
-      result[loc][no] = { recommended: rec, horseComments };
+      const commentPattern = /\*\*\s*\((\d+)\)\s*([가-힣A-Z\s()]+)\s*\*\*\s*은?(.+?)(?=\s*(?:\r?\n\r?\n|\*\*\(|\*\*추천|\*\*복병|\*\*선행|$))/gs;
+      let m;
+      while ((m = commentPattern.exec(content)) !== null) {
+        horseComments[m[1]] = m[3].trim().replace(/\s+/g, ' ');
+      }
+
+      // 4. 경주 전체 요약 (분석 헤더 제외한 첫 문단)
+      const summaryLines = content.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('**') && !l.includes('등급 ('));
+      const summary = summaryLines.length > 0 ? summaryLines[0] : "";
+
+      result[loc][no] = { 
+        recommended, 
+        dark, 
+        lead, 
+        horseComments, 
+        comment: summary 
+      };
     }
     return result;
   }
@@ -120,7 +152,15 @@ export default function App() {
   // 인증 처리 (Rule 3)
   useEffect(() => {
     const initAuth = async () => {
-      try { await signInAnonymously(auth); } catch (e) { console.error(e); }
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (e) {
+        console.error(e);
+      }
     };
     initAuth();
     return onAuthStateChanged(auth, setUser);
@@ -181,8 +221,8 @@ export default function App() {
         if (type === 'analysis') next[loc].analysis = JSON.parse(text);
         if (type === 'expert') {
           const p = Parser.expert(text);
-          next.seoul.expert = p.seoul;
-          next.busan.expert = p.busan;
+          next.seoul.expert = p.seoul || {};
+          next.busan.expert = p.busan || {};
         }
         return next;
       });
@@ -216,7 +256,7 @@ export default function App() {
             <div>
               <h1 className="text-xl font-black tracking-tighter uppercase italic leading-none">Smart Racing <span className="text-yellow-400">Pro</span></h1>
               <p className="text-[10px] text-slate-400 font-bold mt-1 tracking-widest uppercase flex items-center gap-1">
-                <Database size={8}/> {syncStatus} | Cloud Synced
+                <Database size={8}/> {syncStatus} | Cloud Sync
               </p>
             </div>
           </div>
@@ -280,28 +320,49 @@ export default function App() {
                 <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border-l-[12px] border-yellow-400">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h2 className="text-3xl font-black italic text-slate-900">제 {race.no} R</h2>
+                      <h2 className="text-3xl font-black italic text-slate-900 underline decoration-yellow-400 decoration-4 underline-offset-4 decoration-skip-ink-none">제 {race.no} R</h2>
                       <div className="flex items-center gap-3 text-xs font-bold text-slate-400 mt-2">
                         <span>{race.startTime}</span>
                         <span className="w-1 h-1 bg-slate-200 rounded-full"/>
-                        <span className="text-indigo-600">{race.distance}M</span>
+                        <span className="text-indigo-600 font-black">{race.distance}M</span>
                       </div>
                     </div>
                     {analysisInfo?.avgRecord && (
                       <div className="text-right">
-                        <span className="text-[9px] font-black text-slate-300 uppercase block tracking-widest">Avg Record</span>
+                        <span className="text-[9px] font-black text-slate-300 uppercase block tracking-widest">Avg Winner Rec</span>
                         <div className="text-2xl font-black text-slate-900 font-mono italic">{analysisInfo.avgRecord}</div>
                       </div>
                     )}
                   </div>
+                  
                   {expertInfo && (
-                    <div className="mt-6 p-4 bg-orange-50 rounded-2xl border border-orange-100 flex items-center gap-3">
-                      <span className="bg-orange-600 text-white text-[9px] px-2 py-0.5 rounded-full font-black uppercase">Rec</span>
-                      <div className="flex gap-1.5">
-                        {expertInfo.recommended.map(h => (
-                          <span key={h.no} className="w-7 h-7 rounded-full bg-white text-orange-600 border border-orange-200 flex items-center justify-center text-xs font-black shadow-sm">{h.no}</span>
-                        ))}
+                    <div className="mt-6 p-5 bg-orange-50 rounded-3xl border border-orange-100 shadow-inner">
+                      <div className="flex flex-wrap gap-2 items-center mb-3">
+                        <span className="bg-orange-600 text-white text-[9px] px-2.5 py-1 rounded-full font-black uppercase flex items-center gap-1"><Trophy size={10}/> Expert Recommended</span>
+                        <div className="flex gap-1.5 ml-auto">
+                          {expertInfo.recommended?.map(h => (
+                            <span key={h.no} className="w-8 h-8 rounded-full bg-white text-orange-600 border border-orange-200 flex items-center justify-center text-xs font-black shadow-sm">{h.no}</span>
+                          ))}
+                        </div>
                       </div>
+                      <p className="text-[12px] text-orange-900/80 font-bold leading-relaxed italic">{expertInfo.comment || '상세 경주 전개 분석 데이터가 준비되었습니다.'}</p>
+                      
+                      {(expertInfo.dark?.length > 0 || expertInfo.lead?.length > 0) && (
+                        <div className="flex gap-4 mt-3 pt-3 border-t border-orange-100">
+                           {expertInfo.dark?.length > 0 && (
+                             <div className="flex items-center gap-1.5">
+                               <span className="text-[10px] font-black text-purple-600 uppercase tracking-tighter">복병:</span>
+                               <span className="text-xs font-black text-slate-700">{expertInfo.dark.join(', ')}</span>
+                             </div>
+                           )}
+                           {expertInfo.lead?.length > 0 && (
+                             <div className="flex items-center gap-1.5">
+                               <span className="text-[10px] font-black text-red-600 uppercase tracking-tighter">선행:</span>
+                               <span className="text-xs font-black text-slate-700">{expertInfo.lead.join(', ')}</span>
+                             </div>
+                           )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -312,15 +373,26 @@ export default function App() {
                     const isExp = expanded === h.no;
                     const hist = current.histories.filter(v => v.horseName === h.name).slice(0, 5);
                     const expComment = expertInfo?.horseComments?.[h.no];
+                    
+                    const isRec = expertInfo?.recommended?.some(r => r.no === h.no);
+                    const isDark = expertInfo?.dark?.includes(h.no);
+                    const isLead = expertInfo?.lead?.includes(h.no);
 
                     return (
-                      <div key={h.no} className={`bg-white rounded-[2rem] border transition-all ${isExp ? 'ring-2 ring-slate-900 shadow-xl' : 'border-slate-100 shadow-sm'}`}>
+                      <div key={h.no} className={`bg-white rounded-[2rem] border transition-all duration-300 overflow-hidden ${isExp ? 'ring-2 ring-slate-900 shadow-xl scale-[1.01]' : 'border-slate-100 shadow-sm opacity-95 hover:opacity-100 hover:border-slate-300'}`}>
                         <div className="p-4 flex items-center gap-4 cursor-pointer" onClick={() => setExpanded(isExp ? null : h.no)}>
                           <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-inner ${HORSE_COLORS[h.no] || 'bg-slate-200'}`}>
                             <span className="text-2xl font-black italic">{h.no}</span>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="text-lg font-black text-slate-800 truncate">{h.name}</h3>
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <h3 className="text-lg font-black text-slate-800 truncate">{h.name}</h3>
+                              <div className="flex gap-1">
+                                {isRec && <Star size={12} className="text-orange-500 fill-orange-500" />}
+                                {isDark && <Zap size={12} className="text-purple-500 fill-purple-500" />}
+                                {isLead && <Flame size={12} className="text-red-500 fill-red-500" />}
+                              </div>
+                            </div>
                             <div className="text-[11px] font-bold text-slate-400 flex gap-2">
                               <span className="text-indigo-600">{h.jockey}</span><span>/</span>
                               <span>{h.weight}kg ({h.weightDiff})</span><span>/</span>
@@ -328,57 +400,57 @@ export default function App() {
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="text-[9px] text-slate-300 font-black uppercase">Train</div>
+                            <div className="text-[9px] text-slate-300 font-black uppercase tracking-tighter">Training</div>
                             <div className="text-sm font-black italic">{h.trainingCount}회</div>
                           </div>
-                          <div className="text-slate-200">{isExp ? <ChevronUp/> : <ChevronDown/>}</div>
+                          <div className="text-slate-200">{isExp ? <ChevronUp size={24}/> : <ChevronDown size={24}/>}</div>
                         </div>
 
                         {isExp && (
-                          <div className="px-5 pb-6 pt-2 animate-in fade-in">
+                          <div className="px-5 pb-6 pt-2 animate-in fade-in bg-slate-50/40">
                             <div className="h-px bg-slate-100 mb-4"/>
                             {expComment && (
-                              <div className="mb-4 bg-orange-50/50 p-4 rounded-3xl border-l-8 border-orange-400">
-                                <h4 className="text-[10px] font-black text-orange-600 uppercase mb-2 flex items-center gap-1"><Zap size={10}/> Expert Point</h4>
-                                <p className="text-[11px] text-orange-900 font-bold leading-relaxed">{expComment}</p>
+                              <div className="mb-4 bg-white p-5 rounded-3xl border-l-8 border-orange-400 shadow-sm">
+                                <h4 className="text-[10px] font-black text-orange-600 uppercase mb-2 flex items-center gap-1 tracking-widest font-black"><Icon name="Zap" size={10}/> Expert Tactical Point</h4>
+                                <p className="text-[12px] text-slate-700 font-bold leading-relaxed">{expComment}</p>
                               </div>
                             )}
                             <div className="grid grid-cols-2 gap-3 mb-4">
-                              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs">
-                                <div className="space-y-1 font-bold">
-                                  <div className="flex justify-between"><span>성별/나이</span><span>{h.sex}/{h.age}세</span></div>
-                                  <div className="flex justify-between"><span>조교사</span><span className="truncate max-w-[80px]">{h.trainer}</span></div>
-                                  <div className="flex justify-between text-indigo-600"><span>출전주기</span><span>{h.cycle}주</span></div>
+                              <div className="bg-white p-4 rounded-3xl border border-slate-100 text-xs shadow-sm">
+                                <div className="space-y-1.5 font-bold">
+                                  <div className="flex justify-between border-b border-slate-50 pb-1"><span className="text-slate-400 italic font-medium">Trainer</span><span className="truncate max-w-[80px]">{h.trainer}</span></div>
+                                  <div className="flex justify-between border-b border-slate-50 pb-1"><span className="text-slate-400 italic font-medium">Sire</span><span className="truncate max-w-[80px] font-black">{h.father}</span></div>
+                                  <div className="flex justify-between text-indigo-600"><span className="font-medium italic">Cycle</span><span>{h.cycle}주</span></div>
                                 </div>
                               </div>
-                              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-[11px] font-bold text-slate-500 italic flex items-center justify-center text-center">
-                                {h.gear || '장구 없음'}
+                              <div className="bg-white p-4 rounded-3xl border border-slate-100 text-[11px] font-bold text-slate-500 italic flex items-center justify-center text-center shadow-sm">
+                                {h.gear || 'No Gear'}
                               </div>
                             </div>
-                            <div className="bg-slate-900 rounded-3xl overflow-hidden shadow-xl">
-                              <table className="w-full text-[10px] text-center text-slate-300">
+                            <div className="bg-slate-900 rounded-3xl overflow-hidden shadow-xl overflow-x-auto border-4 border-slate-800">
+                              <table className="w-full text-[10px] text-center text-slate-300 font-bold">
                                 <thead className="bg-slate-800 text-slate-500 font-black uppercase italic">
                                   <tr>
-                                    <th className="py-2 px-1">Date</th>
-                                    <th className="py-2 px-1">Dist</th>
-                                    <th className="py-2 px-1 text-white">Rec</th>
-                                    <th className="py-2 px-1">Rank</th>
-                                    <th className="py-2 px-1 text-red-400">S1F</th>
-                                    <th className="py-2 px-1 text-blue-400">G1F</th>
+                                    <th className="py-3 px-1">Date</th>
+                                    <th className="py-3 px-1">Dist</th>
+                                    <th className="py-3 px-1 text-white">Rec</th>
+                                    <th className="py-3 px-1">Rank</th>
+                                    <th className="py-3 px-1 text-red-400 border-b-2 border-red-500/20">S1F</th>
+                                    <th className="py-3 px-1 text-blue-400 border-b-2 border-blue-500/20">G1F</th>
                                   </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-800 font-bold">
+                                <tbody className="divide-y divide-slate-800">
                                   {hist.map((v, idx) => (
                                     <tr key={idx} className="hover:bg-slate-800 transition-colors">
-                                      <td className="py-2 px-1 text-slate-500 font-mono italic">{v.date}</td>
-                                      <td className="py-2 px-1 text-slate-400">{v.dist}</td>
-                                      <td className="py-2 px-1 text-yellow-400 font-mono">{v.rec}</td>
-                                      <td className="py-2 px-1">{v.rank}</td>
-                                      <td className="py-2 px-1 text-red-500/80 font-mono">{v.s1f}</td>
-                                      <td className="py-2 px-1 text-blue-500/80 font-mono">{v.g1f}</td>
+                                      <td className="py-2.5 px-1 text-slate-500 font-mono italic">{v.date}</td>
+                                      <td className="py-2.5 px-1 text-slate-400">{v.dist}</td>
+                                      <td className="py-2.5 px-1 text-yellow-400 font-mono italic">{v.rec}</td>
+                                      <td className={`py-2.5 px-1 ${v.rank?.startsWith('1/') ? 'text-white' : 'text-slate-600'}`}>{v.rank}</td>
+                                      <td className="py-2.5 px-1 text-red-500/80 font-mono">{v.s1f}</td>
+                                      <td className="py-2.5 px-1 text-blue-500/80 font-mono">{v.g1f}</td>
                                     </tr>
                                   ))}
-                                  {hist.length === 0 && <tr><td colSpan="6" className="py-4 text-slate-600 font-black italic uppercase">No History</td></tr>}
+                                  {hist.length === 0 && <tr><td colSpan="6" className="py-8 text-slate-600 font-black italic uppercase tracking-widest">No Record</td></tr>}
                                 </tbody>
                               </table>
                             </div>
@@ -396,7 +468,7 @@ export default function App() {
 
       <footer className="p-8 text-center border-t border-slate-100 bg-white">
         <div className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] italic">
-          Racing Cloud Pro &copy; 2025 v2.2 Stable
+          Smart Racing Cloud Pro &copy; 2025 v2.6 Tactical
         </div>
       </footer>
     </div>
