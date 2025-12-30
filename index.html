@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SMART RACING CLOUD</title>
+    <title>SMART RACING CLOUD (Sync Optimized)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -17,6 +17,7 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // 본인의 Firebase 설정값으로 정확히 교체되었는지 확인하세요.
         const firebaseConfig = {
             apiKey: "AIzaSyDVJRqmpFjR9g91AgQsJIV65_7BJ7yYEOU",
             authDomain: "race-app-3e41d.firebaseapp.com",
@@ -26,7 +27,7 @@
             appId: "1:232853669556:web:f9e7c8ccfde227f50679e1",
             measurementId: "G-H6MB9KZ8M8"
         };
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'racing-cloud-app';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'racing-cloud-app-v1';
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -40,8 +41,8 @@
         body { font-family: 'Pretendard', sans-serif; background-color: #f8fafc; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-pulse-slow { animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .7; } }
     </style>
 </head>
 <body>
@@ -50,14 +51,12 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useCallback } = React;
         
-        // --- 아이콘 로더 ---
         const Icon = ({ name, size = 16, className = "" }) => {
             const lib = window.lucideReact || window.lucide;
             const TargetIcon = lib ? (lib[name] || lib[name.toLowerCase()]) : null;
             return TargetIcon ? <TargetIcon size={size} className={className} /> : null;
         };
 
-        // --- 데이터 처리 엔진 (Parsers) ---
         const DataEngine = {
             parseEntry: (text) => {
                 const lines = text.split('\n');
@@ -107,254 +106,199 @@
                 });
                 if (current) races.push(current);
                 return races;
-            },
-            parseExpert: (text) => {
-                const store = { seoul: {}, busan: {} };
-                const chunks = text.split(/(부산|서울|부경)\s*(\d+)\s*경주\s*:/);
-                for (let i = 1; i < chunks.length; i += 3) {
-                    const loc = chunks[i] === '서울' ? 'seoul' : 'busan';
-                    const no = chunks[i+1];
-                    const raw = chunks[i+2] || '';
-                    const recMatch = raw.match(/추천.*?[:：]\s*(.+?)(?=\s*(?:복병|선행)|$)/s);
-                    const recommended = [];
-                    if (recMatch) {
-                        const matches = recMatch[1].matchAll(/\((\d+)\)\s*([가-힣a-zA-Z.]+)/g);
-                        for (const m of matches) recommended.push({ no: m[1], name: m[2] });
-                    }
-                    store[loc][no] = {
-                        recommended,
-                        dark: (raw.match(/복병.*?[:：]\s*([\d, ]+)/) || [])[1]?.split(',').map(n => n.trim()).filter(Boolean) || [],
-                        lead: (raw.match(/선행.*?[:：]\s*([\d, ]+)/) || [])[1]?.split(',').map(n => n.trim()).filter(Boolean) || []
-                    };
-                }
-                return store;
             }
         };
 
-        // --- 소규모 컴포넌트 분리 ---
-        const Badge = ({ children, color = "slate" }) => {
-            const colors = {
-                slate: "bg-slate-100 text-slate-600",
-                indigo: "bg-indigo-100 text-indigo-600",
-                yellow: "bg-yellow-100 text-yellow-700",
-                purple: "bg-purple-100 text-purple-600",
-                red: "bg-red-100 text-red-600"
-            };
-            return <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${colors[color]}`}>{children}</span>;
-        };
-
-        const HorseCard = ({ horse, isExpanded, onToggle, expert }) => {
-            const isRec = expert?.recommended?.some(r => r.no === horse.no);
-            const isDark = expert?.dark?.includes(horse.no);
-
-            return (
-                <div className={`bg-white rounded-2xl border transition-all ${isExpanded ? 'ring-2 ring-indigo-500 shadow-xl' : 'border-slate-200 hover:border-indigo-200'}`}>
-                    <div className="p-4 flex items-center gap-4 cursor-pointer" onClick={onToggle}>
-                        <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center relative flex-shrink-0">
-                            <span className="text-white text-2xl font-black">{horse.no}</span>
-                            {isRec && <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 rounded-full border-2 border-white flex items-center justify-center"><Icon name="Trophy" size={10} className="text-slate-900 font-bold"/></div>}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-0.5">
-                                <h3 className="text-lg font-bold text-slate-800 truncate">{horse.name}</h3>
-                                {isDark && <Badge color="purple">복병</Badge>}
-                            </div>
-                            <div className="flex flex-wrap items-center gap-x-2 text-xs font-semibold text-slate-400">
-                                <span className="text-indigo-600">{horse.jockey}</span>
-                                <span className="text-slate-200">|</span>
-                                <span>{horse.weight}kg</span>
-                                <span className="text-slate-200">|</span>
-                                <span className="bg-slate-50 px-1 rounded">R{horse.rating}</span>
-                            </div>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                            <div className="text-[10px] font-bold text-slate-300 uppercase">Training</div>
-                            <div className="text-sm font-black text-slate-700">{horse.trainingCount}회</div>
-                        </div>
-                    </div>
-                    {isExpanded && (
-                        <div className="bg-slate-50 border-t p-4 animate-fade-in">
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="bg-white p-3 rounded-xl border border-slate-100 text-xs">
-                                    <div className="text-slate-400 mb-1 font-bold">상세 정보</div>
-                                    <div className="flex justify-between"><span>성별/나이</span><span className="font-bold">{horse.sex}/{horse.age}세</span></div>
-                                    <div className="flex justify-between mt-1"><span>조교사</span><span className="font-bold">{horse.trainer}</span></div>
-                                </div>
-                                <div className="bg-white p-3 rounded-xl border border-slate-100 text-xs">
-                                    <div className="text-slate-400 mb-1 font-bold">출전 주기</div>
-                                    <div className="text-lg font-black text-indigo-600">{horse.cycle}주</div>
-                                    <div className="text-[10px] text-slate-400 uppercase">{horse.grade}</div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            );
-        };
-
-        // --- 메인 애플리케이션 ---
         function App() {
             const [user, setUser] = useState(null);
-            const [syncStatus, setSyncStatus] = useState('connecting');
-            const [view, setView] = useState('view'); // view | admin
+            const [syncStatus, setSyncStatus] = useState('connecting'); // connecting, synced, modified, error
+            const [view, setView] = useState('view');
             const [activeLoc, setActiveLoc] = useState('seoul');
             const [raceIdx, setRaceIdx] = useState(0);
             const [expanded, setExpanded] = useState(null);
 
             const [data, setData] = useState({
-                seoul: { races: [], histories: [], easy: {}, expert: {} },
-                busan: { races: [], histories: [], easy: {}, expert: {} }
+                seoul: { races: [] },
+                busan: { races: [] },
+                lastUpdated: null
             });
 
-            // Firebase 연동
+            // --- 데이터베이스 실시간 리스너 ---
             useEffect(() => {
                 if (!window.FB_INSTANCE) return;
                 const { auth, db, appId, signInAnonymously, onAuthStateChanged, onSnapshot, doc } = window.FB_INSTANCE;
                 
-                signInAnonymously(auth).catch(e => console.error(e));
-                
-                const unsubAuth = onAuthStateChanged(auth, (u) => {
-                    setUser(u);
-                    if (u) {
-                        const unsubSnap = onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'racingDB'), (snap) => {
-                            if (snap.exists()) setData(snap.data());
-                            setSyncStatus('idle');
+                const initialize = async () => {
+                    try {
+                        await signInAnonymously(auth);
+                        onAuthStateChanged(auth, (u) => {
+                            setUser(u);
+                            if (u) {
+                                // 구글 서버에서 데이터 실시간으로 가져오기
+                                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'racingDB');
+                                onSnapshot(docRef, (snap) => {
+                                    if (snap.exists()) {
+                                        setData(snap.data());
+                                        setSyncStatus('synced');
+                                    } else {
+                                        setSyncStatus('idle'); // 데이터 없음
+                                    }
+                                }, (err) => {
+                                    console.error("Load Error:", err);
+                                    setSyncStatus('error');
+                                });
+                            }
                         });
-                        return () => unsubSnap();
+                    } catch (e) {
+                        setSyncStatus('error');
                     }
-                });
-                return () => unsubAuth();
+                };
+                initialize();
             }, []);
 
-            const saveCloud = async () => {
+            // --- 구글 서버에 저장 (중요: 이 버튼을 눌러야 새로고침해도 안날라감) ---
+            const saveToCloud = async () => {
                 if (!user || !window.FB_INSTANCE) return;
                 setSyncStatus('syncing');
                 const { db, appId, setDoc, doc } = window.FB_INSTANCE;
                 try {
-                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'racingDB'), data);
-                    alert("성공적으로 저장되었습니다.");
-                } catch (e) { alert(e.message); }
-                setSyncStatus('idle');
+                    await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'racingDB'), {
+                        ...data,
+                        lastUpdated: new Date().toISOString()
+                    });
+                    setSyncStatus('synced');
+                    alert("✅ 서버 저장 완료! 이제 새로고침해도 데이터가 유지됩니다.");
+                } catch (e) { 
+                    alert("❌ 저장 실패: " + e.message); 
+                    setSyncStatus('error');
+                }
             };
 
-            const handleFileUpload = (e, type, loc) => {
+            const handleFileUpload = (e, loc) => {
                 const file = e.target.files[0];
                 if (!file) return;
                 const reader = new FileReader();
                 reader.onload = (ev) => {
                     const text = ev.target.result;
-                    setData(prev => {
-                        const next = { ...prev };
-                        if (type === 'entry') next[loc].races = DataEngine.parseEntry(text);
-                        if (type === 'expert') {
-                            const parsed = DataEngine.parseExpert(text);
-                            next.seoul.expert = parsed.seoul;
-                            next.busan.expert = parsed.busan;
-                        }
-                        return next;
-                    });
+                    const parsed = DataEngine.parseEntry(text);
+                    setData(prev => ({
+                        ...prev,
+                        [loc]: { races: parsed }
+                    }));
+                    setSyncStatus('modified'); // "저장 안 된 데이터 있음" 표시용
                 };
                 reader.readAsText(file, 'UTF-8');
             };
 
-            const current = data[activeLoc].races;
-            const race = current[raceIdx];
-            const expert = data[activeLoc].expert?.[race?.no];
+            const currentRaces = data[activeLoc]?.races || [];
+            const race = currentRaces[raceIdx];
 
             return (
                 <div className="max-w-xl mx-auto min-h-screen shadow-2xl bg-white flex flex-col">
-                    {/* Header */}
+                    {/* 상단바: 연결 상태 표시 */}
                     <header className="bg-slate-900 text-white p-5 sticky top-0 z-50">
                         <div className="flex justify-between items-center mb-4">
                             <div className="flex items-center gap-2">
-                                <div className="p-1.5 bg-yellow-400 rounded-lg text-slate-900"><Icon name="Trophy" size={20}/></div>
+                                <Icon name="Trophy" size={20} className="text-yellow-400"/>
                                 <h1 className="font-black text-lg tracking-tighter">SMART RACING</h1>
                             </div>
+                            
                             <div className="flex items-center gap-2">
-                                <div className={`w-2 h-2 rounded-full ${user ? 'bg-green-500' : 'bg-red-500'} ${syncStatus === 'syncing' ? 'animate-ping' : ''}`} />
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{syncStatus}</span>
+                                <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                                    syncStatus === 'synced' ? 'bg-green-500/20 text-green-400' :
+                                    syncStatus === 'modified' ? 'bg-orange-500/20 text-orange-400 animate-pulse' :
+                                    'bg-slate-700 text-slate-400'
+                                }`}>
+                                    <Icon name={syncStatus === 'synced' ? 'Cloud' : 'AlertTriangle'} size={10}/>
+                                    {syncStatus === 'synced' ? 'Synced' : syncStatus === 'modified' ? 'Unsaved' : syncStatus}
+                                </div>
                             </div>
                         </div>
+
                         <nav className="flex bg-slate-800 p-1 rounded-xl">
-                            <button onClick={() => setView('view')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${view === 'view' ? 'bg-white text-slate-900' : 'text-slate-400'}`}>VIEW</button>
-                            <button onClick={() => setView('admin')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${view === 'admin' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>ADMIN</button>
+                            <button onClick={() => setView('view')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${view === 'view' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}>경마지 보기</button>
+                            <button onClick={() => setView('admin')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${view === 'admin' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400'}`}>관리자(업로드)</button>
                         </nav>
                     </header>
 
                     <main className="flex-1 p-4">
                         {view === 'admin' ? (
-                            <div className="space-y-4 animate-fade-in">
-                                <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 flex justify-between items-center">
-                                    <div className="text-xs">
-                                        <div className="font-black text-indigo-900">클라우드 동기화</div>
-                                        <div className="text-indigo-600 mt-1">업로드한 데이터를 서버에 저장합니다.</div>
-                                    </div>
-                                    <button onClick={saveCloud} disabled={syncStatus === 'syncing'} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg flex items-center gap-2">
-                                        <Icon name="Save" size={14}/> 저장
-                                    </button>
-                                </div>
-                                <div className="grid grid-cols-1 gap-3">
-                                    {['seoul', 'busan'].map(loc => (
-                                        <div key={loc} className="p-4 border border-slate-200 rounded-2xl">
-                                            <h3 className="text-sm font-black mb-3 capitalize flex items-center gap-2"><Icon name="MapPin" size={14} className="text-red-500"/> {loc} 데이터</h3>
-                                            <input type="file" onChange={e => handleFileUpload(e, 'entry', loc)} className="w-full text-xs file:bg-slate-100 file:border-0 file:rounded-lg file:px-3 file:py-1.5"/>
+                            <div className="space-y-4">
+                                {/* 저장 안내 배너 */}
+                                {syncStatus === 'modified' && (
+                                    <div className="bg-orange-50 border border-orange-200 p-4 rounded-2xl flex items-center justify-between animate-fade-in">
+                                        <div className="text-xs">
+                                            <div className="font-black text-orange-900">⚠️ 저장되지 않은 데이터가 있습니다!</div>
+                                            <div className="text-orange-600 mt-1">오른쪽 버튼을 눌러 서버에 영구 저장하세요.</div>
                                         </div>
-                                    ))}
-                                    <div className="p-4 bg-slate-800 text-white rounded-2xl">
-                                        <h3 className="text-sm font-black mb-2 flex items-center gap-2 text-yellow-400"><Icon name="Info" size={14}/> 전문가 분석 (TXT)</h3>
-                                        <input type="file" onChange={e => handleFileUpload(e, 'expert', 'both')} className="w-full text-xs file:bg-slate-700 file:text-white file:border-0 file:rounded-lg file:px-3 file:py-1.5"/>
+                                        <button onClick={saveCloud} className="bg-orange-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg flex items-center gap-2">
+                                            <Icon name="Save" size={14}/> 서버저장
+                                        </button>
                                     </div>
+                                )}
+
+                                <div className="bg-white p-5 rounded-2xl border-2 border-slate-100 space-y-4">
+                                    <h3 className="font-bold flex items-center gap-2 text-slate-700"><Icon name="Upload"/> 새 데이터 업로드</h3>
+                                    
+                                    <div className="space-y-3">
+                                        <div className="p-3 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">서울 경마 (CSV)</label>
+                                            <input type="file" onChange={e => handleFileUpload(e, 'seoul')} className="w-full text-xs file:bg-white file:border file:border-slate-200 file:rounded-md file:px-3 file:py-1 file:font-bold"/>
+                                        </div>
+                                        <div className="p-3 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">부산 경마 (CSV)</label>
+                                            <input type="file" onChange={e => handleFileUpload(e, 'busan')} className="w-full text-xs file:bg-white file:border file:border-slate-200 file:rounded-md file:px-3 file:py-1 file:font-bold"/>
+                                        </div>
+                                    </div>
+
+                                    {syncStatus === 'synced' && (
+                                        <div className="pt-4 border-t flex justify-between items-center text-[10px] text-slate-400 font-bold">
+                                            <span>서버 최종 업데이트</span>
+                                            <span>{data.lastUpdated ? new Date(data.lastUpdated).toLocaleString() : '기록 없음'}</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ) : (
-                            <div className="space-y-4 animate-fade-in">
-                                {/* Loc & Race Nav */}
+                            <div className="space-y-4">
                                 <div className="flex gap-2 p-1 bg-slate-100 rounded-xl">
                                     <button onClick={() => {setActiveLoc('seoul'); setRaceIdx(0);}} className={`flex-1 py-2 rounded-lg text-xs font-bold ${activeLoc === 'seoul' ? 'bg-white shadow-sm' : 'text-slate-400'}`}>서울</button>
                                     <button onClick={() => {setActiveLoc('busan'); setRaceIdx(0);}} className={`flex-1 py-2 rounded-lg text-xs font-bold ${activeLoc === 'busan' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400'}`}>부산</button>
                                 </div>
 
-                                {current.length > 0 ? (
+                                {currentRaces.length > 0 ? (
                                     <>
                                         <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-hide">
-                                            {current.map((r, i) => (
-                                                <button key={i} onClick={() => {setRaceIdx(i); setExpanded(null);}} className={`flex-shrink-0 px-5 py-2.5 rounded-2xl font-black text-sm transition-all border ${raceIdx === i ? 'bg-indigo-600 text-white border-indigo-400 shadow-lg scale-105' : 'bg-white text-slate-400'}`}>{r.no}R</button>
+                                            {currentRaces.map((r, i) => (
+                                                <button key={i} onClick={() => {setRaceIdx(i); setExpanded(null);}} className={`flex-shrink-0 px-5 py-2.5 rounded-2xl font-black text-sm transition-all border ${raceIdx === i ? 'bg-indigo-600 text-white border-indigo-400 shadow-lg scale-105' : 'bg-white text-slate-400 border-slate-100'}`}>{r.no}R</button>
                                             ))}
                                         </div>
 
                                         {race && (
                                             <div className="space-y-4">
-                                                <div className="bg-white p-5 rounded-3xl border-l-8 border-yellow-400 shadow-sm relative overflow-hidden">
-                                                    <div className="flex justify-between items-start relative z-10">
-                                                        <div>
-                                                            <div className="flex items-center gap-2 mb-1">
-                                                                <span className="bg-slate-900 text-white text-[10px] px-1.5 py-0.5 rounded font-black">{activeLoc.toUpperCase()}</span>
-                                                                <h2 className="text-2xl font-black text-slate-900">제 {race.no} 경주</h2>
-                                                            </div>
-                                                            <div className="text-xs font-bold text-slate-400 flex items-center gap-2">
-                                                                <Icon name="Clock" size={12}/> {race.startTime} <span className="text-indigo-500">{race.distance}M</span>
-                                                            </div>
-                                                        </div>
-                                                        {expert?.recommended?.length > 0 && (
-                                                            <div className="flex gap-1">
-                                                                {expert.recommended.map(h => (
-                                                                    <div key={h.no} className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black shadow-sm">{h.no}</div>
-                                                                ))}
-                                                            </div>
-                                                        )}
+                                                <div className="bg-white p-5 rounded-3xl border-l-8 border-yellow-400 shadow-sm">
+                                                    <h2 className="text-2xl font-black text-slate-900">제 {race.no} 경주</h2>
+                                                    <div className="text-xs font-bold text-slate-400 flex items-center gap-2 mt-1">
+                                                        <Icon name="Clock" size={12}/> {race.startTime} <span className="text-indigo-600">{race.distance}M</span>
                                                     </div>
                                                     <p className="text-[11px] text-slate-500 font-bold mt-3 leading-tight">{race.conditions}</p>
                                                 </div>
 
                                                 <div className="space-y-2">
                                                     {race.horses.map(h => (
-                                                        <HorseCard 
-                                                            key={h.no} 
-                                                            horse={h} 
-                                                            isExpanded={expanded === h.no} 
-                                                            onToggle={() => setExpanded(expanded === h.no ? null : h.no)}
-                                                            expert={expert}
-                                                        />
+                                                        <div key={h.no} className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-4 shadow-sm hover:shadow-md transition-all">
+                                                            <div className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center font-black text-xl">{h.no}</div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <h3 className="font-black text-slate-800 truncate">{h.name}</h3>
+                                                                <div className="text-[10px] font-bold text-slate-400 flex gap-2">
+                                                                    <span>{h.jockey}</span><span>|</span><span>{h.weight}kg</span><span>|</span><span>R{h.rating}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <div className="text-[9px] text-slate-300 font-black uppercase">Train</div>
+                                                                <div className="text-xs font-black text-slate-700">{h.trainingCount}회</div>
+                                                            </div>
+                                                        </div>
                                                     ))}
                                                 </div>
                                             </div>
@@ -362,17 +306,17 @@
                                     </>
                                 ) : (
                                     <div className="py-20 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
-                                        <Icon name="Database" size={40} className="mx-auto text-slate-300 mb-3"/>
-                                        <p className="text-slate-400 font-bold">데이터가 없습니다.</p>
-                                        <p className="text-[10px] text-slate-300 uppercase">ADMIN 탭에서 업로드하세요</p>
+                                        <Icon name="CloudOff" size={40} className="mx-auto text-slate-300 mb-3"/>
+                                        <p className="text-slate-400 font-bold">서버에 저장된 데이터가 없습니다.</p>
+                                        <p className="text-[10px] text-slate-300 uppercase mt-2">관리자 탭에서 파일을 업로드하고 [서버저장]을 누르세요.</p>
                                     </div>
                                 )}
                             </div>
                         )}
                     </main>
 
-                    <footer className="p-4 text-center border-t">
-                        <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">© 2025 Smart Racing Cloud Engine</span>
+                    <footer className="p-4 text-center border-t text-[9px] font-black text-slate-300 uppercase tracking-widest">
+                        Smart Racing Engine Sync v1.1
                     </footer>
                 </div>
             );
