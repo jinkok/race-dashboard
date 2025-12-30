@@ -3,19 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SMART RACING PRO - 접속 오류 해결판</title>
+    <title>SMART RACING PRO - 통합 분석 시스템</title>
     
-    <!-- 1. 필수 라이브러리 로드 -->
+    <!-- 1. 필수 라이브러리 (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/lucide-react@0.294.0/dist/umd/lucide-react.min.js"></script>
+    <!-- Lucide Icons (전역 객체용) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 
-    <!-- 에러 발생 시 화면에 출력하는 스타일 -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;600;800&display=swap');
         body { font-family: 'Pretendard', sans-serif; background-color: #f1f5f9; color: #1e293b; }
+        
+        /* 마번별 색상표 */
         .h-1 { @apply bg-white text-gray-900 border-2 border-gray-300; }
         .h-2 { @apply bg-yellow-400 text-gray-900 border-none; }
         .h-3 { @apply bg-red-600 text-white border-none; }
@@ -28,26 +30,31 @@
         .h-10 { @apply bg-sky-300 text-gray-900 border-none; }
         .h-11 { @apply bg-white text-green-700 border-4 border-green-600; }
         .h-12 { @apply bg-yellow-400 text-green-700 border-4 border-green-600; }
-        
-        #error-console { display: none; position: fixed; top: 0; left: 0; width: 100%; background: #fee2e2; color: #991b1b; padding: 20px; z-index: 9999; border-bottom: 2px solid #ef4444; font-size: 14px; white-space: pre-wrap; }
+
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        #error-log { display: none; position: fixed; top: 0; left: 0; width: 100%; background: #fee2e2; color: #991b1b; padding: 20px; z-index: 9999; border-bottom: 2px solid #ef4444; font-size: 14px; white-space: pre-wrap; }
+        .animate-up { animation: slideUp 0.3s ease-out forwards; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
-    <div id="error-console"></div>
+    <!-- 에러 발생 시 표시될 영역 -->
+    <div id="error-log"></div>
+    
     <div id="root">
         <div class="flex flex-col items-center justify-center min-h-screen text-slate-500">
             <div class="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-            <p class="font-bold text-lg">시스템 초기화 중...</p>
-            <p class="text-sm mt-2 text-slate-400">5초 이상 걸리면 새로고침 해주세요.</p>
+            <p class="font-bold text-lg">시스템 접속 중...</p>
+            <p class="text-sm mt-2 text-slate-400">잠시만 기다려주세요.</p>
         </div>
     </div>
 
     <!-- 전역 에러 핸들러 -->
     <script>
         window.onerror = function(msg, source, lineno, colno, error) {
-            const el = document.getElementById('error-console');
+            const el = document.getElementById('error-log');
             el.style.display = 'block';
-            el.innerHTML = `⛔ <strong>오류 발생:</strong> ${msg}\n위치: ${source}:${lineno}`;
+            el.innerHTML += `⛔ <strong>오류:</strong> ${msg} (${source}:${lineno})\n`;
         };
     </script>
 
@@ -57,7 +64,7 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // [중요] 사용자님의 Firebase 설정을 여기에 직접 입력했습니다.
+        // [중요] 사용자 제공 Config 직접 입력
         const firebaseConfig = {
             apiKey: "AIzaSyDVJRqmpFjR9g91AgQsJIV65_7BJ7yYEOU",
             authDomain: "race-app-3e41d.firebaseapp.com",
@@ -72,28 +79,42 @@
             const app = initializeApp(firebaseConfig);
             const auth = getAuth(app);
             const db = getFirestore(app);
-            const appId = 'racing-pro-final-fixed';
+            const appId = 'racing-pro-final-v10';
 
-            // 전역 변수로 공유 (React에서 접근)
+            // 전역 객체에 할당 (React에서 접근)
             window.fb = { 
                 auth, db, appId, doc, setDoc, onSnapshot, signInAnonymously, onAuthStateChanged,
                 isReady: true 
             };
-            console.log("Firebase Init Complete");
+            console.log("Firebase Init Success");
         } catch (e) {
             console.error("Firebase Init Error:", e);
+            document.getElementById('error-log').style.display = 'block';
+            document.getElementById('error-log').textContent = "Firebase 초기화 실패: " + e.message;
             window.fb = { isReady: false, error: e.message };
-            document.getElementById('error-console').style.display = 'block';
-            document.getElementById('error-console').textContent = "Firebase 연결 실패: " + e.message;
         }
     </script>
 
-    <!-- 3. React App -->
+    <!-- 3. React 애플리케이션 -->
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
-        const { Trophy, Calendar, Upload, Cloud, Save, MapPin, Clock, Info, ChevronDown, ChevronUp, Search, Zap, Star, Flame, FileText, Activity } = lucide;
+        const { useState, useEffect, useMemo, useRef } = React;
 
-        // --- 파서 엔진 (7종 데이터 처리) ---
+        // 아이콘 컴포넌트 (Lucide CDN 대응)
+        const Icon = ({ name, size = 16, className = "" }) => {
+            const iRef = useRef(null);
+            useEffect(() => {
+                if (window.lucide) window.lucide.createIcons({
+                    root: iRef.current,
+                    name: name,
+                    attrs: { width: size, height: size, class: className }
+                });
+            }, [name, size, className]);
+            
+            // Fallback for simple rendering
+            return <i ref={iRef} data-lucide={name} className={className} style={{width: size, height: size, display: 'inline-block'}}></i>;
+        };
+
+        // --- 파서 엔진 ---
         const Parser = {
             entry: (text) => {
                 if (!text) return [];
@@ -198,22 +219,27 @@
             const [expanded, setExpanded] = useState(null);
             const [dbData, setDbData] = useState({ seoul: { races: [], histories: [], analysis: { races: {} }, expert: {} }, busan: { races: [], histories: [], analysis: { races: {} }, expert: {} } });
 
-            // Firebase Logic
+            // 안전장치: Firebase 로드 대기
             useEffect(() => {
-                const checkFb = setInterval(() => {
+                const interval = setInterval(() => {
                     if (window.fb && window.fb.isReady) {
-                        clearInterval(checkFb);
-                        initializeFirebase();
-                    } else if (window.fb && window.fb.error) {
-                        clearInterval(checkFb);
-                        setStatus('error');
-                        alert("Firebase 오류: " + window.fb.error);
+                        clearInterval(interval);
+                        initFirebase();
                     }
                 }, 100);
-                return () => clearInterval(checkFb);
+                
+                // 5초 후에도 안되면 강제 에러 처리
+                setTimeout(() => {
+                    if (status === 'connecting') {
+                        setStatus('offline_mode'); 
+                        console.warn("Firebase taking too long, entering offline mode.");
+                    }
+                }, 5000);
+
+                return () => clearInterval(interval);
             }, [date]);
 
-            const initializeFirebase = async () => {
+            const initFirebase = async () => {
                 const { auth, db, doc, onSnapshot, signInAnonymously, onAuthStateChanged, appId } = window.fb;
                 try {
                     await signInAnonymously(auth);
@@ -233,20 +259,20 @@
                         }
                     });
                 } catch (e) {
-                    console.error(e);
+                    console.error("Auth Failed", e);
                     setStatus('error');
                 }
             };
 
             const saveToCloud = async () => {
-                if (!user) return alert("로그인 필요");
+                if (!user) return alert("서버 연결 중입니다.");
                 const { db, doc, setDoc, appId } = window.fb;
                 setStatus('saving');
                 try {
                     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'dailyRacing', date);
                     await setDoc(docRef, { ...dbData, lastUpdated: new Date().toISOString() });
                     setStatus('synced');
-                    alert("✅ 클라우드 저장 완료! 날짜: " + date);
+                    alert("✅ 저장 완료!");
                 } catch (e) {
                     alert("저장 실패: " + e.message);
                     setStatus('error');
@@ -274,7 +300,7 @@
                         });
                         setStatus('modified');
                     } catch (err) {
-                        alert("파일 파싱 오류: " + err.message);
+                        alert("파싱 오류: " + err.message);
                     }
                 };
                 reader.readAsText(file, 'UTF-8');
@@ -285,13 +311,15 @@
             const expertInfo = current?.expert?.[race?.no];
             const analysisInfo = current?.analysis?.races?.[race?.no];
 
+            // 화면 렌더링 시 아이콘 갱신
+            useEffect(() => { if (window.lucide) window.lucide.createIcons(); });
+
             return (
                 <div className="max-w-2xl mx-auto min-h-screen flex flex-col bg-slate-50 relative font-sans shadow-2xl">
-                    {/* Header */}
                     <header className="bg-slate-900 text-white p-5 sticky top-0 z-50 shadow-lg">
                         <div className="flex justify-between items-center mb-4">
                             <div className="flex items-center gap-2">
-                                <Trophy className="text-yellow-400" size={24}/>
+                                <Icon name="trophy" size={24} className="text-yellow-400"/>
                                 <h1 className="text-xl font-black italic tracking-tighter">SMART RACING</h1>
                             </div>
                             <div className="flex gap-2">
@@ -300,7 +328,7 @@
                             </div>
                         </div>
                         <div className="flex gap-2 items-center bg-slate-800 p-2 rounded-xl">
-                            <Calendar size={16} className="text-slate-400 ml-2"/>
+                            <Icon name="calendar" size={16} className="text-slate-400 ml-2"/>
                             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="bg-transparent text-sm font-bold text-white outline-none w-32"/>
                             <div className="h-4 w-px bg-slate-600 mx-1"></div>
                             <div className="flex-1 flex gap-1">
@@ -309,7 +337,7 @@
                             </div>
                         </div>
                         <div className="text-[10px] text-center mt-2 text-slate-500 font-bold uppercase tracking-widest flex justify-center items-center gap-2">
-                            <Cloud size={10}/> STATUS: {status.toUpperCase()}
+                            <Icon name="cloud" size={10}/> STATUS: {status.toUpperCase()}
                         </div>
                     </header>
 
@@ -318,10 +346,10 @@
                             <div className="space-y-4 animate-up">
                                 <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
                                     <div className="flex justify-between items-center mb-4">
-                                        <h3 className="font-black text-lg flex items-center gap-2 text-slate-800"><Upload size={18} className="text-indigo-600"/> 데이터 업로드</h3>
+                                        <h3 className="font-black text-lg flex items-center gap-2 text-slate-800"><Icon name="upload" size={18} className="text-indigo-600"/> 데이터 업로드</h3>
                                         {status === 'modified' && (
                                             <button onClick={saveToCloud} className="bg-orange-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg flex items-center gap-2 animate-bounce">
-                                                <Save size={14}/> 서버 저장
+                                                <Icon name="save" size={14}/> 서버 저장
                                             </button>
                                         )}
                                     </div>
@@ -352,7 +380,7 @@
                                                 <div>
                                                     <h2 className="text-2xl font-black text-slate-900 italic tracking-tighter">제 {race.no} 경주</h2>
                                                     <div className="flex items-center gap-2 text-xs font-bold text-slate-400 mt-2">
-                                                        <Clock size={14}/> {race.startTime}
+                                                        <Icon name="clock" size={14}/> {race.startTime}
                                                         <span className="w-1 h-1 bg-slate-300 rounded-full"/>
                                                         <span className="text-indigo-600 font-black">{race.distance}M</span>
                                                     </div>
@@ -368,14 +396,14 @@
                                             {expertInfo && (
                                                 <div className="mt-4 p-3 bg-orange-50 rounded-xl border border-orange-100 relative">
                                                     <div className="flex flex-wrap gap-2 items-center mb-2">
-                                                        <span className="bg-orange-600 text-white text-[9px] px-2 py-0.5 rounded-full font-black uppercase flex items-center gap-1"><Star size={10} fill="white"/> 추천</span>
+                                                        <span className="bg-orange-600 text-white text-[9px] px-2 py-0.5 rounded-full font-black uppercase flex items-center gap-1"><Icon name="star" size={10} fill="white"/> 추천</span>
                                                         <div className="flex gap-1 ml-auto">
                                                             {expertInfo.recommended?.map(h => (
                                                                 <span key={h.no} className="w-6 h-6 rounded-full bg-white text-orange-600 border border-orange-200 flex items-center justify-center text-xs font-black shadow-sm">{h.no}</span>
                                                             ))}
                                                         </div>
                                                     </div>
-                                                    <p className="text-[11px] text-orange-900 font-medium leading-relaxed">
+                                                    <p className="text-[11px] text-orange-900 font-medium leading-relaxed italic">
                                                         {expertInfo.summary ? expertInfo.summary.substring(0, 80) + "..." : "전문가 상세 분석 참조"}
                                                     </p>
                                                     <div className="mt-2 pt-2 border-t border-orange-100 flex gap-3 text-[10px] font-bold">
@@ -405,8 +433,8 @@
                                                                 <div className="flex items-center gap-2 mb-1">
                                                                     <h3 className="font-bold text-slate-800 truncate text-base">{h.name}</h3>
                                                                     <div className="flex gap-1">
-                                                                        {isRec && <Star size={12} className="text-orange-400 fill-orange-400" />}
-                                                                        {isDark && <Zap size={12} className="text-purple-600 fill-purple-600" />}
+                                                                        {isRec && <Icon name="star" size={12} className="text-orange-400 fill-orange-400" />}
+                                                                        {isDark && <Icon name="zap" size={12} className="text-purple-600 fill-purple-600" />}
                                                                         {isFastS && <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"/>}
                                                                     </div>
                                                                 </div>
@@ -422,7 +450,7 @@
                                                                 <div className="text-[9px] text-slate-400 font-bold uppercase">Train</div>
                                                                 <div className="font-black text-slate-800">{h.trainingCount}</div>
                                                             </div>
-                                                            <div className="text-slate-300">{isExp ? <ChevronUp size={20}/> : <ChevronDown size={20}/>}</div>
+                                                            <div className="text-slate-300">{isExp ? <Icon name="chevron-up" size={20}/> : <Icon name="chevron-down" size={20}/>}</div>
                                                         </div>
 
                                                         {isExp && (
@@ -430,7 +458,7 @@
                                                                 {expComment && (
                                                                     <div className="mb-4 bg-white p-3 rounded-xl border-l-4 border-orange-400 shadow-sm">
                                                                         <div className="flex items-center gap-2 mb-1 text-orange-600 font-black text-[10px] uppercase tracking-wider">
-                                                                            <Zap size={10}/> Expert Insight
+                                                                            <Icon name="zap" size={10}/> Expert Insight
                                                                         </div>
                                                                         <p className="text-xs font-medium text-slate-700 leading-relaxed">
                                                                             {expComment}
