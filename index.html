@@ -3,15 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SMART RACING PRO - 통합 분석 시스템</title>
+    <title>SMART RACING PRO - 영구 저장 버전</title>
     
     <!-- 1. 필수 라이브러리 (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Lucide 아이콘 (Global 로드 방식 변경) -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/lucide-react@0.294.0/dist/umd/lucide-react.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;600;800&display=swap');
@@ -36,7 +35,7 @@
 <body>
     <div id="root">
         <div style="display:flex; justify-content:center; align-items:center; height:100vh; flex-direction:column; color:#94a3b8;">
-            <div style="font-weight:bold; font-size:1.2rem;">시스템 초기화 중...</div>
+            <div style="font-weight:bold; font-size:1.2rem;">데이터베이스 연결 중...</div>
             <div style="font-size:0.8rem; margin-top:10px;">잠시만 기다려주세요.</div>
         </div>
     </div>
@@ -78,17 +77,7 @@
     <!-- 3. React 애플리케이션 -->
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
-        
-        // 아이콘 래퍼 컴포넌트 (Lucide 로드 문제 해결)
-        const Icon = ({ name, size = 16, className = "" }) => {
-            useEffect(() => {
-                if (window.lucide) {
-                    window.lucide.createIcons();
-                }
-            }, [name]);
-
-            return <i data-lucide={name} style={{ width: size, height: size }} className={className}></i>;
-        };
+        const { Trophy, Calendar, Upload, Cloud, Save, MapPin, Clock, Info, ChevronDown, ChevronUp, Search, Zap, Star, Flame, FileText, AlertTriangle } = lucide;
 
         // --- 파서 엔진 ---
         const Parser = {
@@ -215,13 +204,14 @@
                     onAuthStateChanged(auth, (u) => {
                         setUser(u);
                         if (u) {
-                            // 날짜별 경로: dailyRacing/{YYYY-MM-DD}
+                            // 날짜별 데이터 저장소 (YYYY-MM-DD 문서)
                             const docRef = doc(db, 'artifacts', 'race-app-3e41d', 'public', 'data', 'dailyRacing', date);
                             onSnapshot(docRef, (snap) => {
                                 if (snap.exists()) {
                                     setDbData(snap.data());
                                     setStatus('synced');
                                 } else {
+                                    // 데이터 없음 -> 빈 상태로 시작
                                     setDbData({ seoul: { races: [], histories: [], analysis: { races: {} }, expert: {} }, busan: { races: [], histories: [], analysis: { races: {} }, expert: {} } });
                                     setStatus('ready');
                                 }
@@ -239,10 +229,11 @@
                 const { db, doc, setDoc } = window.fb;
                 setStatus('saving');
                 try {
+                    // 선택한 날짜 문서에 전체 데이터 저장
                     const docRef = doc(db, 'artifacts', 'race-app-3e41d', 'public', 'data', 'dailyRacing', date);
                     await setDoc(docRef, { ...dbData, lastUpdated: new Date().toISOString() });
                     setStatus('synced');
-                    alert("저장 완료!");
+                    alert("✅ 저장 완료! 이제 새로고침해도 데이터가 유지됩니다.");
                 } catch (e) {
                     alert("저장 실패: " + e.message);
                     setStatus('error');
@@ -277,18 +268,13 @@
             const expertInfo = current?.expert?.[race?.no];
             const analysisInfo = current?.analysis?.races?.[race?.no];
 
-            // 화면 렌더링 후 아이콘 갱신
-            useEffect(() => {
-                if (window.lucide) window.lucide.createIcons();
-            });
-
             return (
                 <div className="max-w-2xl mx-auto min-h-screen flex flex-col bg-slate-50 relative font-sans shadow-2xl">
                     {/* Header */}
                     <header className="bg-slate-900 text-white p-5 sticky top-0 z-50 shadow-lg">
                         <div className="flex justify-between items-center mb-4">
                             <div className="flex items-center gap-2">
-                                <Icon name="trophy" size={24} className="text-yellow-400"/>
+                                <Trophy className="text-yellow-400" size={24}/>
                                 <h1 className="text-xl font-black italic tracking-tighter">SMART RACING</h1>
                             </div>
                             <div className="flex gap-2">
@@ -297,7 +283,7 @@
                             </div>
                         </div>
                         <div className="flex gap-2 items-center bg-slate-800 p-2 rounded-xl">
-                            <Icon name="calendar" size={16} className="text-slate-400 ml-2"/>
+                            <Calendar size={16} className="text-slate-400 ml-2"/>
                             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="bg-transparent text-sm font-bold text-white outline-none w-32"/>
                             <div className="h-4 w-px bg-slate-600 mx-1"></div>
                             <div className="flex-1 flex gap-1">
@@ -306,7 +292,7 @@
                             </div>
                         </div>
                         <div className="text-[10px] text-center mt-2 text-slate-500 font-bold uppercase tracking-widest flex justify-center items-center gap-2">
-                            <Icon name="cloud" size={10}/> STATUS: {status.toUpperCase()}
+                            <Cloud size={10}/> STATUS: {status.toUpperCase()}
                         </div>
                     </header>
 
@@ -315,10 +301,10 @@
                             <div className="space-y-4 animate-up">
                                 <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
                                     <div className="flex justify-between items-center mb-4">
-                                        <h3 className="font-black text-lg flex items-center gap-2 text-slate-800"><Icon name="upload" size={18} className="text-indigo-600"/> 데이터 업로드</h3>
+                                        <h3 className="font-black text-lg flex items-center gap-2 text-slate-800"><Upload size={18} className="text-indigo-600"/> 데이터 업로드</h3>
                                         {status === 'modified' && (
                                             <button onClick={saveToCloud} className="bg-orange-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg flex items-center gap-2 animate-bounce">
-                                                <Icon name="save" size={14}/> 서버 저장
+                                                <Save size={14}/> 서버 저장
                                             </button>
                                         )}
                                     </div>
@@ -349,7 +335,7 @@
                                                 <div>
                                                     <h2 className="text-2xl font-black text-slate-900 italic tracking-tighter">제 {race.no} 경주</h2>
                                                     <div className="flex items-center gap-2 text-xs font-bold text-slate-400 mt-2">
-                                                        <Icon name="clock" size={14}/> {race.startTime}
+                                                        <Clock size={14}/> {race.startTime}
                                                         <span className="w-1 h-1 bg-slate-300 rounded-full"/>
                                                         <span className="text-indigo-600 font-black">{race.distance}M</span>
                                                     </div>
@@ -365,7 +351,7 @@
                                             {expertInfo && (
                                                 <div className="mt-4 p-3 bg-orange-50 rounded-xl border border-orange-100 relative">
                                                     <div className="flex flex-wrap gap-2 items-center mb-2">
-                                                        <span className="bg-orange-600 text-white text-[9px] px-2 py-0.5 rounded-full font-black uppercase flex items-center gap-1"><Icon name="star" size={10} fill="white"/> 추천</span>
+                                                        <span className="bg-orange-600 text-white text-[9px] px-2 py-0.5 rounded-full font-black uppercase flex items-center gap-1"><Star size={10} fill="white"/> 추천</span>
                                                         <div className="flex gap-1 ml-auto">
                                                             {expertInfo.recommended?.map(h => (
                                                                 <span key={h.no} className="w-6 h-6 rounded-full bg-white text-orange-600 border border-orange-200 flex items-center justify-center text-xs font-black shadow-sm">{h.no}</span>
@@ -402,8 +388,8 @@
                                                                 <div className="flex items-center gap-2 mb-1">
                                                                     <h3 className="font-bold text-slate-800 truncate text-base">{h.name}</h3>
                                                                     <div className="flex gap-1">
-                                                                        {isRec && <Icon name="star" size={12} className="text-orange-400 fill-orange-400" />}
-                                                                        {isDark && <Icon name="zap" size={12} className="text-purple-600 fill-purple-600" />}
+                                                                        {isRec && <Star size={12} className="text-orange-400 fill-orange-400" />}
+                                                                        {isDark && <Zap size={12} className="text-purple-600 fill-purple-600" />}
                                                                         {isFastS && <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"/>}
                                                                     </div>
                                                                 </div>
@@ -419,7 +405,7 @@
                                                                 <div className="text-[9px] text-slate-400 font-bold uppercase">Train</div>
                                                                 <div className="font-black text-slate-800">{h.trainingCount}</div>
                                                             </div>
-                                                            <div className="text-slate-300">{isExp ? <Icon name="chevron-up" size={20}/> : <Icon name="chevron-down" size={20}/>}</div>
+                                                            <div className="text-slate-300">{isExp ? <ChevronUp size={20}/> : <ChevronDown size={20}/>}</div>
                                                         </div>
 
                                                         {isExp && (
@@ -427,7 +413,7 @@
                                                                 {expComment && (
                                                                     <div className="mb-4 bg-white p-3 rounded-xl border-l-4 border-orange-400 shadow-sm">
                                                                         <div className="flex items-center gap-2 mb-1 text-orange-600 font-black text-[10px] uppercase tracking-wider">
-                                                                            <Icon name="zap" size={10}/> Expert Insight
+                                                                            <Zap size={10}/> Expert Insight
                                                                         </div>
                                                                         <p className="text-xs font-medium text-slate-700 leading-relaxed">
                                                                             {expComment}
