@@ -17,7 +17,6 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // 본인의 Firebase 설정값으로 정확히 교체되었는지 확인하세요.
         const firebaseConfig = {
             apiKey: "AIzaSyDVJRqmpFjR9g91AgQsJIV65_7BJ7yYEOU",
             authDomain: "race-app-3e41d.firebaseapp.com",
@@ -41,8 +40,8 @@
         body { font-family: 'Pretendard', sans-serif; background-color: #f8fafc; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-        .animate-pulse-slow { animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .7; } }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
@@ -111,7 +110,7 @@
 
         function App() {
             const [user, setUser] = useState(null);
-            const [syncStatus, setSyncStatus] = useState('connecting'); // connecting, synced, modified, error
+            const [syncStatus, setSyncStatus] = useState('connecting'); 
             const [view, setView] = useState('view');
             const [activeLoc, setActiveLoc] = useState('seoul');
             const [raceIdx, setRaceIdx] = useState(0);
@@ -123,7 +122,6 @@
                 lastUpdated: null
             });
 
-            // --- 데이터베이스 실시간 리스너 ---
             useEffect(() => {
                 if (!window.FB_INSTANCE) return;
                 const { auth, db, appId, signInAnonymously, onAuthStateChanged, onSnapshot, doc } = window.FB_INSTANCE;
@@ -134,17 +132,15 @@
                         onAuthStateChanged(auth, (u) => {
                             setUser(u);
                             if (u) {
-                                // 구글 서버에서 데이터 실시간으로 가져오기
                                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'racingDB');
                                 onSnapshot(docRef, (snap) => {
                                     if (snap.exists()) {
                                         setData(snap.data());
                                         setSyncStatus('synced');
                                     } else {
-                                        setSyncStatus('idle'); // 데이터 없음
+                                        setSyncStatus('idle');
                                     }
                                 }, (err) => {
-                                    console.error("Load Error:", err);
                                     setSyncStatus('error');
                                 });
                             }
@@ -156,7 +152,6 @@
                 initialize();
             }, []);
 
-            // --- 구글 서버에 저장 (중요: 이 버튼을 눌러야 새로고침해도 안날라감) ---
             const saveToCloud = async () => {
                 if (!user || !window.FB_INSTANCE) return;
                 setSyncStatus('syncing');
@@ -167,7 +162,7 @@
                         lastUpdated: new Date().toISOString()
                     });
                     setSyncStatus('synced');
-                    alert("✅ 서버 저장 완료! 이제 새로고침해도 데이터가 유지됩니다.");
+                    alert("✅ 서버 저장 완료! 이제 모든 기기에서 최신 정보를 볼 수 있습니다.");
                 } catch (e) { 
                     alert("❌ 저장 실패: " + e.message); 
                     setSyncStatus('error');
@@ -185,7 +180,9 @@
                         ...prev,
                         [loc]: { races: parsed }
                     }));
-                    setSyncStatus('modified'); // "저장 안 된 데이터 있음" 표시용
+                    setSyncStatus('modified');
+                    // 파일 선택 후 바로 경마지로 이동하게 할 수도 있지만, 
+                    // 관리자가 여러 파일을 올릴 수 있으므로 경고 배너만 띄웁니다.
                 };
                 reader.readAsText(file, 'UTF-8');
             };
@@ -195,7 +192,6 @@
 
             return (
                 <div className="max-w-xl mx-auto min-h-screen shadow-2xl bg-white flex flex-col">
-                    {/* 상단바: 연결 상태 표시 */}
                     <header className="bg-slate-900 text-white p-5 sticky top-0 z-50">
                         <div className="flex justify-between items-center mb-4">
                             <div className="flex items-center gap-2">
@@ -217,50 +213,49 @@
 
                         <nav className="flex bg-slate-800 p-1 rounded-xl">
                             <button onClick={() => setView('view')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${view === 'view' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}>경마지 보기</button>
-                            <button onClick={() => setView('admin')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${view === 'admin' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400'}`}>관리자(업로드)</button>
+                            <button onClick={() => setView('admin')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${view === 'admin' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400'}`}>데이터 관리</button>
                         </nav>
                     </header>
 
                     <main className="flex-1 p-4">
                         {view === 'admin' ? (
-                            <div className="space-y-4">
-                                {/* 저장 안내 배너 */}
+                            <div className="space-y-4 animate-fade-in">
                                 {syncStatus === 'modified' && (
-                                    <div className="bg-orange-50 border border-orange-200 p-4 rounded-2xl flex items-center justify-between animate-fade-in">
+                                    <div className="bg-orange-50 border border-orange-200 p-4 rounded-2xl flex items-center justify-between">
                                         <div className="text-xs">
-                                            <div className="font-black text-orange-900">⚠️ 저장되지 않은 데이터가 있습니다!</div>
-                                            <div className="text-orange-600 mt-1">오른쪽 버튼을 눌러 서버에 영구 저장하세요.</div>
+                                            <div className="font-black text-orange-900">✨ 새 데이터를 불러왔습니다!</div>
+                                            <div className="text-orange-600 mt-1">[경마지 보기] 탭에서 확인 후 저장하세요.</div>
                                         </div>
-                                        <button onClick={saveCloud} className="bg-orange-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg flex items-center gap-2">
+                                        <button onClick={saveToCloud} className="bg-orange-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg flex items-center gap-2">
                                             <Icon name="Save" size={14}/> 서버저장
                                         </button>
                                     </div>
                                 )}
 
                                 <div className="bg-white p-5 rounded-2xl border-2 border-slate-100 space-y-4">
-                                    <h3 className="font-bold flex items-center gap-2 text-slate-700"><Icon name="Upload"/> 새 데이터 업로드</h3>
+                                    <h3 className="font-bold flex items-center gap-2 text-slate-700"><Icon name="Upload"/> 파일 업로드 (즉시 반영됨)</h3>
                                     
-                                    <div className="space-y-3">
-                                        <div className="p-3 bg-slate-50 rounded-xl border border-dashed border-slate-300">
-                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">서울 경마 (CSV)</label>
-                                            <input type="file" onChange={e => handleFileUpload(e, 'seoul')} className="w-full text-xs file:bg-white file:border file:border-slate-200 file:rounded-md file:px-3 file:py-1 file:font-bold"/>
+                                    <div className="grid grid-cols-1 gap-3">
+                                        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">서울 경마 데이터</label>
+                                            <input type="file" onChange={e => handleFileUpload(e, 'seoul')} className="w-full text-xs file:bg-white file:border file:border-slate-200 file:rounded-md file:px-3 file:py-1.5 file:font-bold cursor-pointer"/>
+                                            {data.seoul.races.length > 0 && <p className="text-[10px] text-indigo-600 font-bold mt-2">✓ 서울 {data.seoul.races.length}개 경주 로드됨</p>}
                                         </div>
-                                        <div className="p-3 bg-slate-50 rounded-xl border border-dashed border-slate-300">
-                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">부산 경마 (CSV)</label>
-                                            <input type="file" onChange={e => handleFileUpload(e, 'busan')} className="w-full text-xs file:bg-white file:border file:border-slate-200 file:rounded-md file:px-3 file:py-1 file:font-bold"/>
+                                        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">부산 경마 데이터</label>
+                                            <input type="file" onChange={e => handleFileUpload(e, 'busan')} className="w-full text-xs file:bg-white file:border file:border-slate-200 file:rounded-md file:px-3 file:py-1.5 file:font-bold cursor-pointer"/>
+                                            {data.busan.races.length > 0 && <p className="text-[10px] text-blue-600 font-bold mt-2">✓ 부산 {data.busan.races.length}개 경주 로드됨</p>}
                                         </div>
                                     </div>
 
-                                    {syncStatus === 'synced' && (
-                                        <div className="pt-4 border-t flex justify-between items-center text-[10px] text-slate-400 font-bold">
-                                            <span>서버 최종 업데이트</span>
-                                            <span>{data.lastUpdated ? new Date(data.lastUpdated).toLocaleString() : '기록 없음'}</span>
-                                        </div>
-                                    )}
+                                    <div className="pt-4 border-t flex justify-between items-center text-[10px] text-slate-400 font-bold">
+                                        <span>최종 서버 동기화</span>
+                                        <span>{data.lastUpdated ? new Date(data.lastUpdated).toLocaleString() : '기록 없음'}</span>
+                                    </div>
                                 </div>
                             </div>
                         ) : (
-                            <div className="space-y-4">
+                            <div className="space-y-4 animate-fade-in">
                                 <div className="flex gap-2 p-1 bg-slate-100 rounded-xl">
                                     <button onClick={() => {setActiveLoc('seoul'); setRaceIdx(0);}} className={`flex-1 py-2 rounded-lg text-xs font-bold ${activeLoc === 'seoul' ? 'bg-white shadow-sm' : 'text-slate-400'}`}>서울</button>
                                     <button onClick={() => {setActiveLoc('busan'); setRaceIdx(0);}} className={`flex-1 py-2 rounded-lg text-xs font-bold ${activeLoc === 'busan' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400'}`}>부산</button>
@@ -307,8 +302,8 @@
                                 ) : (
                                     <div className="py-20 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
                                         <Icon name="CloudOff" size={40} className="mx-auto text-slate-300 mb-3"/>
-                                        <p className="text-slate-400 font-bold">서버에 저장된 데이터가 없습니다.</p>
-                                        <p className="text-[10px] text-slate-300 uppercase mt-2">관리자 탭에서 파일을 업로드하고 [서버저장]을 누르세요.</p>
+                                        <p className="text-slate-400 font-bold">표시할 데이터가 없습니다.</p>
+                                        <p className="text-[10px] text-slate-300 uppercase mt-2">데이터 관리 탭에서 파일을 업로드해 보세요.</p>
                                     </div>
                                 )}
                             </div>
@@ -316,7 +311,7 @@
                     </main>
 
                     <footer className="p-4 text-center border-t text-[9px] font-black text-slate-300 uppercase tracking-widest">
-                        Smart Racing Engine Sync v1.1
+                        Smart Racing Engine Sync v1.2
                     </footer>
                 </div>
             );
