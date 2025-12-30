@@ -10,8 +10,9 @@
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Lucide Icons (전역 객체용) -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Lucide React Icons (UMD 버전) -->
+    <script src="https://unpkg.com/lucide-react@0.294.0/dist/umd/lucide-react.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;600;800&display=swap');
@@ -79,7 +80,7 @@
             const app = initializeApp(firebaseConfig);
             const auth = getAuth(app);
             const db = getFirestore(app);
-            const appId = 'racing-pro-final-v10';
+            const appId = 'racing-pro-final-v11'; // 버전 업데이트
 
             // 전역 객체에 할당 (React에서 접근)
             window.fb = { 
@@ -98,20 +99,18 @@
     <!-- 3. React 애플리케이션 -->
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
+        
+        // Lucide 아이콘 가져오기 (안전한 접근)
+        const Icons = window.lucideReact || {};
+        const { Trophy, Calendar, Upload, Cloud, Save, MapPin, Clock, Info, ChevronDown, ChevronUp, Search, Zap, Star, Flame, FileText, Activity, AlertCircle, CheckCircle2 } = Icons;
 
-        // 아이콘 컴포넌트 (Lucide CDN 대응)
-        const Icon = ({ name, size = 16, className = "" }) => {
-            const iRef = useRef(null);
-            useEffect(() => {
-                if (window.lucide) window.lucide.createIcons({
-                    root: iRef.current,
-                    name: name,
-                    attrs: { width: size, height: size, class: className }
-                });
-            }, [name, size, className]);
-            
-            // Fallback for simple rendering
-            return <i ref={iRef} data-lucide={name} className={className} style={{width: size, height: size, display: 'inline-block'}}></i>;
+        // 아이콘이 없을 경우를 대비한 폴백 컴포넌트
+        const SafeIcon = ({ name, size = 16, className = "" }) => {
+            const IconComponent = Icons[name.charAt(0).toUpperCase() + name.slice(1)];
+            if (IconComponent) {
+                return <IconComponent size={size} className={className} />;
+            }
+            return <span className={`inline-block w-4 h-4 bg-gray-400 rounded ${className}`}></span>; // 폴백
         };
 
         // --- 파서 엔진 ---
@@ -188,11 +187,9 @@
                     }
                     const dark = (content.match(/\*\*복병.*?\*\*[:：]\s*([\d, ]+)/) || [])[1]?.split(',').map(s=>s.trim()).filter(Boolean) || [];
                     const lead = (content.match(/\*\*선행.*?\*\*[:：]\s*([\d, ]+)/) || [])[1]?.split(',').map(s=>s.trim()).filter(Boolean) || [];
-                    
                     const horseComments = {};
                     const cMatch = content.matchAll(/\*\*\s*\((\d+)\)\s*([가-힣A-Z\s()]+)\s*\*\*\s*은?(.+?)(?=\s*(?:\r?\n\r?\n|\*\*\(|\*\*추천|\*\*복병|\*\*선행|$))/gs);
                     for (const m of cMatch) horseComments[m[1]] = m[3].trim().replace(/\s+/g, ' ');
-                    
                     const summary = content.split('\n').find(l => l.trim() && !l.startsWith('**') && !l.includes('등급')) || "";
                     result[loc][no] = { recommended, dark, lead, horseComments, summary };
                 }
@@ -218,35 +215,31 @@
             const [raceIdx, setRaceIdx] = useState(0);
             const [expanded, setExpanded] = useState(null);
             const [dbData, setDbData] = useState({ seoul: { races: [], histories: [], analysis: { races: {} }, expert: {} }, busan: { races: [], histories: [], analysis: { races: {} }, expert: {} } });
+            const [toast, setToast] = useState(null);
 
-            // 안전장치: Firebase 로드 대기
+            // Firebase Logic
             useEffect(() => {
-                const interval = setInterval(() => {
+                const checkFb = setInterval(() => {
                     if (window.fb && window.fb.isReady) {
-                        clearInterval(interval);
-                        initFirebase();
+                        clearInterval(checkFb);
+                        initializeFirebase();
+                    } else if (window.fb && window.fb.error) {
+                        clearInterval(checkFb);
+                        setStatus('error');
+                        alert("Firebase 오류: " + window.fb.error);
                     }
                 }, 100);
-                
-                // 5초 후에도 안되면 강제 에러 처리
-                setTimeout(() => {
-                    if (status === 'connecting') {
-                        setStatus('offline_mode'); 
-                        console.warn("Firebase taking too long, entering offline mode.");
-                    }
-                }, 5000);
-
-                return () => clearInterval(interval);
+                return () => clearInterval(checkFb);
             }, [date]);
 
-            const initFirebase = async () => {
+            const initializeFirebase = async () => {
                 const { auth, db, doc, onSnapshot, signInAnonymously, onAuthStateChanged, appId } = window.fb;
                 try {
                     await signInAnonymously(auth);
                     onAuthStateChanged(auth, (u) => {
                         setUser(u);
                         if (u) {
-                            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'dailyRacing', date);
+                            const docRef = doc(db, 'artifacts', 'race-app-3e41d', 'public', 'data', 'dailyRacing', date);
                             onSnapshot(docRef, (snap) => {
                                 if (snap.exists()) {
                                     setDbData(snap.data());
@@ -259,24 +252,29 @@
                         }
                     });
                 } catch (e) {
-                    console.error("Auth Failed", e);
+                    console.error(e);
                     setStatus('error');
                 }
             };
 
             const saveToCloud = async () => {
-                if (!user) return alert("서버 연결 중입니다.");
-                const { db, doc, setDoc, appId } = window.fb;
+                if (!user) return alert("로그인 필요");
+                const { db, doc, setDoc } = window.fb;
                 setStatus('saving');
                 try {
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'dailyRacing', date);
+                    const docRef = doc(db, 'artifacts', 'race-app-3e41d', 'public', 'data', 'dailyRacing', date);
                     await setDoc(docRef, { ...dbData, lastUpdated: new Date().toISOString() });
                     setStatus('synced');
-                    alert("✅ 저장 완료!");
+                    triggerToast("저장 완료!");
                 } catch (e) {
-                    alert("저장 실패: " + e.message);
+                    triggerToast("저장 실패: " + e.message, "error");
                     setStatus('error');
                 }
+            };
+
+            const triggerToast = (msg, type = "success") => {
+                setToast({ msg, type });
+                setTimeout(() => setToast(null), 3000);
             };
 
             const handleFileUpload = (e, type, targetLoc) => {
@@ -299,8 +297,9 @@
                             return next;
                         });
                         setStatus('modified');
+                        triggerToast("파일 로드 성공");
                     } catch (err) {
-                        alert("파싱 오류: " + err.message);
+                        triggerToast("파싱 오류: " + err.message, "error");
                     }
                 };
                 reader.readAsText(file, 'UTF-8');
@@ -311,15 +310,20 @@
             const expertInfo = current?.expert?.[race?.no];
             const analysisInfo = current?.analysis?.races?.[race?.no];
 
-            // 화면 렌더링 시 아이콘 갱신
-            useEffect(() => { if (window.lucide) window.lucide.createIcons(); });
-
             return (
                 <div className="max-w-2xl mx-auto min-h-screen flex flex-col bg-slate-50 relative font-sans shadow-2xl">
+                    {/* Toast */}
+                    {toast && (
+                        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-4 py-2 rounded-full shadow-xl flex items-center gap-2 animate-bounce text-xs font-bold ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-600 text-white'}`}>
+                            {toast.msg}
+                        </div>
+                    )}
+
+                    {/* Header */}
                     <header className="bg-slate-900 text-white p-5 sticky top-0 z-50 shadow-lg">
                         <div className="flex justify-between items-center mb-4">
                             <div className="flex items-center gap-2">
-                                <Icon name="trophy" size={24} className="text-yellow-400"/>
+                                <SafeIcon name="trophy" size={24} className="text-yellow-400"/>
                                 <h1 className="text-xl font-black italic tracking-tighter">SMART RACING</h1>
                             </div>
                             <div className="flex gap-2">
@@ -328,7 +332,7 @@
                             </div>
                         </div>
                         <div className="flex gap-2 items-center bg-slate-800 p-2 rounded-xl">
-                            <Icon name="calendar" size={16} className="text-slate-400 ml-2"/>
+                            <SafeIcon name="calendar" size={16} className="text-slate-400 ml-2"/>
                             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="bg-transparent text-sm font-bold text-white outline-none w-32"/>
                             <div className="h-4 w-px bg-slate-600 mx-1"></div>
                             <div className="flex-1 flex gap-1">
@@ -337,7 +341,7 @@
                             </div>
                         </div>
                         <div className="text-[10px] text-center mt-2 text-slate-500 font-bold uppercase tracking-widest flex justify-center items-center gap-2">
-                            <Icon name="cloud" size={10}/> STATUS: {status.toUpperCase()}
+                            <SafeIcon name="cloud" size={10}/> STATUS: {status.toUpperCase()}
                         </div>
                     </header>
 
@@ -346,10 +350,10 @@
                             <div className="space-y-4 animate-up">
                                 <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
                                     <div className="flex justify-between items-center mb-4">
-                                        <h3 className="font-black text-lg flex items-center gap-2 text-slate-800"><Icon name="upload" size={18} className="text-indigo-600"/> 데이터 업로드</h3>
+                                        <h3 className="font-black text-lg flex items-center gap-2 text-slate-800"><SafeIcon name="upload" size={18} className="text-indigo-600"/> 데이터 업로드</h3>
                                         {status === 'modified' && (
                                             <button onClick={saveToCloud} className="bg-orange-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg flex items-center gap-2 animate-bounce">
-                                                <Icon name="save" size={14}/> 서버 저장
+                                                <SafeIcon name="save" size={14}/> 서버 저장
                                             </button>
                                         )}
                                     </div>
@@ -380,7 +384,7 @@
                                                 <div>
                                                     <h2 className="text-2xl font-black text-slate-900 italic tracking-tighter">제 {race.no} 경주</h2>
                                                     <div className="flex items-center gap-2 text-xs font-bold text-slate-400 mt-2">
-                                                        <Icon name="clock" size={14}/> {race.startTime}
+                                                        <SafeIcon name="clock" size={14}/> {race.startTime}
                                                         <span className="w-1 h-1 bg-slate-300 rounded-full"/>
                                                         <span className="text-indigo-600 font-black">{race.distance}M</span>
                                                     </div>
@@ -396,14 +400,14 @@
                                             {expertInfo && (
                                                 <div className="mt-4 p-3 bg-orange-50 rounded-xl border border-orange-100 relative">
                                                     <div className="flex flex-wrap gap-2 items-center mb-2">
-                                                        <span className="bg-orange-600 text-white text-[9px] px-2 py-0.5 rounded-full font-black uppercase flex items-center gap-1"><Icon name="star" size={10} fill="white"/> 추천</span>
+                                                        <span className="bg-orange-600 text-white text-[9px] px-2 py-0.5 rounded-full font-black uppercase flex items-center gap-1"><SafeIcon name="star" size={10} fill="white"/> 추천</span>
                                                         <div className="flex gap-1 ml-auto">
                                                             {expertInfo.recommended?.map(h => (
                                                                 <span key={h.no} className="w-6 h-6 rounded-full bg-white text-orange-600 border border-orange-200 flex items-center justify-center text-xs font-black shadow-sm">{h.no}</span>
                                                             ))}
                                                         </div>
                                                     </div>
-                                                    <p className="text-[11px] text-orange-900 font-medium leading-relaxed italic">
+                                                    <p className="text-[11px] text-orange-900 font-medium leading-relaxed">
                                                         {expertInfo.summary ? expertInfo.summary.substring(0, 80) + "..." : "전문가 상세 분석 참조"}
                                                     </p>
                                                     <div className="mt-2 pt-2 border-t border-orange-100 flex gap-3 text-[10px] font-bold">
@@ -433,8 +437,8 @@
                                                                 <div className="flex items-center gap-2 mb-1">
                                                                     <h3 className="font-bold text-slate-800 truncate text-base">{h.name}</h3>
                                                                     <div className="flex gap-1">
-                                                                        {isRec && <Icon name="star" size={12} className="text-orange-400 fill-orange-400" />}
-                                                                        {isDark && <Icon name="zap" size={12} className="text-purple-600 fill-purple-600" />}
+                                                                        {isRec && <SafeIcon name="star" size={12} className="text-orange-400 fill-orange-400" />}
+                                                                        {isDark && <SafeIcon name="zap" size={12} className="text-purple-600 fill-purple-600" />}
                                                                         {isFastS && <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"/>}
                                                                     </div>
                                                                 </div>
@@ -450,7 +454,7 @@
                                                                 <div className="text-[9px] text-slate-400 font-bold uppercase">Train</div>
                                                                 <div className="font-black text-slate-800">{h.trainingCount}</div>
                                                             </div>
-                                                            <div className="text-slate-300">{isExp ? <Icon name="chevron-up" size={20}/> : <Icon name="chevron-down" size={20}/>}</div>
+                                                            <div className="text-slate-300">{isExp ? <SafeIcon name="chevron-up" size={20}/> : <SafeIcon name="chevron-down" size={20}/>}</div>
                                                         </div>
 
                                                         {isExp && (
@@ -458,7 +462,7 @@
                                                                 {expComment && (
                                                                     <div className="mb-4 bg-white p-3 rounded-xl border-l-4 border-orange-400 shadow-sm">
                                                                         <div className="flex items-center gap-2 mb-1 text-orange-600 font-black text-[10px] uppercase tracking-wider">
-                                                                            <Icon name="zap" size={10}/> Expert Insight
+                                                                            <SafeIcon name="zap" size={10}/> Expert Insight
                                                                         </div>
                                                                         <p className="text-xs font-medium text-slate-700 leading-relaxed">
                                                                             {expComment}
