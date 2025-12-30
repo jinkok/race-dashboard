@@ -1,21 +1,23 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { 
   Trophy, Rocket, Calendar, Database, FileUp, CloudUpload, 
-  Clock, User, Zap, Info, ChevronDown, ChevronUp, Activity
+  Clock, User, Zap, Info, ChevronDown, ChevronUp, Activity,
+  MapPin, CheckCircle2, AlertCircle, Search
 } from 'lucide-react';
 
-// --- Firebase 구성 (사용자 프로젝트 정보) ---
+// --- Firebase 초기화 ---
 const firebaseConfig = JSON.parse(__firebase_config);
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'racing-master-pro-v3';
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'racing-pro-final';
 
-// --- 데이터 파싱 유틸리티 ---
+// --- 유틸리티 및 데이터 엔진 ---
 const Parser = {
+  // 출전표 CSV 파싱
   entry: (text) => {
     const lines = text.split('\n');
     const races = [];
@@ -24,34 +26,26 @@ const Parser = {
     lines.forEach(line => {
       const t = line.trim();
       if (!t) return;
-      if (t.includes('경주') && (t.includes('서울') || t.includes('부산') || t.includes('부경'))) {
+      if (t.includes('제') && t.includes('경주')) {
         if (current) races.push(current);
-        const noMatch = t.match(/제(\d+)경주/);
-        const timeMatch = t.split(',')[1]?.trim();
-        const distMatch = t.match(/(\d{3,4})M/i);
-        current = {
-          no: noMatch ? noMatch[1] : '?',
-          startTime: timeMatch || '',
-          distance: distMatch ? distMatch[1] : '',
-          conditions: t,
-          horses: []
-        };
+        const no = (t.match(/제(\d+)경주/) || [])[1] || '?';
+        const time = t.split(',')[1]?.trim() || '';
+        const dist = (t.match(/(\d{3,4})M/i) || [])[1];
+        current = { no, startTime: time, distance: dist, conditions: t, horses: [] };
         isTable = false;
         return;
       }
       if (t.startsWith('번호')) { isTable = true; return; }
       if (current && isTable) {
         const cols = t.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-        if (cols.length > 10) {
+        if (cols.length > 5) {
           current.horses.push({
             no: cols[0]?.replace(/[▲*]/g, ''),
             name: cols[1]?.trim(),
             origin: cols[2], sex: cols[3], age: cols[4],
-            rating: cols[5]?.trim(), weight: cols[6]?.replace('*', ''),
-            weightDiff: cols[7], jockey: cols[8]?.trim(),
-            trainer: cols[9]?.trim(), trainingCount: cols[11],
-            cycle: cols[12], gear: cols[13]?.replace(/"/g, ''),
-            father: cols[15], grade: cols[16]?.trim()
+            rating: cols[5], weight: cols[6], weightDiff: cols[7],
+            jockey: cols[8], trainer: cols[9], trainingCount: cols[11],
+            cycle: cols[12], gear: cols[13], father: cols[15], grade: cols[16]
           });
         }
       }
@@ -59,139 +53,141 @@ const Parser = {
     if (current) races.push(current);
     return races;
   },
+  // 전적 CSV 파싱
   history: (text) => {
     const lines = text.split('\n');
     return lines.slice(1).map(line => {
       const c = line.split(',');
       if (c.length < 25) return null;
       return {
-        raceNo: c[1]?.replace(/[^0-9]/g, ''),
         horseName: c[6]?.trim(),
         date: c[12], dist: c[14], rec: c[15],
-        rank: c[16], jockey: c[21], s1f: c[23], g1f: c[25], bodyW: c[26]
+        rank: c[16], s1f: c[23], g1f: c[25], bodyW: c[26]
       };
     }).filter(Boolean);
   },
+  // 전문가 분석 TXT 파싱
   expert: (text) => {
     const result = { seoul: {}, busan: {} };
-    const sections = text.split(/\*\*(서울|부산|부경)\s*(\d+)경주/);
-    for (let i = 1; i < sections.length; i += 3) {
-      const loc = (sections[i] === '서울') ? 'seoul' : 'busan';
-      const no = sections[i+1];
-      const content = sections[i+2] || '';
+    const chunks = text.split(/\*\*(서울|부산|부경)\s*(\d+)경주/);
+    for (let i = 1; i < chunks.length; i += 3) {
+      const loc = (chunks[i] === '서울') ? 'seoul' : 'busan';
+      const no = chunks[i+1];
+      const content = chunks[i+2] || '';
+      const rec = [];
+      const mAll = content.matchAll(/\((\d+)\)\s*([가-힣A-Z]+)/g);
+      for (const m of mAll) rec.push({ no: m[1], name: m[2] });
       
-      const recMatch = content.match(/추천.*?[:：]\s*(.+?)(?=\s*(?:\*\*|복병|선행)|$)/s);
-      const recommended = [];
-      if (recMatch) {
-        const mAll = recMatch[1].matchAll(/\((\d+)\)\s*([가-힣A-Z]+)/g);
-        for (const m of mAll) recommended.push({ no: m[1], name: m[2] });
-      }
-
       const horseComments = {};
-      const commentPattern = /\((\d+)\)\s*([가-힣A-Z\s]+)\*\*은?(.+?)(?=\s*(?:\(\d+\)|\*\*추천|\*\*복병|$))/gs;
-      let m;
-      while ((m = commentPattern.exec(content)) !== null) {
-        horseComments[m[1]] = m[3].trim().replace(/\s+/g, ' ');
-      }
+      const cMatch = content.matchAll(/\((\d+)\)\s*([가-힣A-Z\s]+)\*\*은?(.+?)(?=\s*(?:\(\d+\)|\*\*|$))/gs);
+      for (const m of cMatch) horseComments[m[1]] = m[3].trim();
 
-      result[loc][no] = {
-        recommended,
-        darkHorse: (content.match(/복병.*?[:：]\s*([\d, ]+)/) || [])[1]?.split(',').map(s => s.trim()) || [],
-        leadHorse: (content.match(/선행.*?[:：]\s*([\d, ]+)/) || [])[1]?.split(',').map(s => s.trim()) || [],
-        horseComments
+      result[loc][no] = { 
+        recommended: rec, 
+        dark: (content.match(/복병.*?[:：]\s*([\d, ]+)/) || [])[1]?.split(',') || [],
+        lead: (content.match(/선행.*?[:：]\s*([\d, ]+)/) || [])[1]?.split(',') || [],
+        horseComments 
       };
     }
     return result;
   }
 };
 
-// --- 컴포넌트 스타일 클래스 ---
-const getHorseColor = (no) => {
+const getHorseBadgeStyle = (no) => {
   const n = parseInt(no);
-  if (n === 1) return "bg-white text-slate-900 border border-slate-200";
-  if (n === 2) return "bg-yellow-400 text-slate-900";
-  if (n === 3) return "bg-red-500 text-white";
-  if (n === 4) return "bg-slate-900 text-white";
-  if (n === 5) return "bg-blue-500 text-white";
-  if (n === 6) return "bg-green-600 text-white";
-  if (n === 7) return "bg-amber-800 text-white";
-  if (n === 8) return "bg-pink-400 text-white";
-  if (n === 9) return "bg-purple-600 text-white";
-  if (n === 10) return "bg-sky-400 text-slate-900";
-  if (n === 11) return "bg-white text-green-600 border-4 border-green-600";
-  if (n === 12) return "bg-yellow-400 text-green-600 border-4 border-green-600";
-  return "bg-slate-100 text-slate-500";
+  const styles = [
+    "bg-white text-slate-900 border border-slate-200", // 1
+    "bg-yellow-400 text-slate-900", // 2
+    "bg-red-500 text-white", // 3
+    "bg-slate-900 text-white", // 4
+    "bg-blue-600 text-white", // 5
+    "bg-green-600 text-white", // 6
+    "bg-amber-800 text-white", // 7
+    "bg-pink-400 text-white", // 8
+    "bg-purple-600 text-white", // 9
+    "bg-sky-400 text-slate-900", // 10
+    "bg-white text-green-600 border-4 border-green-600", // 11
+    "bg-yellow-400 text-green-600 border-4 border-green-600" // 12
+  ];
+  return styles[n - 1] || "bg-slate-100 text-slate-400";
 };
 
+// --- 메인 컴포넌트 ---
 export default function App() {
   const [user, setUser] = useState(null);
-  const [syncStatus, setSyncStatus] = useState('connecting');
+  const [syncStatus, setSyncStatus] = useState('idle'); // idle, loading, synced, modified, error
   const [view, setView] = useState('view');
   const [activeLoc, setActiveLoc] = useState('seoul');
   const [selectedDate, setSelectedDate] = useState('2025-12-28');
   const [raceIdx, setRaceIdx] = useState(0);
   const [expanded, setExpanded] = useState(null);
+  const [feedback, setFeedback] = useState(null);
 
   const [dbData, setDbData] = useState({
     seoul: { races: [], histories: [], analysis: { races: {} }, expert: {} },
     busan: { races: [], histories: [], analysis: { races: {} }, expert: {} }
   });
 
-  // RULE 3: Auth Before Queries
+  // RULE 3: Auth Logic
   useEffect(() => {
     const initAuth = async () => {
       try {
-        await signInAnonymously(auth);
-      } catch (e) {
-        console.error("Auth failed:", e);
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (err) {
+        console.error("Auth error", err);
       }
     };
     initAuth();
-    const unsubscribe = onAuthStateChanged(auth, setUser);
-    return () => unsubscribe();
+    return onAuthStateChanged(auth, setUser);
   }, []);
 
-  // RULE 3 & RULE 1: Fetch data after Auth
+  // RULE 3 & RULE 1: Data Sync
   useEffect(() => {
     if (!user) return;
     setSyncStatus('loading');
+    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'dailyRacing', selectedDate, 'master');
     
-    // Path: /artifacts/{appId}/public/data/dailyRacing/{date}
-    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'dailyRacing', selectedDate);
-    
-    const unsubscribe = onSnapshot(docRef, 
+    return onSnapshot(docRef, 
       (snap) => {
         if (snap.exists()) {
           setDbData(snap.data());
           setSyncStatus('synced');
         } else {
+          setSyncStatus('empty');
           setDbData({
             seoul: { races: [], histories: [], analysis: { races: {} }, expert: {} },
             busan: { races: [], histories: [], analysis: { races: {} }, expert: {} }
           });
-          setSyncStatus('empty');
         }
       },
-      (error) => {
-        console.error("Firestore error:", error);
+      (err) => {
+        console.error("Firestore error", err);
         setSyncStatus('error');
       }
     );
-    return () => unsubscribe();
   }, [user, selectedDate]);
 
   const saveToCloud = async () => {
     if (!user) return;
     setSyncStatus('syncing');
     try {
-      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'dailyRacing', selectedDate);
+      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'dailyRacing', selectedDate, 'master');
       await setDoc(docRef, { ...dbData, lastUpdated: new Date().toISOString() });
       setSyncStatus('synced');
-      // No alert used as per instructions
+      showFeedback("데이터가 클라우드에 영구 저장되었습니다.");
     } catch (e) {
-      console.error("Save error:", e);
       setSyncStatus('error');
+      showFeedback("저장 실패: " + e.message, "error");
     }
+  };
+
+  const showFeedback = (msg, type = "success") => {
+    setFeedback({ msg, type });
+    setTimeout(() => setFeedback(null), 3000);
   };
 
   const handleFileUpload = (e, type, loc) => {
@@ -201,7 +197,7 @@ export default function App() {
     reader.onload = (ev) => {
       const text = ev.target.result;
       setDbData(prev => {
-        const next = { ...prev };
+        const next = JSON.parse(JSON.stringify(prev)); // Deep copy
         if (type === 'entry') next[loc].races = Parser.entry(text);
         if (type === 'history') next[loc].histories = Parser.history(text);
         if (type === 'analysis') next[loc].analysis = JSON.parse(text);
@@ -223,225 +219,251 @@ export default function App() {
   const analysisInfo = current?.analysis?.races?.[race?.no];
 
   return (
-    <div className="max-w-2xl mx-auto min-h-screen flex flex-col bg-slate-50 shadow-2xl overflow-hidden font-sans">
-      {/* Header */}
-      <header className="bg-slate-900 text-white p-5 sticky top-0 z-50 shadow-xl">
-        <div className="flex justify-between items-center mb-5">
+    <div className="max-w-2xl mx-auto min-h-screen flex flex-col bg-slate-50 shadow-2xl relative font-sans text-slate-800">
+      {/* Toast Feedback */}
+      {feedback && (
+        <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 animate-bounce border ${feedback.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-600 text-white'}`}>
+          {feedback.type === 'error' ? <AlertCircle size={18}/> : <CheckCircle2 size={18}/>}
+          <span className="text-sm font-bold">{feedback.msg}</span>
+        </div>
+      )}
+
+      {/* Modern Header */}
+      <header className="bg-slate-900 text-white p-6 sticky top-0 z-50 shadow-xl">
+        <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-yellow-300 to-yellow-500 rounded-xl text-slate-900 shadow-lg shadow-yellow-500/20">
-              <Rocket size={24} />
+            <div className="p-3 bg-gradient-to-br from-yellow-300 to-yellow-500 rounded-2xl text-slate-900 shadow-lg shadow-yellow-500/20">
+              <Rocket size={28} />
             </div>
             <div>
-              <h1 className="text-xl font-black tracking-tighter uppercase leading-none">Smart Racing <span className="text-yellow-400">Pro</span></h1>
-              <div className="flex items-center gap-1.5 mt-1">
-                <div className={`w-1.5 h-1.5 rounded-full ${syncStatus === 'synced' ? 'bg-green-500' : 'bg-orange-500 animate-pulse'}`} />
-                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{syncStatus}</span>
+              <h1 className="text-2xl font-black tracking-tighter uppercase leading-none italic">Smart Racing <span className="text-yellow-400">Pro</span></h1>
+              <div className="flex items-center gap-2 mt-2">
+                <div className={`w-2 h-2 rounded-full ${syncStatus === 'synced' ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.5)]' : 'bg-orange-400 animate-pulse'}`} />
+                <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{syncStatus}</span>
               </div>
             </div>
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => setView('view')} className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${view === 'view' ? 'bg-white text-slate-900' : 'text-slate-500 hover:text-white'}`}>VIEW</button>
-            <button onClick={() => setView('admin')} className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${view === 'admin' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-500 hover:text-white'}`}>ADMIN</button>
+          <div className="flex bg-slate-800 p-1 rounded-2xl border border-slate-700">
+            <button onClick={() => setView('view')} className={`px-5 py-2 rounded-xl text-xs font-black transition-all ${view === 'view' ? 'bg-white text-slate-900 shadow-md scale-105' : 'text-slate-500 hover:text-white'}`}>VIEW</button>
+            <button onClick={() => setView('admin')} className={`px-5 py-2 rounded-xl text-xs font-black transition-all ${view === 'admin' ? 'bg-indigo-600 text-white shadow-md scale-105' : 'text-slate-500 hover:text-white'}`}>ADMIN</button>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 bg-slate-800/50 p-2 rounded-2xl">
-          <div className="flex items-center gap-2 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-700">
-            <Calendar size={14} className="text-slate-400"/>
-            <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="bg-transparent text-xs font-black focus:outline-none w-28 text-white"/>
+        <div className="flex items-center gap-4 bg-slate-800/40 p-2.5 rounded-3xl backdrop-blur-md border border-white/5">
+          <div className="flex items-center gap-3 bg-slate-900 px-4 py-2 rounded-2xl border border-slate-700 shadow-inner">
+            <Calendar size={16} className="text-slate-500"/>
+            <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="bg-transparent text-sm font-black focus:outline-none w-32 text-white cursor-pointer"/>
           </div>
-          <div className="h-4 w-px bg-slate-700"/>
-          <div className="flex gap-1 flex-1">
-            <button onClick={() => setActiveLoc('seoul')} className={`flex-1 py-1.5 rounded-xl text-[10px] font-black transition-all ${activeLoc === 'seoul' ? 'bg-slate-100 text-slate-900 shadow-sm' : 'text-slate-500'}`}>서울</button>
-            <button onClick={() => setActiveLoc('busan')} className={`flex-1 py-1.5 rounded-xl text-[10px] font-black transition-all ${activeLoc === 'busan' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500'}`}>부산</button>
+          <div className="h-6 w-px bg-slate-700"/>
+          <div className="flex gap-2 flex-1">
+            <button onClick={() => setActiveLoc('seoul')} className={`flex-1 py-2 rounded-2xl text-[11px] font-black transition-all flex items-center justify-center gap-1 ${activeLoc === 'seoul' ? 'bg-slate-100 text-slate-900 shadow-lg' : 'text-slate-500 hover:bg-slate-800'}`}>
+              <MapPin size={12}/> 서울
+            </button>
+            <button onClick={() => setActiveLoc('busan')} className={`flex-1 py-2 rounded-2xl text-[11px] font-black transition-all flex items-center justify-center gap-1 ${activeLoc === 'busan' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-800'}`}>
+              <MapPin size={12}/> 부산
+            </button>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 p-4 overflow-y-auto">
+      <main className="flex-1 p-5 overflow-y-auto pb-24">
         {view === 'admin' ? (
-          <section className="space-y-4 animate-fade-in">
-            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm">
-              <div className="flex justify-between items-center mb-6">
+          <section className="space-y-6 animate-fade-in">
+            <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-16 -mt-16 opacity-50"/>
+              
+              <div className="flex justify-between items-start mb-8 relative z-10">
                 <div>
-                  <h3 className="text-lg font-black flex items-center gap-2 text-slate-800"><FileUp className="text-indigo-600"/> 데이터 업로드</h3>
-                  <p className="text-[11px] text-slate-400 mt-1 font-medium">{selectedDate} 경마 정보를 구성합니다.</p>
+                  <h3 className="text-xl font-black flex items-center gap-2 text-slate-800"><FileUp className="text-indigo-600"/> Data Orchestrator</h3>
+                  <p className="text-xs text-slate-400 mt-2 font-bold uppercase tracking-wider">{selectedDate} 시스템 구성</p>
                 </div>
                 {syncStatus === 'modified' && (
-                  <button onClick={saveToCloud} className="bg-orange-600 text-white px-5 py-2.5 rounded-2xl text-xs font-black shadow-lg animate-bounce flex items-center gap-2">
-                    <CloudUpload size={16}/> 서버에 저장하기
+                  <button onClick={saveToCloud} className="bg-orange-600 text-white px-6 py-3 rounded-2xl text-xs font-black shadow-2xl animate-pulse flex items-center gap-2 active:scale-95 transition-transform">
+                    <CloudUpload size={18}/> 서버 동기화 실행
                   </button>
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10 relative z-10">
                 {[
-                  { id: 'entry', label: '출전표 (CSV)', color: 'border-blue-200' },
-                  { id: 'history', label: '상세 전적 (CSV)', color: 'border-green-200' },
-                  { id: 'analysis', label: 'AI 분석 (JSON)', color: 'border-purple-200' },
-                  { id: 'expert', label: '전문가 코멘트 (TXT)', color: 'border-orange-200' }
+                  { id: 'entry', label: '출전표 CSV', icon: <Calendar size={14}/>, color: 'hover:border-blue-300' },
+                  { id: 'history', label: '10회전적 CSV', icon: <Activity size={14}/>, color: 'hover:border-green-300' },
+                  { id: 'analysis', label: 'AI분석 JSON', icon: <Zap size={14}/>, color: 'hover:border-purple-300' },
+                  { id: 'expert', label: '전문가 코멘트 TXT', icon: <Trophy size={14}/>, color: 'hover:border-orange-300' }
                 ].map(item => (
-                  <div key={item.id} className={`p-4 bg-slate-50 rounded-2xl border ${item.color} relative overflow-hidden group`}>
-                    <label className="text-[9px] font-black text-slate-400 uppercase mb-2 block tracking-widest">{item.label}</label>
-                    <input type="file" onChange={e => handleFileUpload(e, item.id, activeLoc)} className="w-full text-[10px] file:bg-white file:border-slate-200 file:rounded-lg file:px-2 file:py-1 cursor-pointer"/>
+                  <div key={item.id} className={`p-5 bg-slate-50/50 rounded-3xl border border-slate-100 transition-all ${item.color} group`}>
+                    <label className="text-[10px] font-black text-slate-400 uppercase mb-3 flex items-center gap-1.5 tracking-widest">{item.icon} {item.label}</label>
+                    <input type="file" onChange={e => handleFileUpload(e, item.id, activeLoc)} className="w-full text-[11px] font-bold file:bg-white file:border-slate-200 file:rounded-xl file:px-3 file:py-1.5 cursor-pointer file:text-slate-600 file:font-black"/>
                   </div>
                 ))}
               </div>
 
-              <div className="pt-6 border-t border-slate-100 flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                   <div className={`w-2 h-2 rounded-full ${user ? 'bg-green-500' : 'bg-red-500'}`} />
-                   <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Server: {user ? 'Connected' : 'Auth Waiting'}</span>
-                </div>
-                <div className="text-[10px] text-indigo-500 font-black uppercase tracking-widest">PRO Sync v1.6.2</div>
+              <div className="pt-8 border-t border-slate-50 flex justify-between items-center text-[11px] font-black uppercase tracking-[0.2em] text-slate-300">
+                <span className="flex items-center gap-2">
+                  <Database size={14}/> DB {user ? 'Online' : 'Offline'}
+                </span>
+                <span>Version 1.6.8 PRO</span>
               </div>
             </div>
           </section>
         ) : (
-          <section className="space-y-5 animate-fade-in">
-            {/* Race Navigation */}
-            <div className="flex overflow-x-auto gap-2.5 pb-2 scrollbar-hide">
+          <section className="space-y-6 animate-fade-in">
+            {/* Race Number Tabs */}
+            <div className="flex overflow-x-auto gap-3 py-2 scrollbar-hide">
               {current?.races.length > 0 ? current.races.map((r, i) => (
-                <button key={i} onClick={() => {setRaceIdx(i); setExpanded(null);}} className={`flex-shrink-0 w-12 h-12 rounded-[1.25rem] font-black text-sm transition-all shadow-sm ${raceIdx === i ? 'bg-slate-900 text-white scale-110 shadow-lg' : 'bg-white text-slate-400 border border-slate-100'}`}>{r.no}</button>
+                <button key={i} onClick={() => {setRaceIdx(i); setExpanded(null);}} className={`flex-shrink-0 w-14 h-14 rounded-2xl font-black text-lg transition-all shadow-md ${raceIdx === i ? 'bg-slate-900 text-white scale-110 shadow-slate-300 rotate-3' : 'bg-white text-slate-400 border border-slate-100 hover:border-slate-200 hover:-translate-y-1'}`}>{r.no}</button>
               )) : (
-                <div className="py-10 text-center w-full bg-white rounded-3xl border-2 border-dashed border-slate-200 text-slate-300 font-bold uppercase tracking-widest text-xs">No Races Loaded</div>
+                <div className="py-20 text-center w-full bg-white rounded-[3rem] border-2 border-dashed border-slate-100 flex flex-col items-center">
+                  <Database size={40} className="text-slate-200 mb-3"/>
+                  <span className="text-slate-300 font-black uppercase tracking-widest text-[11px]">No Race Data Available</span>
+                </div>
               )}
             </div>
 
             {race ? (
-              <div className="space-y-5 pb-10">
-                {/* Race Card */}
-                <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border-l-[12px] border-yellow-400 relative overflow-hidden">
+              <div className="space-y-6">
+                {/* Master Race Card */}
+                <div className="bg-white p-8 rounded-[3.5rem] shadow-xl border-l-[16px] border-yellow-400 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+                    <Trophy size={120} />
+                  </div>
                   <div className="relative z-10 flex justify-between items-start">
                     <div>
-                      <h2 className="text-3xl font-black italic tracking-tighter text-slate-900 underline decoration-yellow-400 decoration-4 underline-offset-4">제 {race.no} R</h2>
-                      <div className="flex items-center gap-2 text-xs font-bold text-slate-400 mt-2">
-                        <Clock size={14} className="text-slate-300"/> <span>{race.startTime}</span>
-                        <span className="w-1 h-1 bg-slate-200 rounded-full"/>
-                        <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md font-black">{race.distance}M</span>
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="bg-slate-900 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter italic">Grade Analysis</span>
+                        <h2 className="text-4xl font-black italic tracking-tighter text-slate-900">제 {race.no} R</h2>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs font-bold text-slate-400 mt-3">
+                        <span className="flex items-center gap-1.5"><Clock size={16} className="text-yellow-500"/> {race.startTime}</span>
+                        <div className="w-1.5 h-1.5 bg-slate-200 rounded-full"/>
+                        <span className="text-indigo-600 bg-indigo-50 px-3 py-1 rounded-xl font-black text-[13px]">{race.distance}M</span>
                       </div>
                     </div>
                     {analysisInfo?.avgRecord && (
                       <div className="text-right">
-                        <span className="text-[9px] font-black text-slate-300 uppercase block mb-1 tracking-widest">Avg Winner Rec</span>
-                        <div className="text-2xl font-black text-slate-900 font-mono italic">{analysisInfo.avgRecord}</div>
+                        <span className="text-[10px] font-black text-slate-300 uppercase block mb-1 tracking-[0.2em]">AVG Winner Rec</span>
+                        <div className="text-3xl font-black text-slate-900 font-mono italic tracking-tight">{analysisInfo.avgRecord}</div>
                       </div>
                     )}
                   </div>
                   
                   {expertInfo && (
-                    <div className="mt-6 p-4 bg-orange-50 rounded-2xl border border-orange-100 shadow-inner">
-                      <div className="flex flex-wrap gap-2 items-center mb-2">
-                        <span className="bg-orange-600 text-white text-[9px] px-2 py-0.5 rounded-full font-black uppercase flex items-center gap-1"><Trophy size={10}/> Expert Recommendation</span>
-                        <div className="flex gap-1.5 ml-auto">
+                    <div className="mt-8 p-5 bg-orange-50/70 rounded-[2.5rem] border border-orange-100/50 backdrop-blur-sm shadow-inner">
+                      <div className="flex flex-wrap gap-3 items-center mb-3">
+                        <div className="bg-orange-600 text-white text-[10px] px-3 py-1.5 rounded-full font-black uppercase flex items-center gap-1.5 shadow-lg shadow-orange-500/20">
+                          <Trophy size={12}/> PRO Pick
+                        </div>
+                        <div className="flex gap-2 ml-auto">
                           {expertInfo.recommended.map(h => (
-                            <span key={h.no} className="w-7 h-7 rounded-full bg-white text-orange-600 border border-orange-200 flex items-center justify-center text-xs font-black shadow-sm">{h.no}</span>
+                            <div key={h.no} className="relative group">
+                              <span className="w-9 h-9 rounded-full bg-white text-orange-600 border-2 border-orange-200 flex items-center justify-center text-sm font-black shadow-md hover:scale-110 transition-transform cursor-help">{h.no}</span>
+                              <span className="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[9px] px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">{h.name}</span>
+                            </div>
                           ))}
                         </div>
                       </div>
-                      <p className="text-[11px] text-orange-900/80 font-bold leading-relaxed italic">{expertInfo.comment}</p>
+                      <p className="text-[12px] text-orange-950 font-bold leading-relaxed italic opacity-80 border-t border-orange-100 pt-3 mt-1">"{expertInfo.comment || '상세 경주 전개 분석이 준비되었습니다.'}"</p>
                     </div>
                   )}
                 </div>
 
-                {/* Horse Grid */}
-                <div className="grid grid-cols-1 gap-3">
+                {/* Intelligent Horse List */}
+                <div className="grid grid-cols-1 gap-4 pb-10">
                   {race.horses.map((h) => {
                     const isExp = expanded === h.no;
-                    const hist = current.histories.filter(v => v.horseName === h.name).slice(0, 5);
+                    const horseHist = current.histories.filter(v => v.horseName === h.name).slice(0, 6);
                     const expComment = expertInfo?.horseComments?.[h.no];
                     const isFastStart = analysisInfo?.analysis?.fastStart.some(v => v.no === h.no);
                     const isFastFinish = analysisInfo?.analysis?.fastFinish.some(v => v.no === h.no);
-                    const isDark = expertInfo?.darkHorse.includes(h.no);
+                    const isDark = expertInfo?.dark.includes(h.no);
 
                     return (
-                      <div key={h.no} className={`bg-white rounded-[2rem] border transition-all duration-300 overflow-hidden ${isExp ? 'ring-2 ring-slate-900 shadow-xl scale-[1.02] z-10' : 'border-slate-100 shadow-sm opacity-95 hover:opacity-100 hover:border-slate-300'}`}>
-                        <div className="p-4 flex items-center gap-4 cursor-pointer" onClick={() => setExpanded(isExp ? null : h.no)}>
-                          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-inner ${getHorseColor(h.no)}`}>
-                            <span className="text-2xl font-black italic">{h.no}</span>
+                      <div key={h.no} className={`bg-white rounded-[2.5rem] border transition-all duration-500 overflow-hidden ${isExp ? 'ring-2 ring-slate-900 shadow-2xl scale-[1.03] z-20' : 'border-slate-100 shadow-md opacity-95 hover:opacity-100 hover:border-slate-300'}`}>
+                        <div className="p-5 flex items-center gap-5 cursor-pointer" onClick={() => setExpanded(isExp ? null : h.no)}>
+                          <div className={`w-16 h-16 rounded-3xl flex items-center justify-center flex-shrink-0 shadow-lg ${getHorseBadgeStyle(h.no)}`}>
+                            <span className="text-3xl font-black italic tracking-tighter">{h.no}</span>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-0.5">
-                              <h3 className="text-lg font-black text-slate-800 truncate tracking-tight">{h.name}</h3>
-                              <div className="flex gap-1">
-                                {isFastStart && <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse shadow-sm shadow-red-500/50"/>}
-                                {isFastFinish && <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse shadow-sm shadow-blue-500/50"/>}
-                                {isDark && <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-pulse shadow-sm shadow-purple-500/50"/>}
+                            <div className="flex items-center gap-3 mb-1.5">
+                              <h3 className="text-xl font-black text-slate-800 truncate tracking-tight">{h.name}</h3>
+                              <div className="flex gap-1.5">
+                                {isFastStart && <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]"/>}
+                                {isFastFinish && <div className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.6)]"/>}
+                                {isDark && <div className="w-2.5 h-2.5 bg-purple-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(147,51,234,0.6)]"/>}
                               </div>
                             </div>
-                            <div className="flex flex-wrap items-center gap-x-2 text-xs font-bold text-slate-400">
-                              <span className="text-indigo-600 font-black">{h.jockey}</span>
-                              <span className="text-slate-200">|</span>
-                              <span className="text-slate-600">{h.weight}kg <span className={`text-[10px] ${parseInt(h.weightDiff) < 0 ? 'text-blue-500' : 'text-red-500'}`}>({h.weightDiff})</span></span>
-                              <span className="text-slate-200">|</span>
-                              <span className="bg-slate-100 px-2 py-0.5 rounded-lg text-[9px]">R{h.rating}</span>
+                            <div className="flex flex-wrap items-center gap-x-3 text-xs font-black text-slate-400 uppercase tracking-tight">
+                              <span className="text-indigo-600 border-b-2 border-indigo-100">{h.jockey}</span>
+                              <span className="text-slate-200">/</span>
+                              <span className="text-slate-600">{h.weight}kg <span className={`text-[11px] ${parseInt(h.weightDiff) < 0 ? 'text-blue-500' : 'text-red-500'}`}>({h.weightDiff})</span></span>
+                              <span className="text-slate-200">/</span>
+                              <span className="bg-slate-100 px-2.5 py-0.5 rounded-lg text-[10px]">R{h.rating}</span>
                             </div>
                           </div>
-                          <div className="text-right flex-shrink-0 px-2 border-l border-slate-50">
-                            <div className="text-[9px] font-black text-slate-300 uppercase mb-0.5 tracking-tight">Training</div>
-                            <div className="text-sm font-black text-slate-700 italic">{h.trainingCount}회</div>
+                          <div className="text-right flex-shrink-0 pr-4">
+                            <div className="text-[10px] font-black text-slate-300 uppercase mb-1 tracking-widest">Train</div>
+                            <div className="text-lg font-black text-slate-700 italic tracking-tighter">{h.trainingCount}회</div>
                           </div>
-                          <div className="text-slate-200 pr-1">
-                            {isExp ? <ChevronUp size={20}/> : <ChevronDown size={20}/>}
+                          <div className="text-slate-200 pr-1 group">
+                            {isExp ? <ChevronUp size={24} className="group-hover:text-slate-400 transition-colors"/> : <ChevronDown size={24} className="group-hover:text-slate-400 transition-colors"/>}
                           </div>
                         </div>
 
                         {isExp && (
-                          <div className="px-5 pb-6 pt-1 animate-fade-in bg-slate-50/30">
-                            <div className="h-px bg-slate-100 mb-5"/>
+                          <div className="px-6 pb-8 pt-2 animate-fade-in bg-slate-50/40">
+                            <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent mb-6"/>
                             
                             {expComment && (
-                              <div className="mb-5 bg-orange-50/50 p-4 rounded-3xl border-l-8 border-orange-400 shadow-sm relative overflow-hidden">
-                                <Trophy className="absolute -right-2 -top-2 text-orange-100" size={64}/>
-                                <h4 className="text-[10px] font-black text-orange-600 uppercase mb-2 flex items-center gap-1 relative z-10"><Zap size={10}/> Expert Point Analysis</h4>
-                                <p className="text-[11px] text-orange-900 font-bold leading-relaxed relative z-10">{expComment}</p>
+                              <div className="mb-6 bg-gradient-to-r from-orange-100/50 to-amber-50/50 p-6 rounded-[2.5rem] border-l-[12px] border-orange-400 shadow-sm relative overflow-hidden">
+                                <Trophy className="absolute -right-4 -top-4 text-orange-200/20" size={100}/>
+                                <h4 className="text-[11px] font-black text-orange-600 uppercase mb-3 flex items-center gap-2 tracking-[0.2em] relative z-10"><Zap size={12}/> Inside Analysis</h4>
+                                <p className="text-[13px] text-orange-950 font-black leading-relaxed relative z-10">"{expComment}"</p>
                               </div>
                             )}
 
-                            <div className="grid grid-cols-2 gap-3 mb-5">
-                              <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm">
-                                <h4 className="text-[9px] font-black text-slate-300 uppercase mb-3 flex items-center gap-1"><Info size={10}/> Pedigree & Trainer</h4>
-                                <div className="space-y-2 text-[11px] font-bold">
-                                  <div className="flex justify-between border-b border-slate-50 pb-1"><span className="text-slate-400 font-medium italic">Trainer</span><span className="text-slate-700">{h.trainer}</span></div>
-                                  <div className="flex justify-between border-b border-slate-50 pb-1"><span className="text-slate-400 font-medium italic">Age/Sex</span><span className="text-slate-700">{h.sex}/{h.age}세</span></div>
-                                  <div className="flex justify-between border-b border-slate-50 pb-1"><span className="text-slate-400 font-medium italic">Sire</span><span className="text-slate-700 truncate max-w-[80px]">{h.father}</span></div>
-                                  <div className="flex justify-between"><span className="text-slate-400 font-medium italic">Cycle</span><span className="text-indigo-600">{h.cycle}주</span></div>
+                            <div className="grid grid-cols-2 gap-4 mb-6">
+                              <div className="bg-white p-5 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                                <h4 className="text-[10px] font-black text-slate-300 uppercase mb-4 flex items-center gap-2 tracking-widest"><Info size={12}/> Pedigree Specs</h4>
+                                <div className="space-y-2 text-[12px] font-black">
+                                  <div className="flex justify-between border-b border-slate-50 pb-2"><span className="text-slate-400 font-medium italic">Trainer</span><span className="text-slate-700">{h.trainer}</span></div>
+                                  <div className="flex justify-between border-b border-slate-50 pb-2"><span className="text-slate-400 font-medium italic">Sire</span><span className="text-slate-700 truncate max-w-[120px]">{h.father}</span></div>
+                                  <div className="flex justify-between"><span className="text-slate-400 font-medium italic">Cycle</span><span className="text-indigo-600 underline decoration-indigo-200 decoration-4 underline-offset-4">{h.cycle}주</span></div>
                                 </div>
                               </div>
-                              <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center">
-                                <div className="text-[9px] font-black text-slate-300 uppercase mb-2 tracking-widest italic">Equipment</div>
-                                <div className="font-black text-slate-600 text-center leading-tight text-xs bg-slate-50 w-full p-3 rounded-2xl border border-dashed border-slate-200 h-full flex items-center justify-center italic">
-                                  {h.gear || 'No special gear'}
+                              <div className="bg-white p-5 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col items-center justify-center">
+                                <div className="text-[10px] font-black text-slate-300 uppercase mb-3 tracking-widest italic flex items-center gap-1"><Search size={10}/> Equipment</div>
+                                <div className="font-black text-slate-600 text-center leading-tight text-sm bg-slate-50 w-full p-4 rounded-3xl border border-dashed border-slate-200 h-full flex items-center justify-center italic">
+                                  {h.gear || 'No Gear Info'}
                                 </div>
                               </div>
                             </div>
 
-                            {/* History Table */}
-                            <div className="bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-sm overflow-x-auto ring-1 ring-slate-100">
-                              <table className="w-full text-[10px] whitespace-nowrap">
-                                <thead className="bg-slate-900 text-white">
+                            {/* Ultra High-Res History Table */}
+                            <div className="bg-slate-900 rounded-[2.5rem] overflow-hidden shadow-2xl overflow-x-auto border-4 border-slate-800">
+                              <table className="w-full text-[11px] whitespace-nowrap">
+                                <thead className="bg-slate-800 text-slate-400 uppercase tracking-widest italic font-black">
                                   <tr>
-                                    <th className="px-4 py-3 font-black uppercase italic tracking-widest">Date</th>
-                                    <th className="px-3 py-3 font-black uppercase italic tracking-widest">Dist</th>
-                                    <th className="px-3 py-3 font-black uppercase italic tracking-widest">Rec</th>
-                                    <th className="px-3 py-3 font-black uppercase italic tracking-widest">Rank</th>
-                                    <th className="px-3 py-3 text-red-400 font-black italic tracking-widest underline decoration-2 underline-offset-4">S1F</th>
-                                    <th className="px-3 py-3 text-blue-400 font-black italic tracking-widest underline decoration-2 underline-offset-4">G1F</th>
+                                    <th className="px-5 py-4">Date</th>
+                                    <th className="px-3 py-4">Dist</th>
+                                    <th className="px-3 py-4 text-white">Record</th>
+                                    <th className="px-3 py-4">Rank</th>
+                                    <th className="px-3 py-4 text-red-400 border-b-4 border-red-500/30">S1F</th>
+                                    <th className="px-3 py-4 text-blue-400 border-b-4 border-blue-500/30">G1F</th>
                                   </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-50 text-center font-bold">
-                                  {hist.map((v, idx) => (
-                                    <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                                      <td className="px-4 py-3 text-slate-400 font-mono italic">{v.date}</td>
-                                      <td className="px-3 py-3 text-slate-700">{v.dist}</td>
-                                      <td className="px-3 py-3 font-mono text-indigo-600 italic tracking-tighter text-[11px]">{v.rec}</td>
-                                      <td className="px-3 py-3 bg-slate-50/50">{v.rank}</td>
-                                      <td className="px-3 py-3 text-red-500 bg-red-50/10 font-mono">{v.s1f}</td>
-                                      <td className="px-3 py-3 text-blue-500 bg-blue-50/10 font-mono">{v.g1f}</td>
+                                <tbody className="divide-y divide-slate-800 text-center font-black text-slate-300">
+                                  {horseHist.map((v, idx) => (
+                                    <tr key={idx} className="hover:bg-slate-800/50 transition-colors">
+                                      <td className="px-5 py-4 text-slate-500 font-mono text-[10px] italic">{v.date}</td>
+                                      <td className="px-3 py-4 text-slate-200 font-bold">{v.dist}</td>
+                                      <td className="px-3 py-4 font-mono text-yellow-400 italic tracking-tighter text-[13px]">{v.rec}</td>
+                                      <td className={`px-3 py-4 ${v.rank?.startsWith('1/') ? 'text-white bg-slate-800' : 'text-slate-400'}`}>{v.rank}</td>
+                                      <td className="px-3 py-4 text-red-500 bg-red-500/5 font-mono text-[12px]">{v.s1f}</td>
+                                      <td className="px-3 py-4 text-blue-500 bg-blue-500/5 font-mono text-[12px]">{v.g1f}</td>
                                     </tr>
                                   ))}
-                                  {hist.length === 0 && (
-                                    <tr><td colSpan="6" className="py-8 text-slate-300 font-black uppercase italic tracking-[0.2em]">Record Not Found</td></tr>
+                                  {horseHist.length === 0 && (
+                                    <tr><td colSpan="6" className="py-12 text-slate-600 font-black uppercase italic tracking-[0.4em]">Historical Data Void</td></tr>
                                   )}
                                 </tbody>
                               </table>
@@ -454,28 +476,29 @@ export default function App() {
                 </div>
               </div>
             ) : (
-              <div className="py-40 text-center bg-white rounded-[3.5rem] border-2 border-dashed border-slate-100 shadow-inner flex flex-col items-center justify-center">
-                <div className="bg-slate-50 p-6 rounded-full mb-6">
-                  <Database size={48} className="text-slate-200"/>
+              <div className="py-48 text-center bg-white rounded-[4rem] border-2 border-dashed border-slate-100 shadow-2xl flex flex-col items-center justify-center animate-in zoom-in duration-700">
+                <div className="bg-slate-50 p-8 rounded-full mb-8 relative">
+                  <Database size={64} className="text-slate-200 relative z-10"/>
+                  <div className="absolute inset-0 bg-indigo-100 rounded-full animate-ping opacity-20"/>
                 </div>
-                <p className="text-slate-400 font-black text-xl italic tracking-tighter">DATA ENGINE STANDBY</p>
-                <p className="text-[10px] text-slate-300 uppercase mt-2 tracking-[0.3em] font-black">Waiting for Cloud Data Sync for {selectedDate}</p>
-                <button onClick={() => setView('admin')} className="mt-8 px-8 py-3 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/30 active:scale-95 transition-all">Go to Admin Setup</button>
+                <p className="text-slate-500 font-black text-2xl italic tracking-tighter uppercase">Cloud Engine Offline</p>
+                <p className="text-[11px] text-slate-300 uppercase mt-4 tracking-[0.4em] font-black max-w-[250px] leading-relaxed">System is awaiting data injection for target date {selectedDate}</p>
+                <button onClick={() => setView('admin')} className="mt-10 px-10 py-4 bg-indigo-600 text-white rounded-3xl text-xs font-black uppercase tracking-widest shadow-[0_20px_40px_rgba(79,70,229,0.3)] hover:translate-y-[-4px] active:scale-95 transition-all">Go to Admin Hub</button>
               </div>
             )}
           </section>
         )}
       </main>
 
-      <footer className="p-8 text-center border-t border-slate-50 bg-white">
-        <div className="flex flex-col gap-2">
-          <div className="text-[9px] font-black text-slate-300 uppercase tracking-[0.5em]">
-            Smart Racing Cloud Pro &copy; 2025 v1.6.5 Final
+      <footer className="p-10 text-center border-t border-slate-100 bg-white">
+        <div className="flex flex-col gap-4">
+          <div className="text-[11px] font-black text-slate-300 uppercase tracking-[0.6em] italic">
+            Integrated Smart Racing Cloud &copy; 2025 v1.6.8 PRO Stable
           </div>
-          <div className="flex justify-center gap-4 text-[8px] font-bold text-slate-200 uppercase tracking-widest">
-            <span>Powered by Firestore</span>
-            <div className="w-1 h-1 bg-slate-100 rounded-full my-auto"/>
-            <span>Real-time Synchronization</span>
+          <div className="flex justify-center gap-6 text-[9px] font-bold text-slate-200 uppercase tracking-widest">
+            <span className="flex items-center gap-1.5"><Database size={10}/> Global Cloud Storage</span>
+            <div className="w-1.5 h-1.5 bg-slate-100 rounded-full my-auto"/>
+            <span className="flex items-center gap-1.5"><Rocket size={10}/> Real-time Logic Engine</span>
           </div>
         </div>
       </footer>
