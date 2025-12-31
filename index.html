@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SMART RACING PRO - 영구 저장 버전</title>
+    <title>SMART RACING PRO V9</title>
     
     <!-- 1. 필수 라이브러리 (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -16,37 +16,31 @@
 
     <!-- 스타일 -->
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;600;800&display=swap');
-        body { font-family: 'Pretendard', sans-serif; background-color: #f1f5f9; color: #1e293b; -webkit-tap-highlight-color: transparent; }
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&display=swap');
         
-        /* 마번별 색상 (가독성 최적화) */
-        .h-1 { @apply bg-white text-gray-900 border-2 border-gray-300; }
-        .h-2 { @apply bg-yellow-400 text-gray-900 border-none; }
-        .h-3 { @apply bg-red-600 text-white border-none; }
-        .h-4 { @apply bg-gray-900 text-white border-none; }
-        .h-5 { @apply bg-blue-600 text-white border-none; }
-        .h-6 { @apply bg-green-600 text-white border-none; }
-        .h-7 { @apply bg-amber-800 text-white border-none; }
-        .h-8 { @apply bg-pink-400 text-white border-none; }
-        .h-9 { @apply bg-purple-600 text-white border-none; }
-        .h-10 { @apply bg-sky-300 text-gray-900 border-none; }
-        .h-11 { @apply bg-white text-green-700 border-4 border-green-600; }
-        .h-12 { @apply bg-yellow-400 text-green-700 border-4 border-green-600; }
-
+        body { font-family: 'Pretendard', sans-serif; background-color: #f8fafc; color: #0f172a; -webkit-tap-highlight-color: transparent; }
+        
         .scrollbar-hide::-webkit-scrollbar { display: none; }
-        #error-log { display: none; padding: 20px; background: #fee2e2; color: #991b1b; border-bottom: 2px solid #ef4444; }
-        .animate-up { animation: slideUp 0.3s ease-out forwards; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-up { animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* 그래프 애니메이션 */
+        .bar-fill { animation: fillBar 1s ease-out forwards; transform-origin: left; transform: scaleX(0); }
+        @keyframes fillBar { to { transform: scaleX(1); } }
+        
+        /* 숫자 등폭 폰트 (정렬용) */
+        .tabular { font-variant-numeric: tabular-nums; }
+        
+        /* Sticky 상단 고정 시 배경 블러 처리 */
+        .sticky-header-blur {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            background-color: rgba(255, 255, 255, 0.95);
+        }
     </style>
 </head>
 <body>
-    <div id="error-log"></div>
-    <div id="root">
-        <div class="flex flex-col items-center justify-center min-h-screen text-slate-400">
-            <div class="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-            <p class="font-bold">데이터베이스 연결 중...</p>
-        </div>
-    </div>
+    <div id="root"></div>
 
     <!-- 2. Firebase SDK 설정 -->
     <script type="module">
@@ -68,21 +62,16 @@
             const app = initializeApp(firebaseConfig);
             const auth = getAuth(app);
             const db = getFirestore(app);
-            // 전역 객체에 할당하여 React에서 접근 가능하게 함
             window.fb = { auth, db, doc, setDoc, onSnapshot, signInAnonymously, onAuthStateChanged, isReady: true };
             console.log("Firebase initialized");
         } catch (e) {
             console.error("Firebase Init Error:", e);
-            document.getElementById('error-log').style.display = 'block';
-            document.getElementById('error-log').textContent = "Firebase 초기화 실패: " + e.message;
         }
     </script>
 
-    <!-- 3. React App -->
     <script type="text/babel">
-        const { useState, useEffect, useMemo, useRef } = React;
+        const { useState, useEffect, useRef } = React;
 
-        // 아이콘 래퍼
         const Icon = ({ name, size = 16, className = "" }) => {
             const ref = useRef(null);
             useEffect(() => {
@@ -91,111 +80,131 @@
             return <i ref={ref} data-lucide={name}></i>;
         };
 
-        // --- 파서 엔진 ---
-        const Parser = {
-            entry: (text) => {
-                if (!text) return [];
-                const lines = text.split('\n');
-                const races = [];
-                let current = null;
-                let isTable = false;
-                lines.forEach(line => {
-                    const t = line.trim();
-                    if (!t) return;
-                    if (t.includes('제') && t.includes('경주') && (t.includes('서울') || t.includes('부산') || t.includes('부경'))) {
-                        if (current) races.push(current);
-                        const noMatch = t.match(/제(\d+)경주/);
-                        const distMatch = t.match(/(\d{3,4})M/i);
-                        const timeMatch = t.match(/(\d{1,2}:\d{2})/);
-                        current = { 
-                            no: noMatch ? noMatch[1] : '?', 
-                            distance: distMatch ? distMatch[1] : '', 
-                            startTime: timeMatch ? timeMatch[1] : '', 
-                            horses: [] 
-                        };
-                        isTable = false;
-                        return;
-                    }
-                    if (t.startsWith('번호')) { isTable = true; return; }
-                    if (current && isTable) {
-                        const cols = t.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-                        if (cols.length > 5 && /^\d/.test(cols[0])) {
-                            current.horses.push({
-                                no: cols[0]?.replace(/[▲*]/g, '').trim(),
-                                name: cols[1]?.trim(),
-                                origin: cols[2]?.trim(), sex: cols[3]?.trim(), age: cols[4]?.trim(),
-                                rating: cols[5]?.trim(), weight: cols[6]?.replace('*','').trim(), weightDiff: cols[7]?.trim(),
-                                jockey: cols[8]?.trim(), trainer: cols[9]?.trim(), trainingCount: cols[11]?.trim(),
-                                cycle: cols[12]?.trim(), gear: cols[13]?.replace(/"/g, '').trim(),
-                                father: cols[15]?.trim(), grade: cols[16]?.trim()
-                            });
-                        }
-                    }
-                });
-                if (current) races.push(current);
-                return races;
-            },
-            history: (text) => {
-                if (!text) return [];
-                const lines = text.split('\n');
-                return lines.slice(1).map(line => {
-                    const c = line.split(',');
-                    if (c.length < 20) return null;
-                    return {
-                        horseName: c[6]?.trim(), date: c[12]?.trim(), dist: c[14]?.replace('M','').trim(),
-                        rec: c[15]?.trim(), rank: c[16]?.trim(), s1f: c[23]?.trim(), g1f: c[25]?.trim()
-                    };
-                }).filter(Boolean);
-            },
-            expert: (text) => {
-                if (!text) return { seoul: {}, busan: {} };
-                const result = { seoul: {}, busan: {} };
-                const chunks = text.split(/\*\*(서울|부산|부경)\s*(\d+)경주/);
-                for (let i = 1; i < chunks.length; i += 3) {
-                    const locStr = chunks[i];
-                    const loc = (locStr === '서울') ? 'seoul' : 'busan';
-                    const no = chunks[i+1];
-                    const content = chunks[i+2] || '';
-                    
-                    const recMatch = content.match(/\*\*추천.*?\*\*[:：]\s*(.+?)(?=\r?\n|$)/);
-                    const recommended = [];
-                    if (recMatch) {
-                        const matches = recMatch[1].matchAll(/\((\d+)\)\s*([가-힣A-Z]+)/g);
-                        for (const m of matches) recommended.push({ no: m[1], name: m[2] });
-                    }
-                    const dark = (content.match(/\*\*복병.*?\*\*[:：]\s*([\d, ]+)/) || [])[1]?.split(',').map(s=>s.trim()).filter(Boolean) || [];
-                    const lead = (content.match(/\*\*선행.*?\*\*[:：]\s*([\d, ]+)/) || [])[1]?.split(',').map(s=>s.trim()).filter(Boolean) || [];
-                    const horseComments = {};
-                    const cMatch = content.matchAll(/\*\*\s*\((\d+)\)\s*([가-힣A-Z\s()]+)\s*\*\*\s*은?(.+?)(?=\s*(?:\r?\n\r?\n|\*\*\(|\*\*추천|\*\*복병|\*\*선행|$))/gs);
-                    for (const m of cMatch) horseComments[m[1]] = m[3].trim().replace(/\s+/g, ' ');
-                    const summary = content.split('\n').find(l => l.trim() && !l.startsWith('**') && !l.includes('등급')) || "";
-                    result[loc][no] = { recommended, dark, lead, horseComments, summary };
-                }
-                return result;
-            }
-        };
-
         const getBadgeStyle = (no) => {
             const n = parseInt(no);
-            if (n===1) return "h-1"; if (n===2) return "h-2"; if (n===3) return "h-3";
-            if (n===4) return "h-4"; if (n===5) return "h-5"; if (n===6) return "h-6";
-            if (n===7) return "h-7"; if (n===8) return "h-8"; if (n===9) return "h-9";
-            if (n===10) return "h-10"; if (n===11) return "h-11"; if (n===12) return "h-12";
-            return "bg-gray-200 text-gray-500";
+            const base = "border-2 shadow-sm box-border";
+            if (n===1) return `${base} bg-white text-slate-900 border-slate-900`;
+            if (n===2) return `${base} bg-yellow-400 text-slate-900 border-yellow-400`;
+            if (n===3) return `${base} bg-red-600 text-white border-red-600`;
+            if (n===4) return `${base} bg-slate-900 text-white border-slate-900`;
+            if (n===5) return `${base} bg-blue-600 text-white border-blue-600`;
+            if (n===6) return `${base} bg-green-600 text-white border-green-600`;
+            if (n===7) return `${base} bg-[#8B4513] text-white border-[#8B4513]`;
+            if (n===8) return `${base} bg-pink-400 text-white border-pink-400`;
+            if (n===9) return `${base} bg-purple-700 text-white border-purple-700`;
+            if (n===10) return `${base} bg-[#2ad0e4] text-slate-900 border-[#2ad0e4]`;
+            if (n===11) return `${base} bg-white text-[#005c42] border-[#005c42]`;
+            if (n===12) return `${base} bg-yellow-400 text-[#005c42] border-[#005c42]`;
+            return `${base} bg-slate-200 text-slate-500 border-slate-300`;
         };
 
-        // --- 메인 앱 ---
+        // 기록용 차트 (낮을수록 좋음 - 시간)
+        const BarChart = ({ data, color }) => {
+            if (!data) return null;
+            const parsedData = data.map(d => ({ ...d, val: parseFloat(d.rec) }));
+            const min = Math.min(...parsedData.map(d => d.val));
+            const max = Math.max(...parsedData.map(d => d.val));
+            const range = max - min || 1; 
+
+            return (
+                <div className="space-y-3">
+                    {parsedData.map((item, idx) => {
+                        const percentage = 100 - ((item.val - min) / range * 40);
+                        const isTop = idx === 0;
+                        return (
+                            <div key={idx} className="flex items-center gap-3">
+                                <div className="w-6 shrink-0 flex justify-center">
+                                    <span className={`w-6 h-6 rounded-full text-[11px] font-bold flex items-center justify-center ${getBadgeStyle(item.no)}`}>
+                                        {item.no}
+                                    </span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-end justify-between mb-1">
+                                        <span className={`text-xs truncate ${isTop ? 'font-black text-slate-900' : 'font-medium text-slate-600'}`}>{item.name}</span>
+                                    </div>
+                                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden relative">
+                                        <div className={`h-full rounded-full bar-fill ${color === 'red' ? 'bg-red-500' : 'bg-blue-500'}`} style={{ width: `${percentage}%` }}></div>
+                                    </div>
+                                </div>
+                                <div className={`w-12 text-right font-mono text-xs tabular font-bold ${isTop ? (color === 'red' ? 'text-red-600' : 'text-blue-600') : 'text-slate-500'}`}>
+                                    {item.rec}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            );
+        };
+
+        // 수치용 차트 (높을수록 좋음 - 상금, 승률)
+        const ValueChart = ({ data, color, valueKey }) => {
+            if (!data) return null;
+            
+            // 데이터 파싱 (숫자 추출)
+            const parsedData = data.map(d => {
+                const rawVal = d[valueKey]; // "9.9백만" or "16.7%"
+                const numVal = parseFloat(rawVal.replace(/[^0-9.]/g, '')) || 0;
+                return { ...d, val: numVal, raw: rawVal };
+            });
+            
+            const max = Math.max(...parsedData.map(d => d.val)) || 1;
+
+            return (
+                <div className="space-y-3">
+                    {parsedData.map((item, idx) => {
+                        const percentage = (item.val / max) * 100; // 높을수록 긴 바
+                        const isTop = idx === 0;
+                        
+                        let barColorClass = 'bg-blue-500';
+                        if (color === 'green') barColorClass = 'bg-emerald-500';
+                        if (color === 'purple') barColorClass = 'bg-purple-500';
+
+                        return (
+                            <div key={idx} className="flex items-center gap-3">
+                                <div className="w-6 shrink-0 flex justify-center">
+                                    <span className={`w-6 h-6 rounded-full text-[11px] font-bold flex items-center justify-center ${getBadgeStyle(item.no)}`}>
+                                        {item.no}
+                                    </span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-end justify-between mb-1">
+                                        <span className={`text-xs truncate ${isTop ? 'font-black text-slate-900' : 'font-medium text-slate-600'}`}>{item.name}</span>
+                                    </div>
+                                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden relative">
+                                        <div 
+                                            className={`h-full rounded-full bar-fill ${barColorClass}`}
+                                            style={{ width: `${percentage}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+                                <div className={`w-16 text-right font-mono text-xs tabular font-bold ${isTop ? 'text-slate-900' : 'text-slate-500'}`}>
+                                    {item.raw}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            );
+        };
+
         function App() {
             const [user, setUser] = useState(null);
-            const [status, setStatus] = useState('connecting');
-            const [view, setView] = useState('view');
+            const [viewMode, setViewMode] = useState('app');
+            const [syncStatus, setSyncStatus] = useState('connecting');
+            const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
             const [loc, setLoc] = useState('seoul');
-            const [date, setDate] = useState('2025-12-28');
             const [raceIdx, setRaceIdx] = useState(0);
             const [expanded, setExpanded] = useState(null);
-            const [dbData, setDbData] = useState({ seoul: { races: [], histories: [], analysis: { races: {} }, expert: {} }, busan: { races: [], histories: [], analysis: { races: {} }, expert: {} } });
+            
+            const defaultData = {
+                date: "데이터 없음",
+                locations: {
+                    seoul: { location_name: "서울", races: [] },
+                    busan: { location_name: "부산", races: [] }
+                }
+            };
+            const [dbData, setDbData] = useState(defaultData);
 
-            // 1. Firebase 데이터 동기화 (Persistence 핵심 로직)
             useEffect(() => {
                 const interval = setInterval(() => {
                     if (window.fb && window.fb.isReady) {
@@ -204,7 +213,7 @@
                     }
                 }, 100);
                 return () => clearInterval(interval);
-            }, [date]); // 날짜 변경 시 재실행
+            }, [date]);
 
             const startSync = async () => {
                 const { auth, db, doc, onSnapshot, signInAnonymously, onAuthStateChanged } = window.fb;
@@ -213,271 +222,449 @@
                     onAuthStateChanged(auth, (u) => {
                         setUser(u);
                         if (u) {
-                            // Firestore에서 해당 날짜 데이터 실시간 구독
-                            const docRef = doc(db, 'artifacts', 'race-app-3e41d', 'public', 'data', 'dailyRacing', date);
+                            const docRef = doc(db, 'artifacts', 'race-app-3e41d', 'public', 'data', 'raceDataJson', date);
                             onSnapshot(docRef, (snap) => {
                                 if (snap.exists()) {
                                     setDbData(snap.data());
-                                    setStatus('synced'); // 데이터 복구됨
+                                    setSyncStatus('synced');
                                 } else {
-                                    setDbData({ seoul: { races: [], histories: [], analysis: { races: {} }, expert: {} }, busan: { races: [], histories: [], analysis: { races: {} }, expert: {} } });
-                                    setStatus('ready'); // 데이터 없음 (업로드 필요)
+                                    setDbData(defaultData);
+                                    setSyncStatus('no-data');
                                 }
                             });
                         }
                     });
                 } catch (e) {
                     console.error(e);
-                    setStatus('error');
+                    setSyncStatus('error');
                 }
             };
 
-            const saveToCloud = async () => {
-                if (!user) return alert("로그인이 필요합니다.");
-                const { db, doc, setDoc } = window.fb;
-                setStatus('saving');
-                try {
-                    // 데이터 영구 저장
-                    const docRef = doc(db, 'artifacts', 'race-app-3e41d', 'public', 'data', 'dailyRacing', date);
-                    await setDoc(docRef, { ...dbData, lastUpdated: new Date().toISOString() });
-                    setStatus('synced');
-                    alert("✅ 데이터가 클라우드에 저장되었습니다.\n이제 새로고침해도 데이터가 유지됩니다.");
-                } catch (e) {
-                    alert("저장 실패: " + e.message);
-                    setStatus('error');
-                }
-            };
-
-            const handleFileUpload = (e, type, targetLoc) => {
+            const handleJsonUpload = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
                 const reader = new FileReader();
-                reader.onload = (ev) => {
-                    const text = ev.target.result;
+                reader.onload = async (ev) => {
                     try {
-                        setDbData(prev => {
-                            const next = JSON.parse(JSON.stringify(prev));
-                            if (type === 'entry') next[targetLoc].races = Parser.entry(text);
-                            if (type === 'history') next[targetLoc].histories = Parser.history(text);
-                            if (type === 'analysis') next[targetLoc].analysis = JSON.parse(text);
-                            if (type === 'expert') {
-                                const p = Parser.expert(text);
-                                next.seoul.expert = p.seoul;
-                                next.busan.expert = p.busan;
-                            }
-                            return next;
-                        });
-                        setStatus('modified'); // 저장 필요 상태
+                        const json = JSON.parse(ev.target.result);
+                        if (!json.locations || !json.date) throw new Error("올바르지 않은 JSON 형식입니다.");
+                        
+                        const dateMatch = json.date.match(/(\d{4}-\d{2}-\d{2})/);
+                        if (!dateMatch) throw new Error("날짜 형식을 인식할 수 없습니다.");
+                        const targetDate = dateMatch[1];
+
+                        setDate(targetDate);
+                        setDbData(json);
+                        
+                        if (user) {
+                            const { db, doc, setDoc } = window.fb;
+                            const docRef = doc(db, 'artifacts', 'race-app-3e41d', 'public', 'data', 'raceDataJson', targetDate);
+                            await setDoc(docRef, { ...json, lastUpdated: new Date().toISOString() });
+                            alert(`✅ ${targetDate} 데이터 업로드 완료`);
+                            setSyncStatus('synced');
+                        }
                     } catch (err) {
-                        alert("파일 파싱 오류: " + err.message);
+                        alert("오류: " + err.message);
                     }
                 };
-                reader.readAsText(file, 'UTF-8');
+                reader.readAsText(file);
             };
 
-            const current = dbData[loc];
-            const race = current?.races[raceIdx];
-            const expertInfo = current?.expert?.[race?.no];
-            const analysisInfo = current?.analysis?.races?.[race?.no];
+            const currentLocData = dbData.locations[loc] || { location_name: loc === 'seoul' ? "서울" : "부산", races: [] };
+            const races = currentLocData.races || [];
+            const race = races[raceIdx];
+            const expert = race?.expert_opinion;
+            const stats = race?.stats_analysis;
+            const info = race?.race_info;
+
+            // --- 배지 계산을 위한 헬퍼 함수 ---
+            const getNum = (str) => parseFloat(String(str).replace(/[^\d.]/g, '')) || 0;
+            const getClassNum = (str) => {
+                if(!str) return 99;
+                const match = str.match(/\d+/);
+                return match ? parseInt(match[0]) : 99;
+            };
+
+            // 전체 말 비교를 위한 데이터 준비 (1두 선정을 위함)
+            let maxRating = 0;
+            let maxTraining = 0;
+            let minWeight = 999;
+            let maxWeight = 0;
+            let topStartHorseNo = null;
+            let topFinishHorseNo = null;
+
+            if (race?.horses) {
+                maxRating = Math.max(...race.horses.map(h => getNum(h.rating)));
+                maxTraining = Math.max(...race.horses.map(h => getNum(h.training_cnt)));
+                
+                const weights = race.horses.map(h => getNum(h.weight)).filter(w => w > 0);
+                if (weights.length > 0) {
+                    minWeight = Math.min(...weights);
+                    maxWeight = Math.max(...weights);
+                }
+            }
+            if (stats?.fast_start_horses?.length > 0) topStartHorseNo = parseInt(stats.fast_start_horses[0].no);
+            if (stats?.fast_finish_horses?.length > 0) topFinishHorseNo = parseInt(stats.fast_finish_horses[0].no);
 
             return (
-                <div className="max-w-2xl mx-auto min-h-screen flex flex-col bg-slate-50 relative font-sans shadow-2xl">
-                    <header className="bg-slate-900 text-white p-5 sticky top-0 z-50 shadow-lg">
-                        <div className="flex justify-between items-center mb-4">
+                <div className="max-w-md mx-auto min-h-screen flex flex-col bg-[#f8fafc] relative shadow-2xl font-sans">
+                    <header className="bg-slate-900 text-white pt-6 pb-6 px-6 rounded-b-[30px] shadow-xl z-20 relative">
+                        <div className="flex justify-between items-center mb-6">
                             <div className="flex items-center gap-2">
-                                <Icon name="trophy" size={24} className="text-yellow-400"/>
-                                <h1 className="text-xl font-black italic tracking-tighter">SMART <span className="text-yellow-400">PRO</span></h1>
+                                <div className="bg-yellow-400 p-1.5 rounded-lg text-slate-900"><Icon name="trophy" size={16} /></div>
+                                <span className="font-black italic text-lg tracking-tighter">SMART<span className="text-yellow-400">RACING</span> V9</span>
                             </div>
-                            <div className="flex gap-2">
-                                <button onClick={() => setView('view')} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${view === 'view' ? 'bg-white text-slate-900' : 'text-slate-400 bg-slate-800'}`}>경마지</button>
-                                <button onClick={() => setView('admin')} className={`px-4 py-2 rounded-xl text-xs font-bold transition ${view === 'admin' ? 'bg-indigo-600 text-white' : 'text-slate-400 bg-slate-800'}`}>관리</button>
-                            </div>
-                        </div>
-                        <div className="flex gap-2 items-center bg-slate-800 p-2 rounded-xl">
-                            <Icon name="calendar" size={16} className="text-slate-400 ml-2"/>
-                            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="bg-transparent text-sm font-bold text-white outline-none w-32"/>
-                            <div className="h-4 w-px bg-slate-600 mx-1"></div>
-                            <div className="flex-1 flex gap-1">
-                                <button onClick={() => setLoc('seoul')} className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${loc === 'seoul' ? 'bg-slate-100 text-slate-900' : 'text-slate-500'}`}>서울</button>
-                                <button onClick={() => setLoc('busan')} className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${loc === 'busan' ? 'bg-blue-600 text-white' : 'text-slate-500'}`}>부산</button>
+                            <div className="flex items-center gap-2">
+                                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="bg-slate-800 text-white text-xs font-bold px-2 py-1.5 rounded-lg outline-none border border-slate-700 focus:border-yellow-400"/>
+                                <button onClick={() => setViewMode(viewMode === 'app' ? 'admin' : 'app')} className={`p-2 rounded-full transition-colors ${viewMode === 'admin' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}><Icon name={viewMode === 'app' ? 'settings' : 'x'} size={16} /></button>
                             </div>
                         </div>
-                        <div className="text-[10px] text-center mt-2 text-slate-500 font-bold uppercase tracking-widest flex justify-center items-center gap-2">
-                            <Icon name="cloud" size={10}/> STATUS: {status.toUpperCase()}
-                        </div>
+
+                        {viewMode === 'app' ? (
+                            <>
+                                <div className="flex justify-between items-end">
+                                    <div>
+                                        <div className="text-[11px] text-slate-400 font-medium mb-1 flex items-center gap-1 opacity-80"><Icon name="calendar" size={12}/> {dbData.date || date}</div>
+                                        <div className="flex items-center gap-2">
+                                            <h2 className="text-2xl font-black text-white italic tracking-tight">{currentLocData.location_name} {race?.race_no}<span className="text-lg font-bold text-slate-400 not-italic ml-1">경주</span></h2>
+                                            <div className="flex bg-slate-800 rounded-lg p-0.5 ml-2">
+                                                <button onClick={() => setLoc('seoul')} className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all ${loc === 'seoul' ? 'bg-white text-slate-900' : 'text-slate-400'}`}>서울</button>
+                                                <button onClick={() => setLoc('busan')} className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all ${loc === 'busan' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>부산</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="mt-4 flex gap-1.5 overflow-x-auto pb-2 scrollbar-hide">
+                                    {races.length > 0 ? races.map((r, i) => (
+                                        <button key={i} onClick={() => { setRaceIdx(i); setExpanded(null); window.scrollTo({top:0, behavior:'smooth'}); }} className={`flex-shrink-0 w-9 h-9 rounded-full text-xs font-bold flex items-center justify-center transition-all ${raceIdx === i ? 'bg-yellow-400 text-slate-900 scale-110 shadow-lg ring-2 ring-yellow-400/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>{r.race_no}</button>
+                                    )) : <div className="text-slate-500 text-xs py-2">해당 날짜/지역의 경주 데이터가 없습니다.</div>}
+                                </div>
+                            </>
+                        ) : (
+                            <div className="text-white"><h2 className="text-xl font-bold mb-1">관리자 모드</h2><p className="text-xs text-slate-400">JSON 파일을 업로드하여 데이터를 갱신하세요.</p></div>
+                        )}
                     </header>
 
-                    <main className="flex-1 p-4 overflow-y-auto pb-20">
-                        {view === 'admin' ? (
-                            <div className="space-y-4 animate-up">
-                                <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-                                    <div className="flex justify-between items-center mb-4">
-                                        <h3 className="font-black text-lg flex items-center gap-2 text-slate-800"><Icon name="upload" size={18} className="text-indigo-600"/> 데이터 업로드</h3>
-                                        {status === 'modified' && (
-                                            <button onClick={saveToCloud} className="bg-orange-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg flex items-center gap-2 animate-bounce">
-                                                <Icon name="save" size={14}/> 서버 저장 (필수)
-                                            </button>
-                                        )}
+                    <main className="flex-1 p-0 pb-24 space-y-5">
+                        {viewMode === 'admin' ? (
+                            <div className="p-6 animate-up">
+                                <div className="bg-white p-6 rounded-3xl shadow-lg border border-slate-100">
+                                    <div className="text-center mb-6">
+                                        <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4"><Icon name="upload-cloud" size={32} /></div>
+                                        <h3 className="font-bold text-slate-900 text-lg">데이터 파일 업로드</h3>
+                                        <p className="text-sm text-slate-500 mt-1">준비된 <code>race-app.json</code> 파일을 선택하세요.</p>
                                     </div>
-                                    <div className="grid grid-cols-1 gap-3">
-                                        {['entry', 'history', 'analysis', 'expert'].map((type, idx) => (
-                                            <div key={type} className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                                                <label className="text-xs font-bold text-slate-500 block mb-1">{idx+1}. {type.toUpperCase()} File</label>
-                                                <input type="file" onChange={e => handleFileUpload(e, type, loc)} className="text-xs w-full"/>
-                                            </div>
-                                        ))}
+                                    <label className="block w-full cursor-pointer group">
+                                        <div className="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center transition-colors group-hover:border-indigo-500 group-hover:bg-indigo-50">
+                                            <span className="text-sm font-bold text-slate-600 group-hover:text-indigo-600">파일 선택하기</span>
+                                            <input type="file" accept=".json" onChange={handleJsonUpload} className="hidden" />
+                                        </div>
+                                    </label>
+                                    <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                                        <h4 className="font-bold text-xs text-slate-500 uppercase mb-2">현재 상태</h4>
+                                        <div className="flex items-center justify-between text-sm"><span className="text-slate-600">동기화 상태:</span><span className={`font-bold ${syncStatus === 'synced' ? 'text-green-600' : 'text-orange-500'}`}>{syncStatus === 'synced' ? '최신 데이터 사용 중' : syncStatus}</span></div>
+                                        <div className="flex items-center justify-between text-sm mt-1"><span className="text-slate-600">선택된 날짜:</span><span className="font-mono font-bold text-slate-800">{date}</span></div>
                                     </div>
                                 </div>
                             </div>
                         ) : (
-                            <div className="space-y-4">
-                                <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-hide">
-                                    {current?.races.length > 0 ? current.races.map((r, i) => (
-                                        <button key={i} onClick={() => {setRaceIdx(i); setExpanded(null);}} className={`flex-shrink-0 w-12 h-12 rounded-xl font-black text-lg transition-all shadow-sm border ${raceIdx === i ? 'bg-slate-900 text-white border-slate-900 scale-105' : 'bg-white text-slate-300 border-slate-100'}`}>
-                                            {r.no}
-                                        </button>
-                                    )) : <div className="w-full py-10 text-center text-slate-400 font-bold text-xs border-2 border-dashed rounded-3xl">데이터 없음</div>}
-                                </div>
-
-                                {race && (
-                                    <div className="space-y-4 animate-up">
-                                        <div className="bg-white p-5 rounded-3xl shadow-sm border-l-8 border-yellow-400 relative overflow-hidden">
-                                            <div className="flex justify-between items-start relative z-10">
-                                                <div>
-                                                    <h2 className="text-2xl font-black text-slate-900 italic tracking-tighter">제 {race.no} 경주</h2>
-                                                    <div className="flex items-center gap-2 text-xs font-bold text-slate-400 mt-2">
-                                                        <Icon name="clock" size={14}/> {race.startTime}
-                                                        <span className="w-1 h-1 bg-slate-300 rounded-full"/>
-                                                        <span className="text-indigo-600 font-black">{race.distance}M</span>
-                                                    </div>
+                            <>
+                                {info && (
+                                    <div className="sticky top-0 z-50 px-4 pt-0 pb-2">
+                                        <div className="sticky-header-blur rounded-3xl p-4 shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-slate-200/50 animate-up">
+                                            <div className="flex items-center justify-between mb-2 pb-2 border-b border-slate-100">
+                                                <div className="flex items-center gap-3">
+                                                    <span className="bg-indigo-600 text-white text-[11px] font-black px-2.5 py-1 rounded-lg shadow-sm shadow-indigo-200">{info.class}</span>
+                                                    <span className="text-base font-bold text-slate-800 tabular">{info.distance}</span>
+                                                    <span className="text-xs text-slate-400 font-medium tabular">| {info.start_time}</span>
                                                 </div>
-                                                {analysisInfo?.avgRecord && (
-                                                    <div className="text-right">
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Avg Rec</span>
-                                                        <div className="text-xl font-black text-slate-800 font-mono tracking-tight">{analysisInfo.avgRecord}</div>
-                                                    </div>
-                                                )}
+                                                <div className="flex flex-col items-end">
+                                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">우승마 평균기록</span>
+                                                    <div className="font-black text-slate-800 text-sm tabular tracking-tight flex items-center gap-1"><Icon name="timer" size={14} className="text-indigo-500"/>{stats?.avg_record || '-'}</div>
+                                                </div>
                                             </div>
-                                            
-                                            {expertInfo && (
-                                                <div className="mt-4 p-3 bg-orange-50 rounded-xl border border-orange-100 relative">
-                                                    <div className="flex flex-wrap gap-2 items-center mb-2">
-                                                        <span className="bg-orange-600 text-white text-[9px] px-2 py-0.5 rounded-full font-black uppercase flex items-center gap-1"><Icon name="star" size={10} fill="white"/> 추천</span>
-                                                        <div className="flex gap-1 ml-auto">
-                                                            {expertInfo.recommended?.map(h => (
-                                                                <span key={h.no} className="w-6 h-6 rounded-full bg-white text-orange-600 border border-orange-200 flex items-center justify-center text-xs font-black shadow-sm">{h.no}</span>
-                                                            ))}
+                                            <div className="text-xs text-slate-500 font-medium leading-tight bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex gap-2 items-start mb-2">
+                                                <Icon name="info" size={14} className="text-indigo-400 shrink-0 mt-0.5"/>
+                                                <span className="line-clamp-2">{info.conditions}</span>
+                                            </div>
+                                            {expert && (
+                                                <div className="flex items-center gap-4 text-xs overflow-x-auto scrollbar-hide">
+                                                    <div className="flex items-center gap-3 shrink-0">
+                                                        <span className="bg-slate-900 text-white px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide shadow-md shadow-slate-200">추천</span>
+                                                        <div className="flex -space-x-1 hover:space-x-1 transition-all duration-300">
+                                                            {expert.picks.map(no => <span key={no} className={`w-7 h-7 rounded-full font-bold text-xs flex items-center justify-center ${getBadgeStyle(no)}`}>{no}</span>)}
                                                         </div>
                                                     </div>
-                                                    <p className="text-[11px] text-orange-900 font-medium leading-relaxed">
-                                                        {expertInfo.summary ? expertInfo.summary.substring(0, 100) + "..." : "전문가 상세 분석 참조"}
-                                                    </p>
-                                                    <div className="mt-2 pt-2 border-t border-orange-100 flex gap-3 text-[10px] font-bold">
-                                                        {expertInfo.dark.length > 0 && <span className="text-purple-600">⚡ 복병: {expertInfo.dark.join(', ')}</span>}
-                                                        {expertInfo.lead.length > 0 && <span className="text-red-600">🔥 선행: {expertInfo.lead.join(', ')}</span>}
+                                                    <div className="w-px h-6 bg-slate-200 shrink-0 mx-1"></div>
+                                                    <div className="flex items-center gap-3 shrink-0">
+                                                        <span className="bg-white border border-slate-200 text-slate-600 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide">복병</span>
+                                                        <div className="flex gap-1.5">
+                                                            {expert.upset_picks.map(no => <span key={no} className={`w-7 h-7 rounded-full font-bold text-xs flex items-center justify-center ${getBadgeStyle(no)}`}>{no}</span>)}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             )}
                                         </div>
+                                    </div>
+                                )}
 
-                                        <div className="flex flex-col gap-3 pb-10">
-                                            {race.horses.map((h) => {
-                                                const isExp = expanded === h.no;
-                                                const hist = current.histories.filter(v => v.horseName === h.name).slice(0, 5);
-                                                const expComment = expertInfo?.horseComments?.[h.no];
-                                                const isRec = expertInfo?.recommended?.some(r => r.no === h.no);
-                                                const isDark = expertInfo?.dark?.includes(h.no);
-                                                const isFastS = analysisInfo?.analysis?.fastStart.some(v => v.no === h.no);
+                                <div className="px-4 space-y-3">
+                                    {race?.horses.map((h, i) => {
+                                        const isExp = expanded === h.horse_no;
+                                        const picksText = expert?.picks_text?.find(p => parseInt(p.no) === h.horse_no)?.coment;
+                                        const isPick = expert?.picks?.includes(h.horse_no);
+                                        const targetDist = info ? parseInt(info.distance.replace(/\D/g, '')) : 0;
+                                        const recentRecObj = h.recent_history?.find(r => r.distance === targetDist);
+                                        const recentRecord = recentRecObj ? recentRecObj.record : null;
+                                        
+                                        // --- 배지 생성 로직 ---
+                                        const badges = [];
 
-                                                return (
-                                                    <div key={h.no} className={`bg-white rounded-2xl shadow-sm border overflow-hidden transition-all ${isExp ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-slate-100'}`}>
-                                                        <div className="p-3 flex items-center gap-3 cursor-pointer" onClick={() => setExpanded(isExp ? null : h.no)}>
-                                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-inner font-black text-xl italic tracking-tighter ${getBadgeStyle(h.no)}`}>
-                                                                {h.no}
+                                        // 1. 최근 기록 (항상 최우선)
+                                        if (recentRecord) {
+                                            badges.push({ emoji: "⏱️", text: recentRecord, color: "yellow" });
+                                        }
+
+                                        // 2. 전문가 추천
+                                        if (isPick) badges.push({ emoji: "⭐", text: "추천", color: "red" });
+                                        if (expert?.upset_picks?.includes(h.horse_no)) badges.push({ emoji: "💣", text: "복병", color: "purple" });
+
+                                        // 3. 기수 교체
+                                        const lastRace = h.recent_history?.[0];
+                                        if (lastRace && lastRace.jockey !== h.jockey) {
+                                            badges.push({ emoji: "🔄", text: "기수교체", color: "gray" });
+                                        }
+
+                                        // 4. 승급전 / 강급전
+                                        if (info && lastRace && lastRace.class) {
+                                            const currentClassNum = getClassNum(info.class);
+                                            const lastClassNum = getClassNum(lastRace.class);
+                                            if (currentClassNum < lastClassNum) {
+                                                if (lastClassNum - currentClassNum > 1) {
+                                                    badges.push({ emoji: "🚀", text: "점핑전", color: "red" });
+                                                } else {
+                                                    badges.push({ emoji: "🆙", text: "승급전", color: "red" });
+                                                }
+                                            } else if (currentClassNum > lastClassNum) {
+                                                badges.push({ emoji: "⬇️", text: "강급전", color: "gray" });
+                                            }
+                                        }
+
+                                        // 5. 훈련왕
+                                        const myTraining = getNum(h.training_cnt);
+                                        if (myTraining > 0 && myTraining === maxTraining) {
+                                            badges.push({ emoji: "💪", text: "훈련왕", color: "blue" });
+                                        }
+
+                                        // 6. 레이팅왕
+                                        const myRating = getNum(h.rating);
+                                        if (myRating > 0 && myRating === maxRating) {
+                                            badges.push({ emoji: "👑", text: "레이팅왕", color: "purple" });
+                                        }
+
+                                        // 7. 부중
+                                        const myWeight = getNum(h.weight);
+                                        if (myWeight > 0) {
+                                            if (myWeight === minWeight) badges.push({ emoji: "🪶", text: "부중↓", color: "cyan" });
+                                            if (myWeight === maxWeight) badges.push({ emoji: "🏋️", text: "부중↑", color: "orange" });
+                                        }
+
+                                        // 8. 초반/후반 스피드
+                                        if (h.horse_no === topStartHorseNo) badges.push({ emoji: "🚀", text: "초반", color: "red" });
+                                        if (h.horse_no === topFinishHorseNo) badges.push({ emoji: "⚡", text: "후반", color: "blue" });
+
+                                        return (
+                                            <div 
+                                                key={h.horse_no} 
+                                                className={`bg-white rounded-2xl shadow-sm border transition-all duration-300 overflow-hidden animate-up ${isExp ? 'border-indigo-500 ring-1 ring-indigo-500 shadow-[0_10px_30px_-10px_rgba(79,70,229,0.2)]' : 'border-slate-100 shadow-[0_2px_10px_-5px_rgba(0,0,0,0.05)]'}`}
+                                                style={{animationDelay: `${0.2 + (i * 0.05)}s`}}
+                                            >
+                                                <div className="p-3 flex items-center gap-3 cursor-pointer active:bg-slate-50 min-h-[70px]" onClick={() => setExpanded(isExp ? null : h.horse_no)}>
+                                                    {/* 1. 마번 (좌측) */}
+                                                    <div className={`w-[45px] h-[45px] rounded-xl flex items-center justify-center shadow-inner font-black text-lg italic tracking-tighter shrink-0 ${getBadgeStyle(h.horse_no)}`}>
+                                                        {h.horse_no}
+                                                    </div>
+                                                    
+                                                    {/* 2. 말 정보 (이름/상세 - 위치 고정) */}
+                                                    <div className="flex flex-col justify-center shrink-0 w-[85px]">
+                                                        <div className="flex items-center gap-1 mb-0.5">
+                                                            <h3 className="font-bold text-slate-900 text-[15px] truncate leading-tight">{h.name}</h3>
+                                                            {isPick && <Icon name="thumbs-up" size={12} className="text-yellow-500 fill-yellow-500 shrink-0"/>}
+                                                        </div>
+                                                        <div className="text-[11px] text-slate-400 font-medium tabular leading-none">
+                                                            {h.origin}/{h.sex}/{h.age}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* 3. 배지 영역 (이름 옆 남은 공간 채움) */}
+                                                    <div className="flex-1 flex flex-wrap gap-1 items-center justify-start content-center min-h-[45px]">
+                                                        {badges.map((b, idx) => (
+                                                            <div key={idx} className={`flex-shrink-0 px-1.5 py-0.5 rounded flex items-center justify-center border ${
+                                                                b.color === 'red' ? 'bg-red-50 text-red-600 border-red-100' :
+                                                                b.color === 'blue' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                                                                b.color === 'purple' ? 'bg-purple-50 text-purple-600 border-purple-100' :
+                                                                b.color === 'yellow' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                                                                b.color === 'cyan' ? 'bg-cyan-50 text-cyan-600 border-cyan-100' :
+                                                                b.color === 'orange' ? 'bg-orange-50 text-orange-600 border-orange-100' :
+                                                                b.color === 'gray' ? 'bg-slate-100 text-slate-600 border-slate-200' :
+                                                                'bg-slate-50 text-slate-600 border-slate-100'
+                                                            }`}>
+                                                                <span className="text-[10px] leading-none mr-1">{b.emoji}</span>
+                                                                <span className="text-[9px] font-bold tracking-tight leading-none whitespace-nowrap">{b.text}</span>
                                                             </div>
-                                                            <div className="flex-1 min-w-0">
-                                                                <div className="flex items-center gap-2 mb-1">
-                                                                    <h3 className="font-bold text-slate-800 truncate text-base">{h.name}</h3>
-                                                                    <div className="flex gap-1">
-                                                                        {isRec && <Icon name="star" size={12} className="text-orange-400 fill-orange-400" />}
-                                                                        {isDark && <Icon name="zap" size={12} className="text-purple-600 fill-purple-600" />}
-                                                                        {isFastS && <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"/>}
-                                                                    </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {isExp && (
+                                                    <div className="bg-slate-50/50 border-t border-slate-100 p-5">
+                                                        
+                                                        {/* 상세 정보 섹션: 1. 핵심 지표 그리드 */}
+                                                        <div className="mb-4 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                                                            <div className="grid grid-cols-5 divide-x divide-slate-100">
+                                                                <div className="p-2 text-center">
+                                                                    <div className="text-[9px] text-slate-400 font-bold mb-0.5">등급</div>
+                                                                    <div className="font-bold text-slate-800 text-xs truncate">{h.grade}</div>
                                                                 </div>
-                                                                <div className="text-[11px] text-slate-500 flex gap-2 font-bold uppercase">
-                                                                    <span className="text-indigo-600">{h.jockey}</span>
-                                                                    <span className="text-slate-300">|</span>
-                                                                    <span>{h.weight}kg</span>
-                                                                    <span className="text-slate-300">|</span>
-                                                                    <span className="bg-slate-100 px-1.5 rounded text-slate-600">R{h.rating}</span>
+                                                                <div className="p-2 text-center">
+                                                                    <div className="text-[9px] text-slate-400 font-bold mb-0.5">부중</div>
+                                                                    <div className="font-bold text-slate-800 text-xs truncate">{h.weight}</div>
+                                                                </div>
+                                                                <div className="p-2 text-center bg-blue-50/30">
+                                                                    <div className="text-[9px] text-blue-500 font-bold mb-0.5">훈련</div>
+                                                                    <div className="font-bold text-blue-700 text-xs truncate">{h.training_cnt || '-'}회</div>
+                                                                </div>
+                                                                <div className="p-2 text-center bg-blue-50/30">
+                                                                    <div className="text-[9px] text-blue-500 font-bold mb-0.5">주기</div>
+                                                                    <div className="font-bold text-blue-700 text-xs truncate">{h.participation_period || '-'}</div>
+                                                                </div>
+                                                                <div className="p-2 text-center">
+                                                                    <div className="text-[9px] text-slate-400 font-bold mb-0.5">레이팅</div>
+                                                                    <div className="font-bold text-slate-800 text-xs truncate">{h.rating}</div>
                                                                 </div>
                                                             </div>
-                                                            <div className="text-right pr-1">
-                                                                <div className="text-[9px] text-slate-400 font-bold uppercase">Train</div>
-                                                                <div className="font-black text-slate-800">{h.trainingCount}</div>
-                                                            </div>
-                                                            <div className="text-slate-300">{isExp ? <Icon name="chevron-up" size={20}/> : <Icon name="chevron-down" size={20}/>}</div>
                                                         </div>
 
-                                                        {isExp && (
-                                                            <div className="bg-slate-50 border-t border-slate-100 p-4 animate-in">
-                                                                {expComment && (
-                                                                    <div className="mb-4 bg-white p-3 rounded-xl border-l-4 border-orange-400 shadow-sm">
-                                                                        <div className="flex items-center gap-2 mb-1 text-orange-600 font-black text-[10px] uppercase tracking-wider">
-                                                                            <Icon name="zap" size={10}/> Expert Insight
-                                                                        </div>
-                                                                        <p className="text-xs font-medium text-slate-700 leading-relaxed">
-                                                                            {expComment}
-                                                                        </p>
-                                                                    </div>
-                                                                )}
-                                                                <div className="grid grid-cols-2 gap-2 mb-4 text-xs text-slate-600">
-                                                                    <div className="bg-white p-2 rounded-lg border border-slate-200">
-                                                                        <div className="text-[10px] text-slate-400 font-bold mb-1">조교사</div>
-                                                                        <div className="font-bold">{h.trainer}</div>
-                                                                    </div>
-                                                                    <div className="bg-white p-2 rounded-lg border border-slate-200">
-                                                                        <div className="text-[10px] text-slate-400 font-bold mb-1">부마</div>
-                                                                        <div className="font-bold truncate">{h.father}</div>
-                                                                    </div>
-                                                                    <div className="bg-white p-2 rounded-lg border border-slate-200">
-                                                                        <div className="text-[10px] text-slate-400 font-bold mb-1">출전주기</div>
-                                                                        <div className="font-bold text-indigo-600">{h.cycle}주</div>
-                                                                    </div>
-                                                                    <div className="bg-white p-2 rounded-lg border border-slate-200">
-                                                                        <div className="text-[10px] text-slate-400 font-bold mb-1">장구</div>
-                                                                        <div className="font-bold truncate">{h.gear || '-'}</div>
-                                                                    </div>
+                                                        {/* 2. 전문가 코멘트 */}
+                                                        {picksText ? (
+                                                            <div className="mb-4 bg-white p-4 rounded-2xl border-l-[3px] border-yellow-400 shadow-sm">
+                                                                <div className="flex items-center gap-2 mb-2 text-yellow-600 font-black text-[10px] uppercase tracking-wider">
+                                                                    <Icon name="message-circle" size={12}/> Expert Insight
                                                                 </div>
-                                                                <div className="bg-slate-900 rounded-xl overflow-hidden shadow-inner">
-                                                                    <table className="w-full text-[10px] text-center text-slate-400">
-                                                                        <thead className="bg-slate-800 text-slate-500 font-bold uppercase">
-                                                                            <tr><th className="py-2">날짜</th><th>거리</th><th className="text-white">기록</th><th>순위</th><th className="text-red-400">S1F</th><th className="text-blue-400">G1F</th></tr>
-                                                                        </thead>
-                                                                        <tbody className="divide-y divide-slate-800 font-mono">
-                                                                            {hist.map((v, i) => (
-                                                                                <tr key={i}>
-                                                                                    <td className="py-2 text-slate-500">{v.date}</td>
-                                                                                    <td>{v.dist}</td>
-                                                                                    <td className="text-yellow-400">{v.rec}</td>
-                                                                                    <td className={v.rank?.startsWith('1/') ? 'text-white font-bold' : ''}>{v.rank}</td>
-                                                                                    <td className="text-red-500">{v.s1f}</td>
-                                                                                    <td className="text-blue-500">{v.g1f}</td>
-                                                                                </tr>
-                                                                            ))}
-                                                                            {hist.length === 0 && <tr><td colSpan="6" className="py-4 text-slate-600">전적 없음</td></tr>}
-                                                                        </tbody>
-                                                                    </table>
-                                                                </div>
+                                                                <p className="text-[13px] font-medium text-slate-700 leading-relaxed break-keep tracking-tight">
+                                                                    {picksText}
+                                                                </p>
                                                             </div>
+                                                        ) : (
+                                                            <div className="mb-4 text-center text-xs text-slate-400 py-2 border border-dashed border-slate-200 rounded-xl">전문가 코멘트 없음</div>
                                                         )}
+
+                                                        {/* 3. 인물 정보 (기수/조교사/마주) */}
+                                                        <div className="grid grid-cols-3 gap-3 mb-5">
+                                                            <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm text-center">
+                                                                <div className="text-[9px] text-slate-400 font-bold mb-1 uppercase">기수</div>
+                                                                <div className="font-bold text-slate-800 text-xs truncate">{h.jockey}</div>
+                                                            </div>
+                                                            <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm text-center">
+                                                                <div className="text-[9px] text-slate-400 font-bold mb-1 uppercase">조교사</div>
+                                                                <div className="font-bold text-slate-800 text-xs truncate">{h.trainer}</div>
+                                                            </div>
+                                                            <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm text-center">
+                                                                <div className="text-[9px] text-slate-400 font-bold mb-1 uppercase">마주</div>
+                                                                <div className="font-bold text-slate-800 text-xs truncate">{h.owner}</div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* 4. 기록 테이블 */}
+                                                        <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-200">
+                                                            <div className="bg-slate-50/80 px-4 py-2.5 text-[10px] font-bold text-slate-500 uppercase flex justify-between items-center border-b border-slate-100">
+                                                                <span>Recent History</span>
+                                                                <Icon name="history" size={12}/>
+                                                            </div>
+                                                            <div className="overflow-x-auto">
+                                                                <table className="w-full text-[11px] text-center whitespace-nowrap">
+                                                                    <thead className="bg-white text-slate-400 border-b border-slate-50">
+                                                                        <tr>
+                                                                            <th className="py-2.5 px-2 font-medium">날짜</th>
+                                                                            <th className="font-medium">등급</th>
+                                                                            <th className="font-medium">거리</th>
+                                                                            <th className="font-medium">기록</th>
+                                                                            <th className="font-medium">순위</th>
+                                                                            <th className="font-medium text-slate-500">부중</th>
+                                                                            <th className="font-medium text-slate-500">기수</th>
+                                                                            <th className="font-medium text-rose-400">S1F</th>
+                                                                            <th className="font-medium text-green-600">G3F</th>
+                                                                            <th className="font-medium text-blue-400">G1F</th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody className="divide-y divide-slate-50 tabular font-medium">
+                                                                        {h.recent_history && h.recent_history.length > 0 ? (
+                                                                            h.recent_history.map((hist, hIdx) => (
+                                                                                <tr key={hIdx}>
+                                                                                    <td className="py-2.5 px-2 text-slate-500">{hist.date}</td>
+                                                                                    <td className="text-slate-700 text-[10px]">{hist.class}</td>
+                                                                                    <td className="text-slate-700">{hist.distance}</td>
+                                                                                    <td className="font-bold text-slate-900">{hist.record}</td>
+                                                                                    <td className={`font-bold ${hist.result_rank <= 3 ? 'text-rose-600' : 'text-slate-400'}`}>{hist.result_rank}위</td>
+                                                                                    <td className="text-slate-500">{hist.weight}</td>
+                                                                                    <td className="text-slate-500 text-[10px]">{hist.jockey}</td>
+                                                                                    <td className="text-slate-500">{hist.s1f}</td>
+                                                                                    <td className="text-green-600 font-bold">{hist.g3f}</td>
+                                                                                    <td className="text-slate-500">{hist.g1f}</td>
+                                                                                </tr>
+                                                                            ))
+                                                                        ) : (
+                                                                            <tr>
+                                                                                <td colSpan="10" className="py-6 text-slate-400 text-center text-xs">최근 전적 정보 없음</td>
+                                                                            </tr>
+                                                                        )}
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                );
-                                            })}
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                {stats && (
+                                    <div className="px-4 pb-10">
+                                        <div className="bg-white rounded-3xl p-6 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.08)] border border-slate-100 animate-up">
+                                            <h3 className="text-sm font-black text-slate-800 flex items-center gap-2 mb-6"><div className="bg-green-100 p-1 rounded text-green-600"><Icon name="bar-chart-2" size={14}/></div>데이터 정밀 분석</h3>
+                                            <div className="space-y-8">
+                                                <div><div className="flex justify-between items-center mb-3"><span className="text-[11px] font-bold text-red-500 flex items-center gap-1.5 bg-red-50 px-2 py-1 rounded-md"><Icon name="zap" size={12}/> 초반 스피드 (S1F)</span></div><BarChart data={stats.fast_start_horses} color="red" /></div>
+                                                <div><div className="flex justify-between items-center mb-3"><span className="text-[11px] font-bold text-blue-500 flex items-center gap-1.5 bg-blue-50 px-2 py-1 rounded-md"><Icon name="activity" size={12}/> 후반 탄력 (G1F)</span></div><BarChart data={stats.fast_finish_horses} color="blue" /></div>
+                                                
+                                                {/* 상금 분석 추가 */}
+                                                {stats.prize_money_6mon && (
+                                                    <div>
+                                                        <div className="flex justify-between items-center mb-3">
+                                                            <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1.5 bg-emerald-50 px-2 py-1 rounded-md">
+                                                                <Icon name="dollar-sign" size={12}/> 최근 6개월 상금
+                                                            </span>
+                                                        </div>
+                                                        <ValueChart data={stats.prize_money_6mon} color="green" valueKey="won" />
+                                                    </div>
+                                                )}
+
+                                                {/* 복승률 분석 추가 */}
+                                                {stats.horse_bok_win && (
+                                                    <div>
+                                                        <div className="flex justify-between items-center mb-3">
+                                                            <span className="text-[11px] font-bold text-purple-600 flex items-center gap-1.5 bg-purple-50 px-2 py-1 rounded-md">
+                                                                <Icon name="percent" size={12}/> 말 복승률
+                                                            </span>
+                                                        </div>
+                                                        <ValueChart data={stats.horse_bok_win} color="purple" valueKey="bok_win" />
+                                                    </div>
+                                                )}
+
+                                            </div>
                                         </div>
                                     </div>
                                 )}
-                            </div>
+                            </>
                         )}
                     </main>
                 </div>
