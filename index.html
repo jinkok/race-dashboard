@@ -433,17 +433,14 @@
                                         const myWeight = getNum(h.weight);
                                         
                                         const badges = [];
-                                        // 1. 기록/추천 기본 배지
                                         if (recentRecord) badges.push({ emoji: "⏱️", text: recentRecord, color: "yellow" });
                                         if (isPick) badges.push({ emoji: "⭐", text: "추천", color: "red" });
                                         if (expert?.upset_picks?.includes(h.horse_no)) badges.push({ emoji: "💣", text: "복병", color: "purple" });
 
-                                        // 2. 거리 관련 배지
                                         if (h.horse_no === topDistHorseNo) badges.push({ emoji: "🥇", text: `TOP ${formatTime(bestTimeMap[h.horse_no])}`, color: "yellow" });
                                         if (h.horse_no === avgDistHorseNo) badges.push({ emoji: "📊", text: `AVG ${formatTime(avgTimeMap[h.horse_no])}`, color: "blue" });
                                         if (h.horse_no === recentDistHorseNo) badges.push({ emoji: "🕒", text: `REC ${formatTime(recentTimeMap[h.horse_no])}`, color: "green" });
 
-                                        // 3. 상태/등급 변경 배지
                                         const actualHistory = h.recent_history?.filter(hist => !hist.class?.includes("주행")) || [];
                                         const lastActualRace = actualHistory[0];
                                         
@@ -466,7 +463,6 @@
                                             }
                                         }
 
-                                        // 4. 수치 기반 1위 배지
                                         if (lastActualRace && lastActualRace.jockey !== h.jockey) badges.push({ emoji: "🔄", text: "기수교체", color: "gray" });
                                         if (getNum(h.training_cnt) === maxTraining && maxTraining > 0) badges.push({ emoji: "💪", text: "훈련왕", color: "blue" });
                                         if (getNum(h.rating) === maxRating && maxRating > 0) badges.push({ emoji: "👑", text: "레이팅왕", color: "purple" });
@@ -482,29 +478,33 @@
                                             <div key={h.horse_no} className={`bg-white rounded-2xl shadow-sm border transition-all duration-300 overflow-hidden animate-up ${isExp ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-slate-100'}`} style={{animationDelay: `${0.2 + (i * 0.05)}s`}}>
                                                 <div className="p-3 flex items-center gap-3 cursor-pointer min-h-[70px]" onClick={() => setExpanded(isExp ? null : h.horse_no)}>
                                                     <div className={`w-[45px] h-[45px] rounded-xl flex items-center justify-center font-black text-lg italic tracking-tighter shrink-0 ${getBadgeStyle(h.horse_no)}`}>{h.horse_no}</div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2 mb-0.5">
+                                                    
+                                                    {/* 마명 섹션: 원본 구조 복구 */}
+                                                    <div className="flex flex-col justify-center shrink-0 w-[85px]">
+                                                        <div className="flex items-center gap-1 mb-0.5">
                                                             <h3 className="font-bold text-slate-900 text-[15px] truncate">{h.name}</h3>
                                                             {isPick && <Icon name="thumbs-up" size={12} className="text-yellow-500 fill-yellow-500"/>}
-                                                            <span className="text-[10px] text-slate-400 tabular shrink-0">{h.origin}/{h.sex}/{h.age}</span>
                                                         </div>
-                                                        <div className="flex flex-wrap gap-1 items-center mt-1">
-                                                            {badges.map((b, idx) => (
-                                                                <div key={idx} className={`flex-shrink-0 px-1.5 py-0.5 rounded flex items-center border ${
-                                                                    b.color === 'red' ? 'bg-red-50 text-red-600 border-red-100' :
-                                                                    b.color === 'blue' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                                                                    b.color === 'green' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                                                                    b.color === 'purple' ? 'bg-purple-50 text-purple-600 border-purple-100' :
-                                                                    b.color === 'yellow' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
-                                                                    b.color === 'cyan' ? 'bg-cyan-50 text-cyan-600 border-cyan-100' :
-                                                                    b.color === 'orange' ? 'bg-orange-50 text-orange-600 border-orange-100' :
-                                                                    'bg-slate-50 text-slate-600 border-slate-100'
-                                                                }`}>
-                                                                    <span className="text-[10px] mr-1">{b.emoji}</span>
-                                                                    <span className="text-[9px] font-bold whitespace-nowrap">{b.text}</span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
+                                                        <div className="text-[11px] text-slate-400 tabular">{h.origin}/{h.sex}/{h.age}</div>
+                                                    </div>
+
+                                                    {/* 배지 섹션: 원본 위치(우측) 복구 */}
+                                                    <div className="flex-1 flex flex-wrap gap-1 items-center justify-start content-center min-h-[45px]">
+                                                        {badges.map((b, idx) => (
+                                                            <div key={idx} className={`flex-shrink-0 px-1.5 py-0.5 rounded flex items-center border ${
+                                                                b.color === 'red' ? 'bg-red-50 text-red-600 border-red-100' :
+                                                                b.color === 'blue' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                                                                b.color === 'green' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                                b.color === 'purple' ? 'bg-purple-50 text-purple-600 border-purple-100' :
+                                                                b.color === 'yellow' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                                                                b.color === 'cyan' ? 'bg-cyan-50 text-cyan-600 border-cyan-100' :
+                                                                b.color === 'orange' ? 'bg-orange-50 text-orange-600 border-orange-100' :
+                                                                'bg-slate-50 text-slate-600 border-slate-100'
+                                                            }`}>
+                                                                <span className="text-[10px] mr-1">{b.emoji}</span>
+                                                                <span className="text-[9px] font-bold whitespace-nowrap">{b.text}</span>
+                                                            </div>
+                                                        ))}
                                                     </div>
                                                 </div>
                                                 {isExp && (
