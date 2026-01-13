@@ -398,20 +398,31 @@
                                                 </div>
                                             </div>
                                             {expert && (
-                                                <div className="flex items-center gap-4 text-xs overflow-x-auto scrollbar-hide mt-1">
-                                                    <div className="flex items-center gap-3 shrink-0">
-                                                        <span className="bg-slate-900 text-white px-2.5 py-1 rounded-full text-[10px] font-bold">추천</span>
-                                                        <div className="flex -space-x-1">
-                                                            {expert.picks?.map(no => <span key={no} className={`w-7 h-7 rounded-full font-bold text-xs flex items-center justify-center ${getBadgeStyle(no)}`}>{no}</span>)}
+                                                <div className="flex items-center gap-2 text-xs overflow-x-auto scrollbar-hide mt-1.5 pt-1 border-t border-slate-50">
+                                                    <div className="flex items-center gap-1 shrink-0">
+                                                        <span className="bg-slate-900 text-white px-2 py-0.5 rounded-lg text-[10px] font-bold">추천</span>
+                                                        <div className="flex -space-x-1.5">
+                                                            {expert.picks?.map(no => <span key={no} className={`w-6 h-6 rounded-full font-bold text-[11px] flex items-center justify-center ring-1 ring-white ${getBadgeStyle(no)}`}>{no}</span>)}
                                                         </div>
                                                     </div>
                                                     {expert.upset_picks && expert.upset_picks.length > 0 && (
                                                         <>
-                                                            <div className="w-px h-6 bg-slate-200 shrink-0 mx-1"></div>
-                                                            <div className="flex items-center gap-3 shrink-0">
-                                                                <span className="bg-white border border-slate-200 text-slate-600 px-2.5 py-1 rounded-full text-[10px] font-bold">복병</span>
-                                                                <div className="flex -space-x-1">
-                                                                    {expert.upset_picks.map(no => <span key={no} className={`w-7 h-7 rounded-full font-bold text-xs flex items-center justify-center ${getBadgeStyle(no)}`}>{no}</span>)}
+                                                            <div className="w-px h-3 bg-slate-200 shrink-0 mx-0.5"></div>
+                                                            <div className="flex items-center gap-1 shrink-0">
+                                                                <span className="bg-white border border-slate-200 text-slate-500 px-2 py-0.5 rounded-lg text-[10px] font-bold">복병</span>
+                                                                <div className="flex -space-x-1.5">
+                                                                    {expert.upset_picks.map(no => <span key={no} className={`w-6 h-6 rounded-full font-bold text-[11px] flex items-center justify-center ring-1 ring-white ${getBadgeStyle(no)}`}>{no}</span>)}
+                                                                </div>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                    {expert.front_runners && expert.front_runners.length > 0 && (
+                                                        <>
+                                                            <div className="w-px h-3 bg-slate-200 shrink-0 mx-0.5"></div>
+                                                            <div className="flex items-center gap-1 shrink-0">
+                                                                <span className="bg-orange-50 border border-orange-100 text-orange-600 px-2 py-0.5 rounded-lg text-[10px] font-bold">선행</span>
+                                                                <div className="flex -space-x-1.5">
+                                                                    {expert.front_runners.map(no => <span key={no} className={`w-6 h-6 rounded-full font-bold text-[11px] flex items-center justify-center ring-1 ring-white ${getBadgeStyle(no)}`}>{no}</span>)}
                                                                 </div>
                                                             </div>
                                                         </>
@@ -436,6 +447,7 @@
                                         if (recentRecord) badges.push({ emoji: "⏱️", text: recentRecord, color: "yellow" });
                                         if (isPick) badges.push({ emoji: "⭐", text: "추천", color: "red" });
                                         if (expert?.upset_picks?.includes(h.horse_no)) badges.push({ emoji: "💣", text: "복병", color: "purple" });
+                                        if (expert?.front_runners?.includes(h.horse_no)) badges.push({ emoji: "🐎", text: "선행", color: "orange" });
 
                                         if (h.horse_no === topDistHorseNo) badges.push({ emoji: "🥇", text: `TOP ${formatTime(bestTimeMap[h.horse_no])}`, color: "yellow" });
                                         if (h.horse_no === avgDistHorseNo) badges.push({ emoji: "📊", text: `AVG ${formatTime(avgTimeMap[h.horse_no])}`, color: "blue" });
