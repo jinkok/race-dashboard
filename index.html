@@ -6,6 +6,7 @@
     <title>SMART RACING PRO V9</title>
     
     <!-- 1. 필수 라이브러리 (CDN) -->
+    <script src="firebase-config.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
@@ -44,17 +45,8 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyDVJRqmpFjR9g91AgQsJIV65_7BJ7yYEOU",
-            authDomain: "race-app-3e41d.firebaseapp.com",
-            projectId: "race-app-3e41d",
-            storageBucket: "race-app-3e41d.firebasestorage.app",
-            messagingSenderId: "232853669556",
-            appId: "1:232853669556:web:f9e7c8ccfde227f50679e1",
-            measurementId: "G-H6MB9KZ8M8"
-        };
-
+       
+       
         try {
             const app = initializeApp(firebaseConfig);
             const auth = getAuth(app);
