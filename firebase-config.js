@@ -1,7 +1,7 @@
-// firebase-config.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
 
 const firebaseConfig = {
     apiKey: "AIzaSyDVJRqmpFjR9g91AgQsJIV65_7BJ7yYEOU",
@@ -12,10 +12,13 @@ const firebaseConfig = {
     appId: "1:232853669556:web:f9e7c8ccfde227f50679e1",
     measurementId: "G-H6MB9KZ8M8"
 };
-// 초기화
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
 
-// index.html의 React 컴포넌트가 사용할 수 있도록 전역 변수에 등록
-window.fb = { db, auth, doc, onSnapshot, setDoc, signInAnonymously, onAuthStateChanged };
+
+try {
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    window.fb = { auth, db, doc, setDoc, onSnapshot, signInAnonymously, onAuthStateChanged, isReady: true };
+} catch (e) {
+    console.error("Firebase Init Error:", e);
+}
