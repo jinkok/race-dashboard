@@ -1,35 +1,69 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SMART RACING PRO V9</title>
-    
+
     <!-- 1. 필수 라이브러리 (CDN) -->
     <script type="module" src="firebase-config.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
+
     <!-- 아이콘 -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <!-- 스타일 -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&display=swap');
-        
-        body { font-family: 'Pretendard', sans-serif; background-color: #f8fafc; color: #0f172a; -webkit-tap-highlight-color: transparent; }
-        
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .animate-up { animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-        
-        .bar-fill { animation: fillBar 1s ease-out forwards; transform-origin: left; transform: scaleX(0); }
-        @keyframes fillBar { to { transform: scaleX(1); } }
-        
-        .tabular { font-variant-numeric: tabular-nums; }
-        
+
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        .animate-up {
+            animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .bar-fill {
+            animation: fillBar 1s ease-out forwards;
+            transform-origin: left;
+            transform: scaleX(0);
+        }
+
+        @keyframes fillBar {
+            to {
+                transform: scaleX(1);
+            }
+        }
+
+        .tabular {
+            font-variant-numeric: tabular-nums;
+        }
+
         .sticky-header-blur {
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
@@ -37,11 +71,12 @@
         }
     </style>
 </head>
+
 <body>
     <div id="root"></div>
 
     <!-- 2. Firebase SDK 설정 -->
-  
+
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
@@ -57,18 +92,18 @@
         const getBadgeStyle = (no) => {
             const n = parseInt(no);
             const base = "border-2 shadow-sm box-border";
-            if (n===1) return `${base} bg-white text-slate-900 border-slate-900`;
-            if (n===2) return `${base} bg-yellow-400 text-slate-900 border-yellow-400`;
-            if (n===3) return `${base} bg-red-600 text-white border-red-600`;
-            if (n===4) return `${base} bg-slate-900 text-white border-slate-900`;
-            if (n===5) return `${base} bg-blue-600 text-white border-blue-600`;
-            if (n===6) return `${base} bg-green-600 text-white border-green-600`;
-            if (n===7) return `${base} bg-[#8B4513] text-white border-[#8B4513]`;
-            if (n===8) return `${base} bg-pink-400 text-white border-pink-400`;
-            if (n===9) return `${base} bg-purple-700 text-white border-purple-700`;
-            if (n===10) return `${base} bg-[#2ad0e4] text-slate-900 border-[#2ad0e4]`;
-            if (n===11) return `${base} bg-white text-[#005c42] border-[#005c42]`;
-            if (n===12) return `${base} bg-yellow-400 text-[#005c42] border-[#005c42]`;
+            if (n === 1) return `${base} bg-white text-slate-900 border-slate-900`;
+            if (n === 2) return `${base} bg-yellow-400 text-slate-900 border-yellow-400`;
+            if (n === 3) return `${base} bg-red-600 text-white border-red-600`;
+            if (n === 4) return `${base} bg-slate-900 text-white border-slate-900`;
+            if (n === 5) return `${base} bg-blue-600 text-white border-blue-600`;
+            if (n === 6) return `${base} bg-green-600 text-white border-green-600`;
+            if (n === 7) return `${base} bg-[#8B4513] text-white border-[#8B4513]`;
+            if (n === 8) return `${base} bg-pink-400 text-white border-pink-400`;
+            if (n === 9) return `${base} bg-purple-700 text-white border-purple-700`;
+            if (n === 10) return `${base} bg-[#2ad0e4] text-slate-900 border-[#2ad0e4]`;
+            if (n === 11) return `${base} bg-white text-[#005c42] border-[#005c42]`;
+            if (n === 12) return `${base} bg-yellow-400 text-[#005c42] border-[#005c42]`;
             return `${base} bg-slate-200 text-slate-500 border-slate-300`;
         };
 
@@ -77,7 +112,7 @@
             const parsedData = data.map(d => ({ ...d, val: parseFloat(d.rec) }));
             const min = Math.min(...parsedData.map(d => d.val));
             const max = Math.max(...parsedData.map(d => d.val));
-            const range = max - min || 1; 
+            const range = max - min || 1;
 
             return (
                 <div className="space-y-3">
@@ -158,7 +193,7 @@
             const [loc, setLoc] = useState('seoul');
             const [raceIdx, setRaceIdx] = useState(0);
             const [expanded, setExpanded] = useState(null);
-            
+
             const defaultData = {
                 date: "데이터 없음",
                 locations: {
@@ -240,7 +275,7 @@
 
             const getNum = (str) => parseFloat(String(str).replace(/[^\d.]/g, '')) || 0;
             const getClassNum = (str) => {
-                if(!str) return 99;
+                if (!str) return 99;
                 const match = str.match(/\d+/);
                 return match ? parseInt(match[0]) : 99;
             };
@@ -260,21 +295,50 @@
                 return m > 0 ? `${m}:${s.padStart(4, '0')}` : s;
             };
 
-            let maxRating = 0, maxTraining = 0, minWeight = 999, maxWeight = 0;
+            let maxRating = 0, minRating = 999;
+            let maxTraining = 0, minTraining = 999;
+            let minWeight = 999, maxWeight = 0;
+            let minCycle = 999, maxCycle = 0;
             let topStartHorseNo = null, topFinishHorseNo = null;
             let topDistHorseNo = null, avgDistHorseNo = null, recentDistHorseNo = null;
             let bestTimeMap = {}, avgTimeMap = {}, recentTimeMap = {};
+            let weightChangeMap = {};
 
             if (race?.horses) {
-                maxRating = Math.max(...race.horses.map(h => getNum(h.rating)));
-                maxTraining = Math.max(...race.horses.map(h => getNum(h.training_cnt)));
+                const getCycleNum = (str) => {
+                    if (!str || str === '-') return null;
+                    const m = str.match(/\d+/);
+                    return m ? parseInt(m[0]) : null;
+                };
+
+                const ratings = race.horses.map(h => getNum(h.rating)).filter(v => v > 0);
+                if (ratings.length > 0) { maxRating = Math.max(...ratings); minRating = Math.min(...ratings); }
+
+                const trainings = race.horses.map(h => getNum(h.training_cnt)).filter(v => v > 0);
+                if (trainings.length > 0) { maxTraining = Math.max(...trainings); minTraining = Math.min(...trainings); }
+
                 const weights = race.horses.map(h => getNum(h.weight)).filter(w => w > 0);
                 if (weights.length > 0) { minWeight = Math.min(...weights); maxWeight = Math.max(...weights); }
 
+                const cycles = race.horses.map(h => getCycleNum(h.participation_period)).filter(v => v !== null);
+                if (cycles.length > 0) { maxCycle = Math.max(...cycles); minCycle = Math.min(...cycles); }
+
+                race.horses.forEach(h => {
+                    const actualHistory = h.recent_history?.filter(hist => !hist.class?.includes("주행")) || [];
+                    if (actualHistory.length > 0) {
+                        const lastWeight = getNum(actualHistory[0].weight);
+                        const curWeight = getNum(h.weight);
+                        if (lastWeight > 0 && curWeight > 0) {
+                            const diff = (curWeight - lastWeight).toFixed(1);
+                            weightChangeMap[h.horse_no] = diff > 0 ? `+${diff}` : diff;
+                        }
+                    }
+                });
+
                 const targetDistNum = info ? parseInt(info.distance.replace(/\D/g, '')) : 0;
-                
+
                 const horsePerformance = race.horses.map(h => {
-                    const validHistory = h.recent_history?.filter(hist => 
+                    const validHistory = h.recent_history?.filter(hist =>
                         parseInt(hist.distance) === targetDistNum && !hist.class?.includes("주행")
                     ) || [];
                     if (validHistory.length === 0) return { no: h.horse_no, best: 9999, avg: 9999, recent: 9999 };
@@ -290,7 +354,7 @@
                 const globalBestDistTime = Math.min(...horsePerformance.map(p => p.best));
                 const globalBestDistAvg = Math.min(...horsePerformance.map(p => p.avg));
                 const globalBestRecentTime = Math.min(...horsePerformance.map(p => p.recent));
-                
+
                 topDistHorseNo = horsePerformance.find(p => p.best === globalBestDistTime && p.best < 9999)?.no;
                 avgDistHorseNo = horsePerformance.find(p => p.avg === globalBestDistAvg && p.avg < 9999)?.no;
                 recentDistHorseNo = horsePerformance.find(p => p.recent === globalBestRecentTime && p.recent < 9999)?.no;
@@ -313,7 +377,7 @@
                                 <span className="font-black italic text-lg tracking-tighter">SMART<span className="text-yellow-400">RACING</span> V9</span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="bg-slate-800 text-white text-xs font-bold px-2 py-1.5 rounded-lg outline-none border border-slate-700 focus:border-yellow-400"/>
+                                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="bg-slate-800 text-white text-xs font-bold px-2 py-1.5 rounded-lg outline-none border border-slate-700 focus:border-yellow-400" />
                                 <button onClick={() => setViewMode(viewMode === 'app' ? 'admin' : 'app')} className={`p-2 rounded-full transition-colors ${viewMode === 'admin' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}><Icon name={viewMode === 'app' ? 'settings' : 'x'} size={16} /></button>
                             </div>
                         </div>
@@ -321,7 +385,7 @@
                             <>
                                 <div className="flex justify-between items-end">
                                     <div>
-                                        <div className="text-[11px] text-slate-400 font-medium mb-1 flex items-center gap-1 opacity-80"><Icon name="calendar" size={12}/> {dbData.date || date}</div>
+                                        <div className="text-[11px] text-slate-400 font-medium mb-1 flex items-center gap-1 opacity-80"><Icon name="calendar" size={12} /> {dbData.date || date}</div>
                                         <div className="flex items-center gap-2">
                                             <h2 className="text-2xl font-black text-white italic tracking-tight">{currentLocData.location_name} {race?.race_no}<span className="text-lg font-bold text-slate-400 not-italic ml-1">경주</span></h2>
                                             <div className="flex bg-slate-800 rounded-lg p-0.5 ml-2 border border-slate-700">
@@ -333,7 +397,7 @@
                                 </div>
                                 <div className="mt-4 flex gap-1.5 overflow-x-auto pb-2 scrollbar-hide">
                                     {races.map((r, i) => (
-                                        <button key={i} onClick={() => { setRaceIdx(i); setExpanded(null); window.scrollTo({top:0, behavior:'smooth'}); }} className={`flex-shrink-0 w-9 h-9 rounded-full text-xs font-bold flex items-center justify-center transition-all ${raceIdx === i ? 'bg-yellow-400 text-slate-900 scale-110 shadow-lg ring-2 ring-yellow-400/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>{r.race_no}</button>
+                                        <button key={i} onClick={() => { setRaceIdx(i); setExpanded(null); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className={`flex-shrink-0 w-9 h-9 rounded-full text-xs font-bold flex items-center justify-center transition-all ${raceIdx === i ? 'bg-yellow-400 text-slate-900 scale-110 shadow-lg ring-2 ring-yellow-400/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>{r.race_no}</button>
                                     ))}
                                 </div>
                             </>
@@ -366,13 +430,13 @@
                                                     </div>
                                                     {info.conditions && (
                                                         <div className="text-[10px] text-slate-500 font-bold flex items-center gap-1 mt-0.5 bg-slate-100/50 px-2 py-0.5 rounded-md w-fit">
-                                                            <Icon name="info" size={10} className="text-slate-400"/> {info.conditions}
+                                                            <Icon name="info" size={10} className="text-slate-400" /> {info.conditions}
                                                         </div>
                                                     )}
                                                 </div>
                                                 <div className="flex flex-col items-end">
                                                     <span className="text-[10px] text-slate-400 font-bold uppercase">우승마 평균기록</span>
-                                                    <div className="font-black text-slate-800 text-sm tabular flex items-center gap-1"><Icon name="timer" size={14} className="text-indigo-500"/>{stats?.avg_record || '-'}</div>
+                                                    <div className="font-black text-slate-800 text-sm tabular flex items-center gap-1"><Icon name="timer" size={14} className="text-indigo-500" />{stats?.avg_record || '-'}</div>
                                                 </div>
                                             </div>
                                             {expert && (
@@ -420,8 +484,31 @@
                                         const recentRecObj = h.recent_history?.find(r => r.distance === targetDist);
                                         const recentRecord = recentRecObj ? recentRecObj.record : null;
                                         const myWeight = getNum(h.weight);
-                                        
+
                                         const badges = [];
+
+                                        // 최근 4경기 착순 배지 데이터 준비
+                                        const rankBadges = [];
+                                        if (h.recent_history) {
+                                            h.recent_history.slice(0, 4).forEach(hist => {
+                                                const isSameDist = info && parseInt(info.distance.replace(/\D/g, '')) === parseInt(hist.distance?.toString().replace(/\D/g, ''));
+                                                const isTraining = hist.class?.includes("주행");
+                                                const rank = hist.result_rank || '-';
+                                                const isHighRank = parseInt(rank) <= 3;
+
+                                                let badgeColor = "gray";
+                                                if (isSameDist) badgeColor = "yellow";
+                                                else if (isTraining) badgeColor = "purple";
+
+                                                rankBadges.push({
+                                                    text: (isTraining && !isHighRank) ? '주' : rank,
+                                                    color: badgeColor,
+                                                    isHighRank: isHighRank,
+                                                    isTraining: isTraining
+                                                });
+                                            });
+                                        }
+
                                         if (recentRecord) badges.push({ emoji: "⏱️", text: recentRecord, color: "yellow" });
                                         if (isPick) badges.push({ emoji: "⭐", text: "추천", color: "red" });
                                         if (expert?.upset_picks?.includes(h.horse_no)) badges.push({ emoji: "💣", text: "복병", color: "purple" });
@@ -433,7 +520,7 @@
 
                                         const actualHistory = h.recent_history?.filter(hist => !hist.class?.includes("주행")) || [];
                                         const lastActualRace = actualHistory[0];
-                                        
+
                                         if (info && h.grade) {
                                             const curRaceC = getClassNum(info.class);
                                             const horseGradeC = getClassNum(h.grade);
@@ -460,38 +547,87 @@
                                             if (myWeight === minWeight) badges.push({ emoji: "🪶", text: "부중↓", color: "cyan" });
                                             if (myWeight === maxWeight) badges.push({ emoji: "🏋️", text: "부중↑", color: "orange" });
                                         }
-                                        
+
                                         if (h.horse_no === topStartHorseNo) badges.push({ emoji: "🚀", text: "초반", color: "red" });
                                         if (h.horse_no === topFinishHorseNo) badges.push({ emoji: "⚡", text: "후반", color: "blue" });
 
                                         return (
-                                            <div key={h.horse_no} className={`bg-white rounded-2xl shadow-sm border transition-all duration-300 overflow-hidden animate-up ${isExp ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-slate-100'}`} style={{animationDelay: `${0.2 + (i * 0.05)}s`}}>
-                                                <div className="p-3 flex items-center gap-3 cursor-pointer min-h-[70px]" onClick={() => setExpanded(isExp ? null : h.horse_no)}>
-                                                    <div className={`w-[45px] h-[45px] rounded-xl flex items-center justify-center font-black text-lg italic tracking-tighter shrink-0 ${getBadgeStyle(h.horse_no)}`}>{h.horse_no}</div>
-                                                    
-                                                    {/* 마명 섹션: 원본 구조 복구 */}
-                                                    <div className="flex flex-col justify-center shrink-0 w-[85px]">
-                                                        <div className="flex items-center gap-1 mb-0.5">
-                                                            <h3 className="font-bold text-slate-900 text-[15px] truncate">{h.name}</h3>
-                                                            {isPick && <Icon name="thumbs-up" size={12} className="text-yellow-500 fill-yellow-500"/>}
+                                            <div key={h.horse_no} className={`bg-white rounded-2xl shadow-sm border transition-all duration-300 overflow-hidden animate-up ${isExp ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-slate-100'}`} style={{ animationDelay: `${0.2 + (i * 0.05)}s` }}>
+                                                <div className="p-3 flex items-stretch cursor-pointer" onClick={() => setExpanded(isExp ? null : h.horse_no)}>
+                                                    {/* 좌측 구획: 마명정보(상) + 상세수치(하) - 너비 최적화 */}
+                                                    <div className="flex flex-col w-[185px] shrink-0 pr-4">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <div className={`w-[40px] h-[40px] rounded-xl flex items-center justify-center font-black text-lg italic tracking-tighter shrink-0 ${getBadgeStyle(h.horse_no)}`}>{h.horse_no}</div>
+                                                            <div className="flex flex-col justify-center overflow-hidden">
+                                                                <div className="flex items-center gap-1 mb-0.5">
+                                                                    <h3 className="font-bold text-slate-900 text-[14px] truncate">{h.name}</h3>
+                                                                    <span className="text-[9px] text-slate-400 font-bold bg-slate-100 px-1 rounded shrink-0">{h.grade}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1 text-[9px] truncate">
+                                                                    <span className="text-slate-400">{h.origin}/{h.sex}/{h.age}</span>
+                                                                    <span className="text-indigo-600 font-bold ml-1">{h.jockey}</span>
+                                                                </div>
+                                                                <div className="text-[8px] text-slate-400 truncate">
+                                                                    {h.trainer} / {h.owner}
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                        <div className="text-[11px] text-slate-400 tabular">{h.origin}/{h.sex}/{h.age}</div>
+
+                                                        {/* 상세 수치 정보 (좌측 하단 - 밀도 극대화 배치) */}
+                                                        <div className="flex flex-row justify-start items-center gap-x-1.5 pt-2 border-t border-slate-100">
+                                                            <div className="flex flex-col items-start shrink-0">
+                                                                <span className="text-[8px] text-slate-400 leading-tight">부중</span>
+                                                                <span className={`text-[10px] font-bold tabular leading-tight ${getNum(h.weight) === maxWeight ? 'text-rose-500' : getNum(h.weight) === minWeight ? 'text-blue-500' : 'text-slate-700'}`}>
+                                                                    {h.weight}{weightChangeMap[h.horse_no] ? `(${weightChangeMap[h.horse_no]})` : ''}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex flex-col items-start shrink-0 border-l border-slate-100 pl-1.5">
+                                                                <span className="text-[8px] text-slate-400 leading-tight">훈련</span>
+                                                                <span className={`text-[10px] font-bold tabular leading-tight ${getNum(h.training_cnt) === maxTraining ? 'text-rose-500' : getNum(h.training_cnt) === minTraining ? 'text-blue-500' : 'text-slate-700'}`}>
+                                                                    {h.training_cnt || '-'}회
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex flex-col items-start shrink-0 border-l border-slate-100 pl-1.5">
+                                                                <span className="text-[8px] text-slate-400 leading-tight">주기</span>
+                                                                <span className={`text-[10px] font-bold tabular leading-tight ${((str) => { const m = str?.match(/\d+/); return m ? parseInt(m[0]) : null })(h.participation_period) === maxCycle ? 'text-rose-500' : ((str) => { const m = str?.match(/\d+/); return m ? parseInt(m[0]) : null })(h.participation_period) === minCycle ? 'text-blue-500' : 'text-slate-700'}`}>
+                                                                    {h.participation_period || '-'}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex flex-col items-start shrink-0 border-l border-slate-100 pl-1.5">
+                                                                <span className="text-[8px] text-slate-400 leading-tight">레이팅</span>
+                                                                <span className={`text-[10px] font-bold tabular leading-tight ${getNum(h.rating) === maxRating ? 'text-rose-500' : getNum(h.rating) === minRating ? 'text-blue-500' : 'text-slate-700'}`}>
+                                                                    {h.rating}
+                                                                </span>
+                                                            </div>
+                                                        </div>
                                                     </div>
 
-                                                    {/* 배지 섹션: 원본 위치(우측) 복구 */}
-                                                    <div className="flex-1 flex flex-wrap gap-1 items-center justify-start content-center min-h-[45px]">
+                                                    {/* 우측 구획: 모든 배지 섹션 - 형태 통일 */}
+                                                    <div className="flex-1 flex flex-wrap gap-1 items-start content-start pl-3 py-0.5">
+                                                        {rankBadges.length > 0 && (
+                                                            <div className="flex items-center gap-0.5 p-0.5 bg-slate-100/50 rounded border border-slate-200/60 shadow-inner">
+                                                                {rankBadges.map((rb, rbIdx) => (
+                                                                    <div key={rbIdx} className={`w-[18px] h-[18px] flex items-center justify-center text-[9px] ${rb.isTraining ? 'bg-white border border-indigo-300 text-indigo-500 rounded-sm' :
+                                                                            rb.color === 'yellow' ? 'bg-amber-100 text-amber-700 border border-amber-200 rounded-sm' :
+                                                                                'bg-slate-100 text-slate-500 border border-slate-200/50 rounded-sm'
+                                                                        }`}>
+                                                                        <span className={`${rb.isHighRank ? 'font-black text-rose-600' : 'font-medium'}`}>{rb.text}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+
                                                         {badges.map((b, idx) => (
-                                                            <div key={idx} className={`flex-shrink-0 px-1.5 py-0.5 rounded flex items-center border ${
-                                                                b.color === 'red' ? 'bg-red-50 text-red-600 border-red-100' :
+                                                            <div key={idx} className={`flex-shrink-0 px-1.5 py-0.5 rounded flex items-center border ${b.color === 'red' ? 'bg-red-50 text-red-600 border-red-100' :
                                                                 b.color === 'blue' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                                                                b.color === 'green' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                                                                b.color === 'purple' ? 'bg-purple-50 text-purple-600 border-purple-100' :
-                                                                b.color === 'yellow' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
-                                                                b.color === 'cyan' ? 'bg-cyan-50 text-cyan-600 border-cyan-100' :
-                                                                b.color === 'orange' ? 'bg-orange-50 text-orange-600 border-orange-100' :
-                                                                'bg-slate-50 text-slate-600 border-slate-100'
-                                                            }`}>
-                                                                <span className="text-[10px] mr-1">{b.emoji}</span>
+                                                                    b.color === 'green' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                                        b.color === 'purple' ? 'bg-purple-50 text-purple-600 border-purple-100' :
+                                                                            b.color === 'yellow' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                                                                                b.color === 'cyan' ? 'bg-cyan-50 text-cyan-600 border-cyan-100' :
+                                                                                    b.color === 'orange' ? 'bg-orange-50 text-orange-600 border-orange-100' :
+                                                                                        'bg-slate-50 text-slate-600 border-slate-100'
+                                                                }`}>
+                                                                {b.emoji && <span className="text-[10px] mr-1">{b.emoji}</span>}
                                                                 <span className="text-[9px] font-bold whitespace-nowrap">{b.text}</span>
                                                             </div>
                                                         ))}
@@ -499,20 +635,10 @@
                                                 </div>
                                                 {isExp && (
                                                     <div className="bg-slate-50/50 border-t border-slate-100 p-5">
-                                                        <div className="mb-4 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                                                            <div className="grid grid-cols-5 divide-x divide-slate-100">
-                                                                <div className="p-2 text-center"><div className="text-[9px] text-slate-400 font-bold mb-0.5">등급</div><div className="font-bold text-slate-800 text-xs">{h.grade}</div></div>
-                                                                <div className="p-2 text-center"><div className="text-[9px] text-slate-400 font-bold mb-0.5">부중</div><div className="font-bold text-slate-800 text-xs">{h.weight}</div></div>
-                                                                <div className="p-2 text-center bg-blue-50/30"><div className="text-[9px] text-blue-500 font-bold mb-0.5">훈련</div><div className="font-bold text-blue-700 text-xs">{h.training_cnt || '-'}회</div></div>
-                                                                <div className="p-2 text-center bg-blue-50/30"><div className="text-[9px] text-blue-500 font-bold mb-0.5">주기</div><div className="font-bold text-blue-700 text-xs">{h.participation_period || '-'}</div></div>
-                                                                <div className="p-2 text-center"><div className="text-[9px] text-slate-400 font-bold mb-0.5">레이팅</div><div className="font-bold text-slate-800 text-xs">{h.rating}</div></div>
-                                                            </div>
-                                                        </div>
-
                                                         {picksText ? (
                                                             <div className="mb-4 bg-white p-4 rounded-2xl border-l-[3px] border-yellow-400 shadow-sm">
                                                                 <div className="flex items-center gap-2 mb-2 text-yellow-600 font-black text-[10px] uppercase tracking-wider">
-                                                                    <Icon name="message-circle" size={12}/> Expert Insight
+                                                                    <Icon name="message-circle" size={12} /> Expert Insight
                                                                 </div>
                                                                 <p className="text-[13px] font-medium text-slate-700 leading-relaxed break-keep tracking-tight">
                                                                     {picksText}
@@ -521,21 +647,6 @@
                                                         ) : (
                                                             <div className="mb-4 text-center text-xs text-slate-400 py-2 border border-dashed border-slate-200 rounded-xl">전문가 코멘트 없음</div>
                                                         )}
-
-                                                        <div className="grid grid-cols-3 gap-3 mb-5">
-                                                            <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm text-center">
-                                                                <div className="text-[9px] text-slate-400 font-bold mb-1 uppercase">기수</div>
-                                                                <div className="font-bold text-slate-800 text-xs truncate">{h.jockey}</div>
-                                                            </div>
-                                                            <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm text-center">
-                                                                <div className="text-[9px] text-slate-400 font-bold mb-1 uppercase">조교사</div>
-                                                                <div className="font-bold text-slate-800 text-xs truncate">{h.trainer}</div>
-                                                            </div>
-                                                            <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm text-center">
-                                                                <div className="text-[9px] text-slate-400 font-bold mb-1 uppercase">마주</div>
-                                                                <div className="font-bold text-slate-800 text-xs truncate">{h.owner}</div>
-                                                            </div>
-                                                        </div>
 
                                                         <div className="overflow-x-auto bg-white rounded-xl border border-slate-200">
                                                             <table className="w-full text-[11px] text-center whitespace-nowrap">
@@ -580,7 +691,7 @@
                                 {stats && (
                                     <div className="px-4 pb-10">
                                         <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 animate-up">
-                                            <h3 className="text-sm font-black text-slate-800 flex items-center gap-2 mb-6"><div className="bg-green-100 p-1 rounded text-green-600"><Icon name="bar-chart-2" size={14}/></div>데이터 정밀 분석</h3>
+                                            <h3 className="text-sm font-black text-slate-800 flex items-center gap-2 mb-6"><div className="bg-green-100 p-1 rounded text-green-600"><Icon name="bar-chart-2" size={14} /></div>데이터 정밀 분석</h3>
                                             <div className="space-y-8">
                                                 <div><div className="flex justify-between items-center mb-3"><span className="text-[11px] font-bold text-red-500 bg-red-50 px-2 py-1 rounded-md">초반 스피드 (S1F)</span></div><BarChart data={stats.fast_start_horses} color="red" /></div>
                                                 <div><div className="flex justify-between items-center mb-3"><span className="text-[11px] font-bold text-blue-500 bg-blue-50 px-2 py-1 rounded-md">후반 탄력 (G1F)</span></div><BarChart data={stats.fast_finish_horses} color="blue" /></div>
@@ -598,4 +709,5 @@
         root.render(<App />);
     </script>
 </body>
+
 </html>
