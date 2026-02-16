@@ -301,6 +301,8 @@
             let minCycle = 999, maxCycle = 0;
             let topStartHorseNo = null, topFinishHorseNo = null;
             let topDistHorseNo = null, avgDistHorseNo = null, recentDistHorseNo = null;
+            let topSIHorseNo = null, topBokWinHorseNo = null, topPrizeHorseNo = null, topDistWinHorseNo = null, topBestRecHorseNo = null;
+            let topBestRecordValue = null;
             let bestTimeMap = {}, avgTimeMap = {}, recentTimeMap = {};
             let weightChangeMap = {};
 
@@ -367,6 +369,14 @@
             }
             if (stats?.fast_start_horses?.length > 0) topStartHorseNo = parseInt(stats.fast_start_horses[0].no);
             if (stats?.fast_finish_horses?.length > 0) topFinishHorseNo = parseInt(stats.fast_finish_horses[0].no);
+            if (stats?.speed_index_horses?.length > 0) topSIHorseNo = parseInt(stats.speed_index_horses[0].no);
+            if (stats?.horse_bok_win?.length > 0) topBokWinHorseNo = parseInt(stats.horse_bok_win[0].no);
+            if (stats?.prize_money_6mon?.length > 0) topPrizeHorseNo = parseInt(stats.prize_money_6mon[0].no);
+            if (stats?.dist_win_rate_horses?.length > 0) topDistWinHorseNo = parseInt(stats.dist_win_rate_horses[0].no);
+            if (stats?.best_record_horses?.length > 0) {
+                topBestRecHorseNo = parseInt(stats.best_record_horses[0].no);
+                topBestRecordValue = stats.best_record_horses[0].rec;
+            }
 
             return (
                 <div className="max-w-md mx-auto min-h-screen flex flex-col bg-[#f8fafc] relative shadow-2xl font-sans">
@@ -514,7 +524,11 @@
                                         if (expert?.upset_picks?.includes(h.horse_no)) badges.push({ emoji: "💣", text: "복병", color: "purple" });
                                         if (expert?.front_runners?.includes(h.horse_no)) badges.push({ emoji: "🐎", text: "선행", color: "orange" });
 
-                                        if (h.horse_no === topDistHorseNo) badges.push({ emoji: "🥇", text: `TOP ${formatTime(bestTimeMap[h.horse_no])}`, color: "yellow" });
+                                        if (h.horse_no === topBestRecHorseNo) badges.push({ emoji: "🥇", text: `TOP ${topBestRecordValue || '-'}`, color: "yellow" });
+                                        if (h.horse_no === topSIHorseNo) badges.push({ emoji: "📈", text: "지수1위", color: "purple" });
+                                        if (h.horse_no === topBokWinHorseNo) badges.push({ emoji: "🎯", text: "복승1위", color: "green" });
+                                        if (h.horse_no === topPrizeHorseNo) badges.push({ emoji: "💰", text: "상금1위", color: "orange" });
+                                        if (h.horse_no === topDistWinHorseNo) badges.push({ emoji: "🏁", text: "거리승률1위", color: "green" });
                                         if (h.horse_no === avgDistHorseNo) badges.push({ emoji: "📊", text: `AVG ${formatTime(avgTimeMap[h.horse_no])}`, color: "blue" });
                                         if (h.horse_no === recentDistHorseNo) badges.push({ emoji: "🕒", text: `REC ${formatTime(recentTimeMap[h.horse_no])}`, color: "green" });
 
@@ -543,13 +557,13 @@
                                         if (lastActualRace && lastActualRace.jockey !== h.jockey) badges.push({ emoji: "🔄", text: "기수교체", color: "gray" });
                                         if (getNum(h.training_cnt) === maxTraining && maxTraining > 0) badges.push({ emoji: "💪", text: "훈련왕", color: "blue" });
                                         if (getNum(h.rating) === maxRating && maxRating > 0) badges.push({ emoji: "👑", text: "레이팅왕", color: "purple" });
+                                        if (h.horse_no === topStartHorseNo) badges.push({ emoji: "🚀", text: "초반", color: "red" });
+                                        if (h.horse_no === topFinishHorseNo) badges.push({ emoji: "⚡", text: "후반", color: "blue" });
                                         if (myWeight > 0) {
                                             if (myWeight === minWeight) badges.push({ emoji: "🪶", text: "부중↓", color: "cyan" });
                                             if (myWeight === maxWeight) badges.push({ emoji: "🏋️", text: "부중↑", color: "orange" });
                                         }
 
-                                        if (h.horse_no === topStartHorseNo) badges.push({ emoji: "🚀", text: "초반", color: "red" });
-                                        if (h.horse_no === topFinishHorseNo) badges.push({ emoji: "⚡", text: "후반", color: "blue" });
 
                                         return (
                                             <div key={h.horse_no} className={`bg-white rounded-2xl shadow-sm border transition-all duration-300 overflow-hidden animate-up ${isExp ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-slate-100'}`} style={{ animationDelay: `${0.2 + (i * 0.05)}s` }}>
@@ -608,8 +622,8 @@
                                                             <div className="flex items-center gap-0.5 p-0.5 bg-slate-100/50 rounded border border-slate-200/60 shadow-inner">
                                                                 {rankBadges.map((rb, rbIdx) => (
                                                                     <div key={rbIdx} className={`w-[18px] h-[18px] flex items-center justify-center text-[9px] ${rb.isTraining ? 'bg-white border border-indigo-300 text-indigo-500 rounded-sm' :
-                                                                            rb.color === 'yellow' ? 'bg-amber-100 text-amber-700 border border-amber-200 rounded-sm' :
-                                                                                'bg-slate-100 text-slate-500 border border-slate-200/50 rounded-sm'
+                                                                        rb.color === 'yellow' ? 'bg-amber-100 text-amber-700 border border-amber-200 rounded-sm' :
+                                                                            'bg-slate-100 text-slate-500 border border-slate-200/50 rounded-sm'
                                                                         }`}>
                                                                         <span className={`${rb.isHighRank ? 'font-black text-rose-600' : 'font-medium'}`}>{rb.text}</span>
                                                                     </div>
@@ -618,7 +632,7 @@
                                                         )}
 
                                                         {badges.map((b, idx) => (
-                                                            <div key={idx} className={`flex-shrink-0 px-1.5 py-0.5 rounded flex items-center border ${b.color === 'red' ? 'bg-red-50 text-red-600 border-red-100' :
+                                                            <div key={idx} className={`flex-shrink-0 px-2 py-0.5 rounded flex items-center border ${b.color === 'red' ? 'bg-red-50 text-red-600 border-red-100' :
                                                                 b.color === 'blue' ? 'bg-blue-50 text-blue-600 border-blue-100' :
                                                                     b.color === 'green' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
                                                                         b.color === 'purple' ? 'bg-purple-50 text-purple-600 border-purple-100' :
@@ -691,10 +705,29 @@
                                 {stats && (
                                     <div className="px-4 pb-10">
                                         <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 animate-up">
-                                            <h3 className="text-sm font-black text-slate-800 flex items-center gap-2 mb-6"><div className="bg-green-100 p-1 rounded text-green-600"><Icon name="bar-chart-2" size={14} /></div>데이터 정밀 분석</h3>
+                                            <h3 className="text-sm font-black text-slate-800 flex items-center gap-2 mb-6"><div className="bg-green-100 p-1 rounded text-green-600"><Icon name="bar-chart-2" size={14} /></div>데이터 분석</h3>
                                             <div className="space-y-8">
-                                                <div><div className="flex justify-between items-center mb-3"><span className="text-[11px] font-bold text-red-500 bg-red-50 px-2 py-1 rounded-md">초반 스피드 (S1F)</span></div><BarChart data={stats.fast_start_horses} color="red" /></div>
-                                                <div><div className="flex justify-between items-center mb-3"><span className="text-[11px] font-bold text-blue-500 bg-blue-50 px-2 py-1 rounded-md">후반 탄력 (G1F)</span></div><BarChart data={stats.fast_finish_horses} color="blue" /></div>
+                                                {stats.fast_start_horses?.length > 0 && (
+                                                    <div><div className="flex justify-between items-center mb-3"><span className="text-[11px] font-bold text-red-500 bg-red-50 px-2 py-1 rounded-md">초반 스피드 (S1F)</span></div><BarChart data={stats.fast_start_horses} color="red" /></div>
+                                                )}
+                                                {stats.fast_finish_horses?.length > 0 && (
+                                                    <div><div className="flex justify-between items-center mb-3"><span className="text-[11px] font-bold text-blue-500 bg-blue-50 px-2 py-1 rounded-md">후반 탄력 (G1F)</span></div><BarChart data={stats.fast_finish_horses} color="blue" /></div>
+                                                )}
+                                                {stats.best_record_horses?.length > 0 && (
+                                                    <div><div className="flex justify-between items-center mb-3"><span className="text-[11px] font-bold text-yellow-600 bg-yellow-50 px-2 py-1 rounded-md">{info?.distance || '거리'} 최고 기록</span></div><BarChart data={stats.best_record_horses} color="yellow" /></div>
+                                                )}
+                                                {stats.speed_index_horses?.length > 0 && (
+                                                    <div><div className="flex justify-between items-center mb-3"><span className="text-[11px] font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-md">속도지수 (Speed Index)</span></div><ValueChart data={stats.speed_index_horses} color="purple" valueKey="idx" /></div>
+                                                )}
+                                                {stats.dist_win_rate_horses?.length > 0 && (
+                                                    <div><div className="flex justify-between items-center mb-3"><span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">{info?.distance || '거리별'} 승률</span></div><ValueChart data={stats.dist_win_rate_horses} color="green" valueKey="win_rate" /></div>
+                                                )}
+                                                {stats.horse_bok_win?.length > 0 && (
+                                                    <div><div className="flex justify-between items-center mb-3"><span className="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">전체 복승률</span></div><ValueChart data={stats.horse_bok_win} color="blue" valueKey="bok_win" /></div>
+                                                )}
+                                                {stats.prize_money_6mon?.length > 0 && (
+                                                    <div><div className="flex justify-between items-center mb-3"><span className="text-[11px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md">최근 6개월 상금</span></div><ValueChart data={stats.prize_money_6mon} color="purple" valueKey="won" /></div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
