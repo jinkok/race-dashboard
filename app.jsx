@@ -573,16 +573,16 @@ function App() {
                                                         <span className="text-[9px] font-bold whitespace-nowrap">{b.text}</span>
                                                     </div>
                                                 ))}
-                                                {h.judicial_reports?.some(r => r.text.includes("출발 늦음")) && (
+                                                {h.steward_trip_note?.note?.includes("출발 늦음") && (
                                                     <div className="bg-orange-50 text-orange-600 border-orange-100 px-2 py-0.5 rounded text-[10px] font-bold border">출발늦음</div>
                                                 )}
-                                                {h.judicial_reports?.some(r => r.text.includes("모래 반응")) && (
+                                                {h.steward_trip_note?.note?.includes("모래 반응") && (
                                                     <div className="bg-amber-50 text-amber-600 border-amber-100 px-2 py-0.5 rounded text-[10px] font-bold border">모래반응</div>
                                                 )}
-                                                {h.medical_status?.some(m => m.text.includes("폐출혈")) && (
+                                                {h.medical_alerts?.some(m => m.detail?.includes("폐출혈")) && (
                                                     <div className="bg-red-50 text-red-600 border-red-100 px-2 py-0.5 rounded text-[10px] font-black border animate-pulse">폐출혈전력</div>
                                                 )}
-                                                {h.medical_status?.length > 0 && !h.medical_status?.every(m => m.text.includes("폐출혈")) && (
+                                                {h.medical_alerts?.length > 0 && !h.medical_alerts?.every(m => m.detail?.includes("폐출혈")) && (
                                                     <div className="bg-emerald-50 text-emerald-600 border-emerald-100 px-2 py-0.5 rounded text-[10px] font-bold border">진료내역</div>
                                                 )}
                                             </div>
@@ -615,8 +615,8 @@ function App() {
                                                         >
                                                             <Icon name={tab.icon} size={12} />
                                                             {tab.label}
-                                                            {tab.id === 'judicial' && h.judicial_reports?.length > 0 && <span className="w-1.5 h-1.5 bg-orange-400 rounded-full"></span>}
-                                                            {tab.id === 'medical' && h.medical_status?.length > 0 && <span className="w-1.5 h-1.5 bg-red-400 rounded-full"></span>}
+                                                            {tab.id === 'judicial' && h.steward_trip_note && <span className="w-1.5 h-1.5 bg-orange-400 rounded-full"></span>}
+                                                            {tab.id === 'medical' && h.medical_alerts?.length > 0 && <span className="w-1.5 h-1.5 bg-red-400 rounded-full"></span>}
                                                         </button>
                                                     ))}
                                                 </div>
@@ -663,16 +663,14 @@ function App() {
 
                                                 {subTab === 'judicial' && (
                                                     <div className="space-y-2">
-                                                        {h.judicial_reports?.length > 0 ? (
-                                                            h.judicial_reports.map((rep, rIdx) => (
-                                                                <div key={rIdx} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm border-l-[3px] border-orange-400">
+                                                        {h.steward_trip_note ? (
+                                                                <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm border-l-[3px] border-orange-400">
                                                                     <div className="flex items-center justify-between mb-2">
-                                                                        <span className="text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded capitalize">{rep.date}</span>
+                                                                        <span className="text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded capitalize">{h.steward_trip_note.date}</span>
                                                                         <span className="text-[10px] text-slate-400 font-bold">심판리포트</span>
                                                                     </div>
-                                                                    <p className="text-[12px] text-slate-700 leading-relaxed font-medium">{rep.text}</p>
+                                                                    <p className="text-[12px] text-slate-700 leading-relaxed font-medium">{h.steward_trip_note.note}</p>
                                                                 </div>
-                                                            ))
                                                         ) : (
                                                             <div className="py-8 bg-white rounded-xl border border-dashed border-slate-200 text-center text-slate-400 text-xs">등록된 심판리포트가 없습니다.</div>
                                                         )}
@@ -681,16 +679,16 @@ function App() {
 
                                                 {subTab === 'medical' && (
                                                     <div className="space-y-2">
-                                                        {h.medical_status?.length > 0 ? (
-                                                            h.medical_status.map((med, mIdx) => (
-                                                                <div key={mIdx} className={`bg-white p-4 rounded-xl border border-slate-100 shadow-sm border-l-[3px] ${med.text.includes("폐출혈") ? 'border-red-500 bg-red-50/20' : 'border-emerald-400'}`}>
+                                                        {h.medical_alerts?.length > 0 ? (
+                                                            h.medical_alerts.map((med, mIdx) => (
+                                                                <div key={mIdx} className={`bg-white p-4 rounded-xl border border-slate-100 shadow-sm border-l-[3px] ${med.detail?.includes("폐출혈") ? 'border-red-500 bg-red-50/20' : 'border-emerald-400'}`}>
                                                                     <div className="flex items-center justify-between mb-2">
-                                                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded ${med.text.includes("폐출혈") ? 'text-red-700 bg-red-100' : 'text-emerald-700 bg-emerald-100'}`}>
+                                                                        <span className={`text-[10px] font-black px-2 py-0.5 rounded ${med.detail?.includes("폐출혈") ? 'text-red-700 bg-red-100' : 'text-emerald-700 bg-emerald-100'}`}>
                                                                             {med.date}
                                                                         </span>
-                                                                        {med.text.includes("폐출혈") && <span className="text-[10px] font-black text-red-600 animate-pulse">⚠️ 폐출혈 주의</span>}
+                                                                        {med.detail?.includes("폐출혈") && <span className="text-[10px] font-black text-red-600 animate-pulse">⚠️ 폐출혈 주의</span>}
                                                                     </div>
-                                                                    <p className="text-[12px] text-slate-700 leading-relaxed font-medium">{med.text}</p>
+                                                                    <p className="text-[12px] text-slate-700 leading-relaxed font-medium">{med.detail}</p>
                                                                 </div>
                                                             ))
                                                         ) : (
