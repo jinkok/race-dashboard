@@ -1,0 +1,7 @@
+.cursor
+.venv
+.DS_Store
+.env
+.vscode
+archive
+__pycache__
