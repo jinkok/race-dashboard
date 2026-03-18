@@ -2,12 +2,10 @@ import pdfplumber
 import re
 import os
 
-Seoul_INPUT_FILES = ["data/0_raw/s_run_hr_260302_all.pdf"]
-Busan_INPUT_FILES = ["data/0_raw/b_run_hr_260301_all.pdf"]
 # Configuration
-# INPUT_FILES = Seoul_INPUT_FILES + Busan_INPUT_FILES
-INPUT_FILES = Seoul_INPUT_FILES     
-# INPUT_FILES = Busan_INPUT_FILES     
+# Hardcoded defaults for manual run (if no target_date_str provided)
+DEFAULT_SEOUL = "data/0_raw/s_run_hr_260302_all.pdf"
+DEFAULT_BUSAN = "data/0_raw/b_run_hr_260301_all.pdf"
 
 def parse_race_data(input_file):
     races = []
@@ -187,11 +185,29 @@ def format_output(races):
     return "\n".join(res)
 
 def run_parser(target_date_str=None):
-    for f_in in INPUT_FILES:
-        # If the file doesn't exist, we skip
-        if not os.path.exists(f_in):
-            print(f"File not found: {f_in}")
-            continue
+    input_files = []
+    
+    if target_date_str:
+        # Convert YYYYMMDD to YYMMDD (e.g., 20260320 -> 260320)
+        yymmdd = target_date_str[2:] if len(target_date_str) == 8 else target_date_str
+        
+        # Look for Seoul (s_) and Busan (b_) files for this date
+        raw_dir = "data/0_raw"
+        if os.path.exists(raw_dir):
+            for f in os.listdir(raw_dir):
+                if f.endswith(".pdf") and (f"_{yymmdd}_" in f or f"_{yymmdd}." in f):
+                    input_files.append(os.path.join(raw_dir, f))
+    
+    # Fallback to defaults if no files found and no date provided
+    if not input_files and not target_date_str:
+        if os.path.exists(DEFAULT_SEOUL): input_files.append(DEFAULT_SEOUL)
+        if os.path.exists(DEFAULT_BUSAN): input_files.append(DEFAULT_BUSAN)
+
+    if not input_files:
+        print(f"No PDF files found for date: {target_date_str}")
+        return
+
+    for f_in in input_files:
             
         res = parse_race_data(f_in)
         if res:
