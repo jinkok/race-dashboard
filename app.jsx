@@ -8,6 +8,21 @@ const Icon = ({ name, size = 16, className = "" }) => {
     return <i ref={ref} data-lucide={name}></i>;
 };
 
+const EQUIPMENT_INFO = {
+    "눈가면": "시야의 좌우를 차단해 앞만 보고 달리게 하여 집중력을 높임 (산만하거나 딴짓을 하는 말에게 효과적)",
+    "망사눈": "시야 차단(눈가면)과 소음 차단(망사) 기능을 동시에 수행 (극도로 예민하거나 산만한 말의 집중력 강화)",
+    "망사": "귀를 덮어 주변의 소음을 차단하여 말을 진정시킴 (소리에 민감해 흥분하기 쉬운 말의 안정 유도)",
+    "반가지큰": "눈가면과 비슷하나 가리개에 구멍이 있어 후방 시야를 일부 확보 (완전히 가렸을 때 답답해하는 말의 시야 조절)",
+    "계란형큰": "뺨 부착형 시야 가리개로 눈가면보다 약한 시야 제한 효과 (가벼운 집중력 개선이 필요할 때 사용)",
+    "혀끈": "혀를 아래로 고정하여 재갈 위로 넘어가는 것을 방지 (기수의 제어력 향상 및 원활한 호흡 도움)",
+    "트라이아비트": "혀와 입술에 가해지는 압박을 줄여주는 특수 재갈 (입이 예민한 말의 거부감을 줄여 조종성 향상)",
+    "Triabit": "혀와 입술에 가해지는 압박을 줄여주는 특수 재갈 (입이 예민한 말의 거부감을 줄여 조종성 향상)",
+    "양털코": "코굴레에 양털을 덧대어 말의 시선을 아래로 유도 (머리를 높게 드는 말을 진정시키고 하방 주시 유도)",
+    "자극판": "뺨 안쪽 등에 자극을 주어 한쪽으로 기대는 습관을 교정 (주행 불량(사행 등)을 방지하기 위한 보조 장구)",
+    "편자": "경주 시 바닥 접지력과 발 보호를 위해 승인된 특수 편자 (주로의 상태나 말의 발 상태에 맞춰 착용)",
+    "승인편자": "경주 시 바닥 접지력과 발 보호를 위해 승인된 특수 편자 (주로의 상태나 말의 발 상태에 맞춰 착용)"
+};
+
 const getBadgeStyle = (no) => {
     const n = parseInt(no);
     const base = "border-2 shadow-sm box-border";
@@ -115,6 +130,7 @@ function App() {
     const [subTab, setSubTab] = useState('records');
     const [horseNotes, setHorseNotes] = useState({});
     const [notesInput, setNotesInput] = useState({});
+    const [hoveredEq, setHoveredEq] = useState(null);
 
     const defaultData = {
         date: "데이터 없음",
@@ -542,8 +558,10 @@ function App() {
                                 if (h.equipment) {
                                     h.equipment.split(',').forEach(eq => {
                                         const trimmed = eq.trim();
-                                        if (trimmed.includes('+')) badges.push({ emoji: "🛡️", text: trimmed, color: "purple" });
-                                        else if (trimmed.includes('-')) badges.push({ emoji: "🛡️", text: trimmed, color: "gray" });
+                                        const baseName = trimmed.replace(/[+-]/g, '').trim();
+                                        const desc = EQUIPMENT_INFO[baseName] || "";
+                                        if (trimmed.includes('+')) badges.push({ emoji: "🛡️", text: trimmed, color: "purple", desc });
+                                        else if (trimmed.includes('-')) badges.push({ emoji: "🛡️", text: trimmed, color: "gray", desc });
                                     });
                                 }
 
@@ -559,7 +577,19 @@ function App() {
                                             }
                                         }}>
                                             {/* 좌측 구획: 마명정보(상) + 상세수치(하) - 너비 최적화 */}
-                                            <div className="flex flex-col w-[185px] shrink-0 pr-4">
+                                            <div className="flex flex-col w-[185px] shrink-0 pr-4 relative">
+                                                {/* Equipment Tooltip Overlay */}
+                                                {hoveredEq && hoveredEq.horseNo === h.horse_no && (
+                                                    <div className="absolute inset-x-0 inset-y-[-4px] bg-slate-900/95 text-white p-2 rounded-xl z-[60] flex flex-col justify-center animate-fade-in shadow-xl border border-slate-700">
+                                                        <div className="flex items-center gap-1.5 mb-1 text-yellow-400 font-black text-[10px]">
+                                                            <Icon name="info" size={10} />
+                                                            {hoveredEq.text}
+                                                        </div>
+                                                        <div className="text-[10px] leading-tight font-medium text-slate-100">
+                                                            {hoveredEq.desc}
+                                                        </div>
+                                                    </div>
+                                                )}
                                                 <div className="flex items-center gap-2 mb-2">
                                                     <div className={`w-[40px] h-[40px] rounded-xl flex items-center justify-center font-black text-lg italic tracking-tighter shrink-0 ${getBadgeStyle(h.horse_no)}`}>{h.horse_no}</div>
                                                     <div className="flex flex-col justify-center overflow-hidden">
@@ -622,7 +652,9 @@ function App() {
                                                 )}
 
                                                 {badges.map((b, idx) => (
-                                                    <div key={idx} className={`flex-shrink-0 px-2 py-0.5 rounded flex items-center border ${b.color === 'red' ? 'bg-red-50 text-red-600 border-red-100' :
+                                                    <div 
+                                                        key={idx} 
+                                                        className={`flex-shrink-0 px-2 py-0.5 rounded flex items-center border relative group ${b.desc ? 'cursor-help' : ''} ${b.color === 'red' ? 'bg-red-50 text-red-600 border-red-100' :
                                                         b.color === 'blue' ? 'bg-blue-50 text-blue-600 border-blue-100' :
                                                             b.color === 'green' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
                                                                 b.color === 'purple' ? 'bg-purple-50 text-purple-600 border-purple-100' :
@@ -630,7 +662,17 @@ function App() {
                                                                         b.color === 'cyan' ? 'bg-cyan-50 text-cyan-600 border-cyan-100' :
                                                                             b.color === 'orange' ? 'bg-orange-50 text-orange-600 border-orange-100' :
                                                                                 'bg-slate-50 text-slate-600 border-slate-100'
-                                                        }`}>
+                                                        }`}
+                                                        onMouseEnter={() => b.desc && setHoveredEq({ horseNo: h.horse_no, text: b.text, desc: b.desc })}
+                                                        onMouseLeave={() => setHoveredEq(null)}
+                                                        onClick={(e) => {
+                                                            if (b.desc) {
+                                                                e.stopPropagation();
+                                                                if (hoveredEq?.text === b.text) setHoveredEq(null);
+                                                                else setHoveredEq({ horseNo: h.horse_no, text: b.text, desc: b.desc });
+                                                            }
+                                                        }}
+                                                    >
                                                         {b.emoji && <span className="text-[10px] mr-1">{b.emoji}</span>}
                                                         <span className="text-[9px] font-bold whitespace-nowrap">{b.text}</span>
                                                     </div>
