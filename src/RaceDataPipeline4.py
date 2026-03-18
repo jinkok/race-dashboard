@@ -105,7 +105,8 @@ class RaceDataPipeline:
                         'owner': row[10].strip(),
                         'grade': row[16].strip() if len(row) > 16 else '',
                         'participation_period': row[12].strip(),
-                        'equipment': row[13].strip(),
+                        'equipment': row[13].strip() if len(row) > 13 else '',
+                        'special_note': row[14].strip() if len(row) > 14 else '',
                         'sire': row[15].strip() if len(row) > 15 else ''
                     }
                     processed_data.append(entry)
@@ -117,7 +118,7 @@ class RaceDataPipeline:
             'race_no', 'distance', 'class', 'start_time', 'conditions',
             'horse_no', 'name', 'origin', 'sex', 'age', 'rating', 
             'training_cnt', 'weight', 'jockey', 'trainer', 'owner', 'grade', 
-            'participation_period', 'equipment', 'sire'
+            'participation_period', 'equipment', 'special_note', 'sire'
         ]
         if not df.empty:
             for col in target_columns:
@@ -577,7 +578,7 @@ class RaceDataPipeline:
                         "weight": ew, "weight_sign": es,
                         "jockey": entry['jockey'], "trainer": entry['trainer'], "owner": entry['owner'],
                         "grade": entry['grade'], "participation_period": entry['participation_period'],
-                        "equipment": entry['equipment'], "sire": entry['sire'],
+                        "equipment": entry['equipment'], "special_note": entry.get('special_note', ''), "sire": entry['sire'],
                         "recent_history": recent_hist
                     })
 
