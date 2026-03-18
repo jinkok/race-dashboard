@@ -113,6 +113,8 @@ function App() {
     const [raceIdx, setRaceIdx] = useState(0);
     const [expanded, setExpanded] = useState(null);
     const [subTab, setSubTab] = useState('records');
+    const [horseNotes, setHorseNotes] = useState({});
+    const [notesInput, setNotesInput] = useState({});
 
     const defaultData = {
         date: "데이터 없음",
@@ -158,10 +160,60 @@ function App() {
                             setSyncStatus('no-data');
                         }
                     });
+
+                    const notesRef = doc(db, 'artifacts', 'race-app-3e41d', 'public', 'horseNotesData');
+                    onSnapshot(notesRef, (snap) => {
+                        if (snap.exists()) {
+                            setHorseNotes(snap.data());
+                        }
+                    });
                 }
             });
         } catch (e) {
             setSyncStatus('error');
+        }
+    };
+
+    const saveHorseNote = async (horseName, noteText) => {
+        if (!user) return alert('로그인 중...');
+        if (!noteText?.trim()) return alert('내용을 입력해주세요.');
+        
+        const { db, doc, setDoc } = window.fb;
+        const notesRef = doc(db, 'artifacts', 'race-app-3e41d', 'public', 'horseNotesData');
+        
+        const newNote = {
+            id: Date.now().toString(),
+            date: date,
+            content: noteText
+        };
+        
+        const currentNotes = horseNotes[horseName] || [];
+        const updatedNotes = [newNote, ...currentNotes]; // 최신순
+        
+        try {
+            await setDoc(notesRef, { [horseName]: updatedNotes }, { merge: true });
+            setNotesInput({ ...notesInput, [horseName]: '' }); // 입력창 초기화
+            alert('저장되었습니다.');
+        } catch (err) {
+            alert('저장 오류: ' + err.message);
+        }
+    };
+
+    const deleteHorseNoteItem = async (horseName, noteId) => {
+        if (!user) return alert('로그인 중...');
+        if (!confirm('이 메모를 삭제하시겠습니까?')) return;
+        
+        const { db, doc, setDoc } = window.fb;
+        const notesRef = doc(db, 'artifacts', 'race-app-3e41d', 'public', 'horseNotesData');
+        
+        const currentNotes = horseNotes[horseName] || [];
+        const updatedNotes = currentNotes.filter(n => n.id !== noteId);
+        
+        try {
+            await setDoc(notesRef, { [horseName]: updatedNotes }, { merge: true });
+            alert('삭제되었습니다.');
+        } catch (err) {
+            alert('삭제 오류: ' + err.message);
         }
     };
 
@@ -194,7 +246,10 @@ function App() {
     const stats = race?.stats_analysis;
     const info = race?.race_info;
 
-    const getNum = (str) => parseFloat(String(str).replace(/[^\d.]/g, '')) || 0;
+    const getNum = (str) => {
+        if (!str) return 0;
+        return parseFloat(String(str).split('(')[0].replace(/[^\d.-]/g, '')) || 0;
+    };
     const getClassNum = (str) => {
         if (!str) return 99;
         const match = str.match(/\d+/);
@@ -305,7 +360,7 @@ function App() {
                 <div className="flex justify-between items-center mb-6">
                     <div className="flex items-center gap-2">
                         <div className="bg-yellow-400 p-1.5 rounded-lg text-slate-900"><Icon name="trophy" size={16} /></div>
-                        <span className="font-black italic text-lg tracking-tighter">SMART<span className="text-yellow-400">RACING</span> V9</span>
+                        <span className="font-black italic text-lg tracking-tighter">SMART<span className="text-yellow-400">RACING</span> V10</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="bg-slate-800 text-white text-xs font-bold px-2 py-1.5 rounded-lg outline-none border border-slate-700 focus:border-yellow-400" />
@@ -484,6 +539,13 @@ function App() {
                                     if (myWeight === minWeight) badges.push({ emoji: "🪶", text: "부중↓", color: "cyan" });
                                     if (myWeight === maxWeight) badges.push({ emoji: "🏋️", text: "부중↑", color: "orange" });
                                 }
+                                if (h.equipment) {
+                                    h.equipment.split(',').forEach(eq => {
+                                        const trimmed = eq.trim();
+                                        if (trimmed.includes('+')) badges.push({ emoji: "🛡️", text: trimmed, color: "purple" });
+                                        else if (trimmed.includes('-')) badges.push({ emoji: "🛡️", text: trimmed, color: "gray" });
+                                    });
+                                }
 
 
                                 return (
@@ -606,7 +668,8 @@ function App() {
                                                     {[
                                                         { id: 'records', label: '지난경기기록', icon: 'list' },
                                                         { id: 'judicial', label: '심판리포트', icon: 'alert-circle' },
-                                                        { id: 'medical', label: '진료현황', icon: 'plus-square' }
+                                                        { id: 'medical', label: '진료현황', icon: 'plus-square' },
+                                                        { id: 'special', label: '특이사항', icon: 'file-text' }
                                                     ].map(tab => (
                                                         <button
                                                             key={tab.id}
@@ -617,6 +680,7 @@ function App() {
                                                             {tab.label}
                                                             {tab.id === 'judicial' && h.steward_trip_note && <span className="w-1.5 h-1.5 bg-orange-400 rounded-full"></span>}
                                                             {tab.id === 'medical' && h.medical_alerts?.length > 0 && <span className="w-1.5 h-1.5 bg-red-400 rounded-full"></span>}
+                                                            {tab.id === 'special' && (h.special_note || horseNotes[h.name]) && <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full"></span>}
                                                         </button>
                                                     ))}
                                                 </div>
@@ -694,6 +758,65 @@ function App() {
                                                         ) : (
                                                             <div className="py-8 bg-white rounded-xl border border-dashed border-slate-200 text-center text-slate-400 text-xs">최근 진료 내역이 없습니다.</div>
                                                         )}
+                                                    </div>
+                                                )}
+
+                                                {subTab === 'special' && (
+                                                    <div className="space-y-4">
+                                                        {h.special_note && h.special_note.trim() && (
+                                                            <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm border-l-[4px] border-yellow-400">
+                                                                <div className="flex items-center justify-between mb-2">
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <span className="text-[10px] font-black text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded">출전표 특이사항</span>
+                                                                        <span className="text-[9px] text-slate-400 font-bold">(수정불가)</span>
+                                                                    </div>
+                                                                </div>
+                                                                <p className="text-[12px] text-slate-700 leading-relaxed font-medium">{h.special_note}</p>
+                                                            </div>
+                                                        )}
+                                                        
+                                                        {/* 직접 입력한 메모 리스트 */}
+                                                        {horseNotes[h.name] && Array.isArray(horseNotes[h.name]) && horseNotes[h.name].filter(n => n && n.content && n.content.trim()).map((note) => (
+                                                            <div key={note.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-md border-l-[4px] border-indigo-500 relative transition-all">
+                                                                <div className="flex items-center justify-between mb-2">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-[10px] font-black text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-lg border border-indigo-100">{note.date}</span>
+                                                                    </div>
+                                                                    <button 
+                                                                        onClick={(e) => { e.stopPropagation(); deleteHorseNoteItem(h.name, note.id); }}
+                                                                        className="flex items-center gap-1 px-2 py-1 bg-rose-50 text-rose-600 rounded-md hover:bg-rose-100 transition-all border border-rose-100"
+                                                                        title="메모 삭제"
+                                                                    >
+                                                                        <Icon name="trash-2" size={12} />
+                                                                        <span className="text-[10px] font-bold">삭제</span>
+                                                                    </button>
+                                                                </div>
+                                                                <div className="text-[13px] text-slate-800 leading-relaxed font-semibold whitespace-pre-wrap py-1">
+                                                                    {note.content}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+
+                                                        <div className="bg-slate-100/50 p-4 rounded-2xl border border-slate-200 border-dashed">
+                                                            <div className="flex items-center gap-2 mb-3 text-slate-500 font-bold text-[10px] uppercase">
+                                                                <Icon name="edit-3" size={12} /> 새 메모 작성
+                                                            </div>
+                                                            <textarea
+                                                                className="w-full text-xs p-3 rounded-xl border border-slate-200 outline-none focus:border-indigo-500 min-h-[80px] bg-white shadow-inner"
+                                                                placeholder={`${h.name}의 특이사항을 입력하세요... (${date} 날짜로 저장됩니다)`}
+                                                                value={notesInput[h.name] || ''}
+                                                                onChange={(e) => setNotesInput({...notesInput, [h.name]: e.target.value})}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            />
+                                                            <div className="flex justify-end mt-2">
+                                                                <button
+                                                                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] px-6 py-2.5 rounded-lg font-black transition-all shadow-md active:scale-95 flex items-center gap-2"
+                                                                    onClick={(e) => { e.stopPropagation(); saveHorseNote(h.name, notesInput[h.name]); }}
+                                                                >
+                                                                    <Icon name="check" size={14} /> 메모 저장하기
+                                                                </button>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>
