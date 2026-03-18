@@ -667,7 +667,7 @@ if __name__ == "__main__":
         raw_entry = os.path.join(INTERMEDIATE_DIR, f"{TARGET_DATE_STR}_{ko_name}_통합_출전표.csv")
         raw_history = os.path.join(INTERMEDIATE_DIR, f"{TARGET_DATE_STR}_{ko_name}_경마_통합10회전적_상세.csv")
         raw_stats = os.path.join(INTERMEDIATE_DIR, f"{TARGET_DATE_STR}[{ko_name}]easyrace.txt")
-        raw_expert = os.path.join(INTERMEDIATE_DIR, f"{en_prefix}ExpertPick.txt")
+        raw_expert = os.path.join("data/0_raw", f"{en_prefix}ExpertPick.txt")
         
         # 중간 CSV 경로 (지역별 구분 없이 공유하지만, 순차 처리하므로 최종 JSON 생성 직전에만 유효하면 됨)
         csv_entry = os.path.join(INTERMEDIATE_DIR, 'EntrySheet.csv')

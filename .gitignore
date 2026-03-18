@@ -1,5 +1,5 @@
 .cursor/
-.venv/
+venv/
 .DS_Store
 .env/
 .vscode/
