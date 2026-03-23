@@ -547,6 +547,7 @@ function App() {
                                 }
 
                                 if (lastActualRace && lastActualRace.jockey !== h.jockey) badges.push({ emoji: "🔄", text: "기수교체", color: "gray" });
+                                if (h.total_subbo_cnt > 0) badges.push({ emoji: "⚡", text: `습보 ${h.total_subbo_cnt}`, color: "red" });
                                 if (getNum(h.training_cnt) === maxTraining && maxTraining > 0) badges.push({ emoji: "💪", text: "훈련왕", color: "blue" });
                                 if (getNum(h.rating) === maxRating && maxRating > 0) badges.push({ emoji: "👑", text: "레이팅왕", color: "purple" });
                                 if (h.horse_no === topStartHorseNo) badges.push({ emoji: "🚀", text: "초반", color: "red" });
@@ -618,7 +619,7 @@ function App() {
                                                     <div className="flex flex-col items-start shrink-0 border-l border-slate-100 pl-1.5">
                                                         <span className="text-[8px] text-slate-400 leading-tight">훈련</span>
                                                         <span className={`text-[10px] font-bold tabular leading-tight ${getNum(h.training_cnt) === maxTraining ? 'text-rose-500' : getNum(h.training_cnt) === minTraining ? 'text-blue-500' : 'text-slate-700'}`}>
-                                                            {h.training_cnt || '-'}회
+                                                            {h.training_cnt || '-'}{h.jockey_training_cnt > 0 ? `(${h.jockey_training_cnt})` : ''}회
                                                         </span>
                                                     </div>
                                                     <div className="flex flex-col items-start shrink-0 border-l border-slate-100 pl-1.5">
@@ -706,9 +707,10 @@ function App() {
                                                     <div className="mb-4 text-center text-xs text-slate-400 py-2 border border-dashed border-slate-200 rounded-xl">전문가 코멘트 없음</div>
                                                 )}
 
-                                                <div className="flex gap-1 mb-4 p-1 bg-slate-100 rounded-xl w-fit">
+                                                <div className="flex gap-1 mb-4 p-1 bg-slate-100 rounded-xl w-full overflow-x-auto scrollbar-hide">
                                                     {[
                                                         { id: 'records', label: '지난경기기록', icon: 'list' },
+                                                        { id: 'training', label: '조교상세', icon: 'zap' },
                                                         { id: 'judicial', label: '심판리포트', icon: 'alert-circle' },
                                                         { id: 'medical', label: '진료현황', icon: 'plus-square' },
                                                         { id: 'special', label: '특이사항', icon: 'file-text' }
@@ -716,7 +718,7 @@ function App() {
                                                         <button
                                                             key={tab.id}
                                                             onClick={(e) => { e.stopPropagation(); setSubTab(tab.id); }}
-                                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${subTab === tab.id ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                                                            className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all shrink-0 ${subTab === tab.id ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
                                                         >
                                                             <Icon name={tab.icon} size={12} />
                                                             {tab.label}
@@ -763,6 +765,36 @@ function App() {
                                                         </table>
                                                         {(!h.recent_history || h.recent_history.length === 0) && (
                                                             <div className="py-8 text-center text-slate-400 text-xs">최근 경기 기록이 없습니다.</div>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                {subTab === 'training' && (
+                                                    <div className="overflow-x-auto bg-white rounded-xl border border-slate-200 shadow-sm">
+                                                        <table className="w-full text-[11px] text-center whitespace-nowrap">
+                                                            <thead className="bg-slate-50 text-slate-400 border-b">
+                                                                <tr>
+                                                                    <th className="py-2 px-2 text-left pl-4">조교일자</th>
+                                                                    <th>기승자</th>
+                                                                    <th>조교시간</th>
+                                                                    <th>걸음걸이</th>
+                                                                    <th className="pr-4">수영조교</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody className="divide-y tabular">
+                                                                {h.training_logs_detailed?.map((tw, twIdx) => (
+                                                                    <tr key={twIdx} className="hover:bg-slate-50/50 transition-colors">
+                                                                        <td className="py-2 px-2 pl-4 text-left text-slate-500 font-medium">{tw.date}</td>
+                                                                        <td className="text-slate-700 font-bold">{tw.rider}</td>
+                                                                        <td className="font-bold text-indigo-600">{tw.time}</td>
+                                                                        <td className="text-slate-600">{tw.gait}</td>
+                                                                        <td className="pr-4 text-blue-600 font-medium">{tw.swim !== '0' && tw.swim !== '' ? tw.swim : '-'}</td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                        {(!h.training_logs_detailed || h.training_logs_detailed.length === 0) && (
+                                                            <div className="py-8 text-center text-slate-400 text-xs">조교 상세 데이터가 없습니다.</div>
                                                         )}
                                                     </div>
                                                 )}

@@ -19,6 +19,7 @@ from src.converters.Integration10raceRecord import merge_csv_files as merge_ten_
 from src.converters.integrate_reports import integrate_data as integrate_judicial_medical
 from src.converters.MergeToEqualdateJson import merge_race_files as merge_regional_data
 from src.parsers.RaceDataParser import run_parser as run_pdf_parser
+from src.parsers.integrate_training_details import integrate_training_details as integrate_training_data
 
 class RaceDataPipeline:
     def __init__(self):
@@ -197,6 +198,31 @@ class RaceDataPipeline:
             result_df = result_df[target_columns]
 
         result_df.to_csv(output_path, index=False, encoding='utf-8-sig')
+        return True
+
+    # ==========================================
+    # 2.5. 조교 상세 변환 (TrainingDetails)
+    # ==========================================
+    def convert_training_details(self, input_path, output_path):
+        print(f"[2.5/5] 조교 상세 변환 중... ({input_path})")
+        try:
+            df = pd.read_csv(input_path, encoding='utf-8-sig').fillna('')
+        except:
+            try:
+                df = pd.read_csv(input_path, encoding='cp949').fillna('')
+            except Exception as e:
+                print(f"Error reading training details: {e}")
+                return False
+
+        # '조교시간'이 '-'인 것은 실제 훈련이 아니므로 제외 (경주일 등)
+        if '조교시간' in df.columns:
+            df = df[df['조교시간'].astype(str) != '-']
+        
+        # 날짜순 정렬 (이미 되어있을 수 있지만 확실히 함)
+        if '조교일자' in df.columns:
+            df = df.sort_values(by=['마명', '조교일자'], ascending=[True, False])
+            
+        df.to_csv(output_path, index=False, encoding='utf-8-sig')
         return True
 
     # ==========================================
@@ -452,6 +478,12 @@ class RaceDataPipeline:
             df_history = pd.read_csv(history_file, encoding='utf-8-sig').fillna('')
             df_stats = pd.read_csv(stats_file, encoding='utf-8-sig').fillna('')
             df_expert = pd.read_csv(expert_file, encoding='utf-8-sig').fillna('')
+            
+            # 조교 상세 데이터 로드 (옵션)
+            df_training = None
+            training_file = os.path.join(os.path.dirname(entry_file), 'TrainingHistory.csv')
+            if os.path.exists(training_file):
+                df_training = pd.read_csv(training_file, encoding='utf-8-sig').fillna('')
         except Exception as e:
             print(f"Error reading intermediate CSVs: {e}")
             return
@@ -579,8 +611,55 @@ class RaceDataPipeline:
                         "jockey": entry['jockey'], "trainer": entry['trainer'], "owner": entry['owner'],
                         "grade": entry['grade'], "participation_period": entry['participation_period'],
                         "equipment": entry['equipment'], "special_note": entry.get('special_note', ''), "sire": entry['sire'],
-                        "recent_history": recent_hist
+                        "recent_history": recent_hist,
+                        "training_logs_detailed": [] # 초기값
                     })
+                    
+                    # 조교 상세 데이터 매칭
+                    if df_training is not None:
+                        # 해당 마필의 조교 데이터 추출
+                        h_training = df_training[df_training['마명'] == entry['name']]
+                        if not h_training.empty:
+                            # 출전표의 training_cnt 만큼만 가져옴
+                            try:
+                                t_cnt = int(float(entry['training_cnt']))
+                                if t_cnt > 0:
+                                    # 최신순으로 정렬되어 있으므로 head(N) 사용
+                                    recent_work = h_training.head(t_cnt)
+                                    logs = []
+                                    jockey_match_cnt = 0
+                                    total_subbo = 0
+                                    
+                                    # 당일 기수 이름 (수습기수 표시 (-3) 등 제거하고 이름만 추출)
+                                    j_match = re.search(r'([가-힣]+)', entry['jockey'])
+                                    target_jockey = j_match.group(1) if j_match else ""
+                                    
+                                    for _, tw in recent_work.iterrows():
+                                        # 조교사/관리자 표시 제거하고 이름만 추출
+                                        r_match = re.search(r'([가-힣]+)', str(tw['기승자']))
+                                        rider_name = r_match.group(1) if r_match else ""
+                                        
+                                        if target_jockey and rider_name == target_jockey:
+                                            jockey_match_cnt += 1
+                                            
+                                        # 습보 횟수 추출 (예: "구보1 습보2")
+                                        gait_str = str(tw['걸음걸이'])
+                                        subbo_match = re.search(r'습보\s*(\d+)', gait_str)
+                                        if subbo_match:
+                                            total_subbo += int(subbo_match.group(1))
+                                        
+                                        logs.append({
+                                            "date": str(tw['조교일자']),
+                                            "rider": str(tw['기승자']),
+                                            "time": str(tw['조교시간']),
+                                            "gait": str(tw['걸음걸이']),
+                                            "swim": str(tw['수영조교'])
+                                        })
+                                    horses_list[-1]["training_logs_detailed"] = logs
+                                    horses_list[-1]["jockey_training_cnt"] = jockey_match_cnt
+                                    horses_list[-1]["total_subbo_cnt"] = total_subbo
+                            except:
+                                pass
 
                 races_list.append({
                     "race_no": race_no, "race_info": race_info,
@@ -667,12 +746,14 @@ if __name__ == "__main__":
         # 2. 파일 경로 설정
         raw_entry = os.path.join(INTERMEDIATE_DIR, f"{TARGET_DATE_STR}_{ko_name}_통합_출전표.csv")
         raw_history = os.path.join(INTERMEDIATE_DIR, f"{TARGET_DATE_STR}_{ko_name}_경마_통합10회전적_상세.csv")
+        raw_training = os.path.join(INTERMEDIATE_DIR, f"{TARGET_DATE_STR}_{ko_name}_통합_조교상세.csv")
         raw_stats = os.path.join(INTERMEDIATE_DIR, f"{TARGET_DATE_STR}[{ko_name}]easyrace.txt")
         raw_expert = os.path.join("data/0_raw", f"{en_prefix}ExpertPick.txt")
         
-        # 중간 CSV 경로 (지역별 구분 없이 공유하지만, 순차 처리하므로 최종 JSON 생성 직전에만 유효하면 됨)
+        # 중간 CSV 경로
         csv_entry = os.path.join(INTERMEDIATE_DIR, 'EntrySheet.csv')
         csv_history = os.path.join(INTERMEDIATE_DIR, 'RecentHistory.csv')
+        csv_training = os.path.join(INTERMEDIATE_DIR, 'TrainingHistory.csv')
         csv_stats = os.path.join(INTERMEDIATE_DIR, 'RaceStats.csv')
         csv_expert = os.path.join(INTERMEDIATE_DIR, 'ExpertPick.csv')
         
@@ -686,11 +767,16 @@ if __name__ == "__main__":
         # merge_ten_records는 내부에서 지역을 찾으므로 폴더를 넘겨줌
         merge_ten_records(target_folder=raw_folder, output_filename=raw_history)
 
+        print(f"\n[단계 2.5] {ko_name} 개별 조교 상세 통합...")
+        integrate_training_data(target_folder=raw_folder, output_filename=raw_training)
+
         print(f"\n[단계 3] {ko_name} JSON 데이터 변환...")
         if os.path.exists(raw_entry):
             pipeline.convert_entry_sheet(raw_entry, csv_entry)
         if os.path.exists(raw_history):
             pipeline.convert_recent_history(raw_history, csv_history)
+        if os.path.exists(raw_training):
+            pipeline.convert_training_details(raw_training, csv_training)
         if os.path.exists(raw_stats):
             pipeline.convert_race_stats(raw_stats, csv_stats)
         if os.path.exists(raw_expert):
