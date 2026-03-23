@@ -10,3 +10,4 @@ data/
 /서울*/
 .gitignore
 src/
+docs/
