@@ -8,3 +8,5 @@ __pycache__/
 data/
 /부산*/
 /서울*/
+.gitignore
+src/
