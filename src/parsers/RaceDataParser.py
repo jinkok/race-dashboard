@@ -100,17 +100,39 @@ def parse_race_data(input_file):
                     no, name, val = m.group(1), m.group(2).replace(" ", ""), m.group(3)
                     if no == "0": continue  # Filter out noise like '0 백만' from '백만원' text
                     
-                    seg_center = m.start()
+                matches = list(re.finditer(r'(\d+)\s*([가-힣\[\]\s]{2,})\s+([\d\.:%]+(?:백만)?)', line))
+                # Reset counters for each line to track 1st, 2nd, etc. occurrence of data types
+                line_type_counts = {"prize": 0, "pct": 0, "time": 0, "idx": 0, "int": 0}
+
+                for m in matches:
+                    no, name, val = m.group(1), m.group(2).replace(" ", ""), m.group(3)
+                    if no == "0": continue  # Filter out noise like '0 백만' from '백만원' text
                     
                     if in_table == 1:
-                        diffs = [abs(seg_center - c) for c in t1_centers]
-                        col_idx = diffs.index(min(diffs))
-                        if col_idx == 2: race_data['tips']['복승률'].append((no, name, val))
+                        # Table 1: Rating (0), WinRate (1), BokWin (2), DistWin (3), Record (4)
+                        if ":" in val:
+                            col_idx = 4
+                        elif "%" in val:
+                            line_type_counts["pct"] += 1
+                            col_idx = line_type_counts["pct"] # 1st %, 2nd %, 3rd %
+                        else:
+                            col_idx = 0 # Rating
+                        
+                        if col_idx == 1: pass # 1st % is WinRate (not in tips)
+                        elif col_idx == 2: race_data['tips']['복승률'].append((no, name, val))
                         elif col_idx == 3: race_data['tips']['거리승률'].append((no, name, val))
                         elif col_idx == 4: race_data['tips']['기록'].append((no, name, val))
                     elif in_table == 2:
-                        diffs = [abs(seg_center - c) for c in t2_centers]
-                        col_idx = diffs.index(min(diffs))
+                        # Table 2: 1yPrize (0), 6mPrize (1), EarlyTime (2), LateTime (3), Index (4)
+                        if "백만" in val:
+                            line_type_counts["prize"] += 1
+                            col_idx = line_type_counts["prize"] - 1 # 0 or 1
+                        elif "." in val:
+                            line_type_counts["time"] += 1
+                            col_idx = line_type_counts["time"] + 1 # 2 or 3
+                        else:
+                            col_idx = 4 # Speed Index
+                        
                         if col_idx == 1: race_data['tips']['상금'].append((no, name, val))
                         elif col_idx == 2: race_data['tips']['초반'].append((no, name, val))
                         elif col_idx == 3: race_data['tips']['종반'].append((no, name, val))
