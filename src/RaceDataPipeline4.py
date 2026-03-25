@@ -20,6 +20,7 @@ from src.converters.integrate_reports import integrate_data as integrate_judicia
 from src.converters.MergeToEqualdateJson import merge_race_files as merge_regional_data
 from src.parsers.RaceDataParser import run_parser as run_pdf_parser
 from src.parsers.integrate_training_details import integrate_training_details as integrate_training_data
+from src.parsers.kra_pdf_parser import run_parser as run_kra_stats_parser
 
 class RaceDataPipeline:
     def __init__(self):
@@ -479,6 +480,21 @@ class RaceDataPipeline:
             df_stats = pd.read_csv(stats_file, encoding='utf-8-sig').fillna('')
             df_expert = pd.read_csv(expert_file, encoding='utf-8-sig').fillna('')
             
+            # KRA PDF 통계 데이터 로드
+            trainer_stats = {}
+            jockey_stats = {}
+            # YYMMDD 형식 추출 (예: 2026-03-27 -> 260327)
+            yy_mm_dd = target_date.replace('-', '')[2:8]
+            trainer_stats_file = f"data/1_intermediate/trainer_stats_{yy_mm_dd}.json"
+            jockey_stats_file = f"data/1_intermediate/jockey_stats_{yy_mm_dd}.json"
+            
+            if os.path.exists(trainer_stats_file):
+                with open(trainer_stats_file, 'r', encoding='utf-8') as f:
+                    trainer_stats = json.load(f)
+            if os.path.exists(jockey_stats_file):
+                with open(jockey_stats_file, 'r', encoding='utf-8') as f:
+                    jockey_stats = json.load(f)
+            
             # 조교 상세 데이터 로드 (옵션)
             df_training = None
             training_file = os.path.join(os.path.dirname(entry_file), 'TrainingHistory.csv')
@@ -612,8 +628,19 @@ class RaceDataPipeline:
                         "grade": entry['grade'], "participation_period": entry['participation_period'],
                         "equipment": entry['equipment'], "special_note": entry.get('special_note', ''), "sire": entry['sire'],
                         "recent_history": recent_hist,
-                        "training_logs_detailed": [] # 초기값
+                        "training_logs_detailed": [], # 초기값
+                        "trainer_stats": {},
+                        "jockey_stats": {}
                     })
+                    
+                    # 조교사/기수 이름 정제 (통계 데이터 매칭용)
+                    t_name = re.search(r'([가-힣]+)', entry['trainer']).group(1) if re.search(r'([가-힣]+)', entry['trainer']) else entry['trainer']
+                    j_name = re.search(r'([가-힣]+)', entry['jockey']).group(1) if re.search(r'([가-힣]+)', entry['jockey']) else entry['jockey']
+                    
+                    if t_name in trainer_stats:
+                        horses_list[-1]["trainer_stats"] = trainer_stats[t_name]
+                    if j_name in jockey_stats:
+                        horses_list[-1]["jockey_stats"] = jockey_stats[j_name]
                     
                     # 조교 상세 데이터 매칭
                     if df_training is not None:
@@ -712,6 +739,11 @@ if __name__ == "__main__":
     # 0.5. PDF 데이터 추출 (가장 먼저 실행)
     print("\n[단계 0] PDF 원천 데이터 추출 중...")
     run_pdf_parser(TARGET_DATE_STR)
+    
+    # 0.6. KRA 상세 통계 PDF 파싱
+    print("\n[단계 0.5] KRA 상세 통계 PDF 파싱 중...")
+    yy_mm_dd = TARGET_DATE_STR[2:8]
+    run_kra_stats_parser(yy_mm_dd)
 
     INTERMEDIATE_DIR = "data/1_intermediate"
     FINAL_DIR = "data/2_final"
