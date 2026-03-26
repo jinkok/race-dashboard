@@ -8,6 +8,165 @@ const Icon = ({ name, size = 16, className = "" }) => {
     return <i ref={ref} data-lucide={name}></i>;
 };
 
+const SIRE_DATA = [
+    {
+        "id": "menifee",
+        "kr": "메니피",
+        "en": "Menifee",
+        "origin": "USA",
+        "distance": "Middle",
+        "track": "Dirt",
+        "growth": "조숙형",
+        "stats": [9, 7, 8, 9, 7],
+        "desc": "한국 경마 역사상 가장 위대한 종모마 중 하나. 자마들은 뛰어난 초기 스피드와 강한 승부근성을 지니며, 한국의 모래 주로에 완벽한 적응력을 보입니다. 일찍 완성되는 조숙성을 띠어 2~3세 경주에서 압도적인 성적을 냅니다.",
+        "bestAptitude": "1400m ~ 1800m (모래)"
+    },
+    {
+        "id": "shackleford",
+        "kr": "섀클포드",
+        "en": "Shackleford",
+        "origin": "USA",
+        "distance": "Mile",
+        "track": "Dirt",
+        "growth": "조숙형",
+        "stats": [9, 6, 8, 8, 6],
+        "desc": "미국 프리크니스 스테이크스 우승마 출신. 특유의 전진 기세와 폭발적인 선행력을 자마들에게 물려줍니다. 거리가 길어지면 한계를 보이는 경우가 있으나, 마일(1600m) 이하에서는 압도적인 스피드를 발휘합니다.",
+        "bestAptitude": "1200m ~ 1600m (모래)"
+    },
+    {
+        "id": "maurice",
+        "kr": "모리스",
+        "en": "Maurice",
+        "origin": "JPN",
+        "distance": "Middle",
+        "track": "Turf",
+        "growth": "만숙형",
+        "stats": [8, 9, 9, 5, 8],
+        "desc": "일본과 홍콩을 제패한 명마. 자마들은 대체로 성장 속도가 느린 만숙형이지만, 나이가 들수록 근골격이 발달하며 파워풀한 추입력을 보여줍니다. 주로 잔디(Turf)에 강점이 있으나 모래에서도 준수합니다.",
+        "bestAptitude": "1600m ~ 2000m (잔디)"
+    },
+    {
+        "id": "daiwa_major",
+        "kr": "다이와메이저",
+        "en": "Daiwa Major",
+        "origin": "JPN",
+        "distance": "Mile",
+        "track": "Turf/Dirt",
+        "growth": "보통",
+        "stats": [9, 6, 8, 8, 7],
+        "desc": "선데이사일런스의 자식으로 탁월한 마일러들을 다수 배출합니다. 자마들은 튼튼한 체형과 우수한 선행/선입 능력을 갖추고 있으며, 경주 기복이 적어 꾸준한 성적을 내는 것이 특징입니다.",
+        "bestAptitude": "1600m (잔디/모래)"
+    },
+    {
+        "id": "dialed_in",
+        "kr": "다이얼드인",
+        "en": "Dialed In",
+        "origin": "USA",
+        "distance": "Middle",
+        "track": "Dirt",
+        "growth": "보통",
+        "stats": [7, 8, 7, 7, 8],
+        "desc": "안정적인 스태미나와 밸런스를 유전시킵니다. 초반 스피드보다는 경주 중반 이후 지속적인 걸음을 내는 데 유리하며, 장거리 성향이 짙은 암말과 교배 시 클래식 디스턴스(2000m) 적응력이 높아집니다.",
+        "bestAptitude": "1800m ~ 2000m (모래)"
+    },
+    {
+        "id": "maximum_security",
+        "kr": "맥시멈시큐리티",
+        "en": "Maximum Security",
+        "origin": "USA",
+        "distance": "Middle",
+        "track": "Dirt",
+        "growth": "보통",
+        "stats": [8, 9, 8, 7, 9],
+        "desc": "경이로운 심장과 지치지 않는 투지를 자랑한 명마. 자마들은 그의 강인한 투쟁심(근성)과 거친 모래를 이겨내는 파워를 물려받을 확률이 높습니다. 전천후 중거리 적성을 보일 것으로 기대됩니다.",
+        "bestAptitude": "1800m (모래)"
+    },
+    {
+        "id": "musket_man",
+        "kr": "머스킷매너",
+        "en": "Musket Man",
+        "origin": "USA",
+        "distance": "Sprint/Mile",
+        "track": "Dirt",
+        "growth": "조숙형",
+        "stats": [8, 6, 7, 8, 8],
+        "desc": "한국에서 안정적인 자마 성적을 내고 있습니다. 뛰어난 전술적 스피드(Tactical Speed)를 바탕으로 자리싸움에 능하며, 잔부상이 적고 튼튼한 다리를 유전시켜 실전 활용도가 높습니다.",
+        "bestAptitude": "1200m ~ 1400m (모래)"
+    },
+    {
+        "id": "runhappy",
+        "kr": "런해피",
+        "en": "Runhappy",
+        "origin": "USA",
+        "distance": "Sprint",
+        "track": "Dirt",
+        "growth": "조숙형",
+        "stats": [10, 5, 7, 8, 5],
+        "desc": "이름 그대로 뛰는 것을 즐기는 폭발적인 스피드의 스프린터. 자마들은 단거리에서 타의 추종을 불허하는 순발력을 보이나, 기질이 다소 예민하고 거리가 길어지면 급격히 페이스가 떨어질 수 있습니다.",
+        "bestAptitude": "1000m ~ 1200m (모래)"
+    },
+    {
+        "id": "bolt_doro",
+        "kr": "볼트도로",
+        "en": "Bolt d'Oro",
+        "origin": "USA",
+        "distance": "Middle",
+        "track": "Dirt",
+        "growth": "조숙형",
+        "stats": [8, 8, 8, 9, 7],
+        "desc": "2세 시즌부터 두각을 나타내는 특급 조숙성을 자랑합니다. 스피드와 스태미나의 밸런스가 매우 뛰어나며, 체격이 우수하여 경매 시장에서도 자마들의 인기가 매우 높습니다.",
+        "bestAptitude": "1600m ~ 1800m (모래)"
+    },
+    {
+        "id": "discreet_cat",
+        "kr": "디스크리트캣",
+        "en": "Discreet Cat",
+        "origin": "USA",
+        "distance": "Sprint/Mile",
+        "track": "Dirt",
+        "growth": "보통",
+        "stats": [9, 6, 7, 8, 7],
+        "desc": "스톰캣(Storm Cat)계열의 폭발적인 스피드를 유전시킵니다. 자마들은 민첩한 움직임과 부드러운 주행을 보여주며, 마일 이하의 거리에서 가장 좋은 효율을 냅니다.",
+        "bestAptitude": "1200m ~ 1600m (모래)"
+    },
+    {
+        "id": "rock_hard_ten",
+        "kr": "록하드텐",
+        "en": "Rock Hard Ten",
+        "origin": "USA",
+        "distance": "Middle",
+        "track": "Dirt/Turf",
+        "growth": "만숙형",
+        "stats": [6, 9, 10, 5, 6],
+        "desc": "거대한 체구와 압도적인 파워가 특징. 자마들 역시 체격이 매우 크고 성장이 더딘 편이나, 완성되었을 때의 폭발력과 묵직한 발걸음은 장거리 경주에서 빛을 발합니다.",
+        "bestAptitude": "2000m (다목적)"
+    },
+    {
+        "id": "mozu_ascot",
+        "kr": "모즈아스코트",
+        "en": "Mozu Ascot",
+        "origin": "USA/JPN",
+        "distance": "Mile",
+        "track": "Turf/Dirt",
+        "growth": "보통",
+        "stats": [9, 7, 8, 7, 8],
+        "desc": "위대한 프랭클(Frankel)의 자식으로 잔디와 모래 양대 마일 G1을 제패했습니다. 다목적 주로 적응력과 경쾌한 풋워크를 유전시키며, 엘리트 마일러를 기대할 수 있습니다.",
+        "bestAptitude": "1600m (잔디/모래)"
+    },
+    {
+        "id": "smart_falcon",
+        "kr": "스마트팔콘",
+        "en": "Smart Falcon",
+        "origin": "JPN",
+        "distance": "Middle",
+        "track": "Dirt",
+        "growth": "보통",
+        "stats": [8, 8, 7, 7, 8],
+        "desc": "일본 더트(모래) 경마의 최강자 중 하나. 지치지 않는 도주(선행) 능력이 일품이며, 자마들도 앞선에서 경주를 주도하며 끈끈하게 버티는 스타일이 많습니다.",
+        "bestAptitude": "1800m ~ 2000m (모래)"
+    }
+];
+
 const EQUIPMENT_INFO = {
     "눈가면": "시야의 좌우를 차단해 앞만 보고 달리게 하여 집중력을 높임 (산만하거나 딴짓을 하는 말에게 효과적)",
     "망사눈": "시야 차단(눈가면)과 소음 차단(망사) 기능을 동시에 수행 (극도로 예민하거나 산만한 말의 집중력 강화)",
@@ -20,7 +179,8 @@ const EQUIPMENT_INFO = {
     "양털코": "코굴레에 양털을 덧대어 말의 시선을 아래로 유도 (머리를 높게 드는 말을 진정시키고 하방 주시 유도)",
     "자극판": "뺨 안쪽 등에 자극을 주어 한쪽으로 기대는 습관을 교정 (주행 불량(사행 등)을 방지하기 위한 보조 장구)",
     "편자": "경주 시 바닥 접지력과 발 보호를 위해 승인된 특수 편자 (주로의 상태나 말의 발 상태에 맞춰 착용)",
-    "승인편자": "경주 시 바닥 접지력과 발 보호를 위해 승인된 특수 편자 (주로의 상태나 말의 발 상태에 맞춰 착용)"
+    "승인편자": "경주 시 바닥 접지력과 발 보호를 위해 승인된 특수 편자 (주로의 상태나 말의 발 상태에 맞춰 착용)",
+    "가지": "양옆으로 뻗은 '가지'는 재갈이 입안으로 딸려 들어가는 것을 막아줍니다 (달리면서 좌우로 심하게 기대거나, 고개를 심하게 흔드는 산만한 말들을 통제하는 데 탁월)"
 };
 
 const getBadgeStyle = (no) => {
@@ -131,6 +291,11 @@ function App() {
     const [horseNotes, setHorseNotes] = useState({});
     const [notesInput, setNotesInput] = useState({});
     const [hoveredEq, setHoveredEq] = useState(null);
+    const [sireMap, setSireMap] = useState(() => {
+        const map = {};
+        SIRE_DATA.forEach(s => { map[s.kr] = s; });
+        return map;
+    });
 
     const defaultData = {
         date: "데이터 없음",
@@ -193,19 +358,19 @@ function App() {
     const saveHorseNote = async (horseName, noteText) => {
         if (!user) return alert('로그인 중...');
         if (!noteText?.trim()) return alert('내용을 입력해주세요.');
-        
+
         const { db, doc, setDoc } = window.fb;
         const notesRef = doc(db, 'artifacts', 'race-app-3e41d', 'public', 'horseNotesData');
-        
+
         const newNote = {
             id: Date.now().toString(),
             date: date,
             content: noteText
         };
-        
+
         const currentNotes = horseNotes[horseName] || [];
         const updatedNotes = [newNote, ...currentNotes]; // 최신순
-        
+
         try {
             await setDoc(notesRef, { [horseName]: updatedNotes }, { merge: true });
             setNotesInput({ ...notesInput, [horseName]: '' }); // 입력창 초기화
@@ -218,13 +383,13 @@ function App() {
     const deleteHorseNoteItem = async (horseName, noteId) => {
         if (!user) return alert('로그인 중...');
         if (!confirm('이 메모를 삭제하시겠습니까?')) return;
-        
+
         const { db, doc, setDoc } = window.fb;
         const notesRef = doc(db, 'artifacts', 'race-app-3e41d', 'public', 'horseNotesData');
-        
+
         const currentNotes = horseNotes[horseName] || [];
         const updatedNotes = currentNotes.filter(n => n.id !== noteId);
-        
+
         try {
             await setDoc(notesRef, { [horseName]: updatedNotes }, { merge: true });
             alert('삭제되었습니다.');
@@ -387,7 +552,7 @@ function App() {
         Object.keys(map).forEach(j => map[j].sort((a, b) => a - b));
         return map;
     }, [currentLocData]);
- 
+
     const trainerEntriesMap = React.useMemo(() => {
         const map = {};
         if (!currentLocData || !currentLocData.races) return map;
@@ -717,17 +882,17 @@ function App() {
                                                 )}
 
                                                 {badges.map((b, idx) => (
-                                                    <div 
-                                                        key={idx} 
+                                                    <div
+                                                        key={idx}
                                                         className={`flex-shrink-0 px-2 py-0.5 rounded flex items-center border relative group ${b.desc ? 'cursor-help' : ''} ${b.color === 'red' ? 'bg-red-50 text-red-600 border-red-100' :
-                                                        b.color === 'blue' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                                                            b.color === 'green' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                                                                b.color === 'purple' ? 'bg-purple-50 text-purple-600 border-purple-100' :
-                                                                    b.color === 'yellow' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
-                                                                        b.color === 'cyan' ? 'bg-cyan-50 text-cyan-600 border-cyan-100' :
-                                                                            b.color === 'orange' ? 'bg-orange-50 text-orange-600 border-orange-100' :
-                                                                                'bg-slate-50 text-slate-600 border-slate-100'
-                                                        }`}
+                                                            b.color === 'blue' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                                                                b.color === 'green' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                                                    b.color === 'purple' ? 'bg-purple-50 text-purple-600 border-purple-100' :
+                                                                        b.color === 'yellow' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                                                                            b.color === 'cyan' ? 'bg-cyan-50 text-cyan-600 border-cyan-100' :
+                                                                                b.color === 'orange' ? 'bg-orange-50 text-orange-600 border-orange-100' :
+                                                                                    'bg-slate-50 text-slate-600 border-slate-100'
+                                                            }`}
                                                         onMouseEnter={() => b.desc && setHoveredEq({ horseNo: h.horse_no, text: b.text, desc: b.desc })}
                                                         onMouseLeave={() => setHoveredEq(null)}
                                                         onClick={(e) => {
@@ -754,6 +919,15 @@ function App() {
                                                 {h.medical_alerts?.length > 0 && !h.medical_alerts?.every(m => m.detail?.includes("폐출혈")) && (
                                                     <div className="bg-emerald-50 text-emerald-600 border-emerald-100 px-2 py-0.5 rounded text-[10px] font-bold border">진료내역</div>
                                                 )}
+                                                {(() => {
+                                                    const sData = sireMap[h.sire] || Object.values(sireMap).find(s => s.en?.toLowerCase() === h.sire?.toLowerCase());
+                                                    return sData ? (
+                                                        <div className="bg-indigo-50 text-indigo-600 border-indigo-100 px-2 py-0.5 rounded text-[10px] font-black border flex items-center gap-1 shadow-sm">
+                                                            <Icon name="database" size={10} />
+                                                            <span>부마분석</span>
+                                                        </div>
+                                                    ) : null;
+                                                })()}
                                             </div>
                                         </div>
                                         {isExp && (
@@ -774,17 +948,21 @@ function App() {
                                                 {/* 첫 번째 줄: 관계자 정보 */}
                                                 <div className="flex gap-1.5 mb-2 p-1 bg-slate-100 rounded-xl w-full border border-slate-200">
                                                     {[
-                                                        { id: 'jockey', label: (() => {
-                                                            const jName = (h.jockey || '').replace(/[^가-힣]/g, '');
-                                                            const rides = jockeyRidesMap[jName];
-                                                            const idx = rides ? rides.indexOf(race.race_no) + 1 : 0;
-                                                            return `${jName}${rides ? `(${idx}/${rides.length})` : ''}`;
-                                                        })(), icon: 'user' },
-                                                        { id: 'trainer', label: (() => {
-                                                            const entries = trainerEntriesMap[h.trainer];
-                                                            const idx = entries ? entries.findIndex(e => e.race_no === race.race_no && e.horse_no === h.horse_no) + 1 : 0;
-                                                            return `${h.trainer}${entries ? `(${idx}/${entries.length})` : ''}`;
-                                                        })(), icon: 'briefcase' },
+                                                        {
+                                                            id: 'jockey', label: (() => {
+                                                                const jName = (h.jockey || '').replace(/[^가-힣]/g, '');
+                                                                const rides = jockeyRidesMap[jName];
+                                                                const idx = rides ? rides.indexOf(race.race_no) + 1 : 0;
+                                                                return `${jName}${rides ? `(${idx}/${rides.length})` : ''}`;
+                                                            })(), icon: 'user'
+                                                        },
+                                                        {
+                                                            id: 'trainer', label: (() => {
+                                                                const entries = trainerEntriesMap[h.trainer];
+                                                                const idx = entries ? entries.findIndex(e => e.race_no === race.race_no && e.horse_no === h.horse_no) + 1 : 0;
+                                                                return `${h.trainer}${entries ? `(${idx}/${entries.length})` : ''}`;
+                                                            })(), icon: 'briefcase'
+                                                        },
                                                         { id: 'sire', label: `${h.sire || '-'}`, icon: 'database' }
                                                     ].map(tab => (
                                                         <button
@@ -933,17 +1111,16 @@ function App() {
                                                                                 acc[curr.race_no] = (acc[curr.race_no] || 0) + 1;
                                                                                 return acc;
                                                                             }, {});
-                                                                            
+
                                                                             return (
                                                                                 <div className="flex flex-wrap gap-1">
                                                                                     {rNos.map((rNo, ridx) => (
-                                                                                        <span 
-                                                                                            key={ridx} 
-                                                                                            className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${
-                                                                                                multiRaces[rNo] > 1 
-                                                                                                    ? 'text-rose-600 bg-rose-50 border-rose-200 shadow-sm' 
+                                                                                        <span
+                                                                                            key={ridx}
+                                                                                            className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${multiRaces[rNo] > 1
+                                                                                                    ? 'text-rose-600 bg-rose-50 border-rose-200 shadow-sm'
                                                                                                     : 'text-emerald-500 bg-emerald-50 border-emerald-100/50'
-                                                                                            }`}
+                                                                                                }`}
                                                                                         >
                                                                                             {rNo}
                                                                                         </span>
@@ -990,18 +1167,134 @@ function App() {
                                                 )}
 
                                                 {subTab === 'sire' && (
-                                                    <div className="space-y-3">
-                                                        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm text-center">
-                                                            <div className="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100">
-                                                                <Icon name="database" size={32} className="text-slate-400" />
-                                                            </div>
-                                                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Sire / Dam Information</div>
-                                                            <h4 className="text-lg font-black text-slate-900 mb-2">부마: {h.sire || '-'}</h4>
-                                                            <div className="h-px bg-slate-100 w-12 mx-auto mb-4"></div>
-                                                            <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                                                                해당 경주마의 혈통을 기반으로 한{'\n'}상세 분석 데이터는 준비 중입니다.
-                                                            </p>
-                                                        </div>
+                                                    <div className="space-y-4 animate-fade-in text-sm mb-6">
+                                                        {(() => {
+                                                            const sData = sireMap[h.sire] || Object.values(sireMap).find(s => s.en?.toLowerCase() === h.sire?.toLowerCase());
+                                                            if (sData) {
+                                                                return (
+                                                                    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                                                                        {/* Header Section */}
+                                                                        <div className="bg-slate-900 text-white p-6 relative overflow-hidden">
+                                                                            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
+                                                                            <div className="relative z-10">
+                                                                                <div className="flex justify-between items-start">
+                                                                                    <div>
+                                                                                        <div className="flex items-center gap-2 mb-1">
+                                                                                            <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] font-bold rounded uppercase tracking-widest border border-blue-500/30">Sire Analysis</span>
+                                                                                        </div>
+                                                                                        <h3 className="text-2xl font-black flex items-center gap-3">
+                                                                                            {sData.kr}
+                                                                                            <span className="text-slate-500 text-sm font-medium uppercase tracking-tighter">{sData.en}</span>
+                                                                                        </h3>
+                                                                                    </div>
+                                                                                    <div className="flex flex-col items-end gap-2">
+                                                                                        <span className="px-3 py-1 bg-slate-800 rounded-full text-[10px] font-bold text-slate-300 border border-slate-700">
+                                                                                            Origin: {sData.origin}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                <div className="mt-6 grid grid-cols-3 gap-3">
+                                                                                    <div className="bg-slate-800/40 p-3 rounded-xl border border-slate-700/50">
+                                                                                        <p className="text-[10px] text-slate-500 uppercase font-black mb-1 tracking-wider">거리 적성</p>
+                                                                                        <p className="font-black text-amber-500 text-sm">{sData.distance}</p>
+                                                                                    </div>
+                                                                                    <div className="bg-slate-800/40 p-3 rounded-xl border border-slate-700/50">
+                                                                                        <p className="text-[10px] text-slate-500 uppercase font-black mb-1 tracking-wider">성장 타입</p>
+                                                                                        <p className="font-black text-emerald-500 text-sm">{sData.growth}</p>
+                                                                                    </div>
+                                                                                    <div className="bg-slate-800/40 p-3 rounded-xl border border-slate-700/50">
+                                                                                        <p className="text-[10px] text-slate-500 uppercase font-black mb-1 tracking-wider">주요 주로</p>
+                                                                                        <p className="font-black text-blue-400 text-sm">{sData.track}</p>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {/* Content Section */}
+                                                                        <div className="p-6 bg-slate-50/30">
+                                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                                                {/* Stats Grid */}
+                                                                                <div className="space-y-4">
+                                                                                    <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2 mb-4">
+                                                                                        <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                                                                                        자마 유전적 특징 발현율
+                                                                                    </h4>
+                                                                                    <div className="space-y-4">
+                                                                                        {[
+                                                                                            { label: '스피드(Speed)', val: sData.stats[0], color: 'bg-blue-500' },
+                                                                                            { label: '스태미나(Stamina)', val: sData.stats[1], color: 'bg-indigo-500' },
+                                                                                            { label: '파워(Power)', val: sData.stats[2], color: 'bg-emerald-500' },
+                                                                                            { label: '조숙성(Precocity)', val: sData.stats[3], color: 'bg-amber-500' },
+                                                                                            { label: '기질/투지(Temper)', val: sData.stats[4], color: 'bg-rose-500' }
+                                                                                        ].map((stat, idx) => (
+                                                                                            <div key={idx} className="group">
+                                                                                                <div className="flex justify-between items-center mb-1.5 px-1">
+                                                                                                    <span className="text-xs font-bold text-slate-600 group-hover:text-slate-900 transition-colors uppercase tracking-tight">{stat.label}</span>
+                                                                                                    <span className="font-black text-slate-900 text-xs">{stat.val}<span className="text-[10px] text-slate-400 font-medium ml-0.5">/ 10</span></span>
+                                                                                                </div>
+                                                                                                <div className="h-2 w-full bg-slate-200/50 rounded-full overflow-hidden shadow-inner p-[1px]">
+                                                                                                    <div
+                                                                                                        className={`h-full rounded-full transition-all duration-1000 ease-out shadow-sm ${stat.color} opacity-90`}
+                                                                                                        style={{ width: `${stat.val * 10}%` }}
+                                                                                                    ></div>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                {/* Analysis Card */}
+                                                                                <div className="flex flex-col">
+                                                                                    <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2 mb-4">
+                                                                                        <div className="w-1.5 h-1.5 bg-amber-500 rounded-full"></div>
+                                                                                        심층 혈통 분석 리포트
+                                                                                    </h4>
+                                                                                    <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex-grow flex flex-col justify-between">
+                                                                                        <div>
+                                                                                            <div className="flex items-center gap-2 mb-3">
+                                                                                                <div className="p-2 bg-amber-50 rounded-lg">
+                                                                                                    <Icon name="zap" size={16} className="text-amber-500" />
+                                                                                                </div>
+                                                                                                <span className="text-xs font-black text-slate-800 uppercase tracking-tighter">Core Insight</span>
+                                                                                            </div>
+                                                                                            <p className="text-slate-600 leading-relaxed text-[13px] font-medium italic">
+                                                                                                "{sData.desc}"
+                                                                                            </p>
+                                                                                        </div>
+
+                                                                                        <div className="mt-6 pt-5 border-t border-slate-100 flex items-center justify-between">
+                                                                                            <div>
+                                                                                                <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">OPTIMAL DISTANCE</p>
+                                                                                                <div className="flex items-center gap-2">
+                                                                                                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                                                                                                    <p className="text-sm font-black text-slate-900">{sData.bestAptitude}</p>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                            <Icon name="award" size={24} className="text-slate-200" />
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            } else {
+                                                                return (
+                                                                    <div className="bg-slate-50 rounded-2xl p-12 text-center border border-dashed border-slate-200">
+                                                                        <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-slate-100">
+                                                                            <Icon name="database" size={32} className="text-slate-300" />
+                                                                        </div>
+                                                                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-2 leading-none">Database Status</div>
+                                                                        <h3 className="text-xl font-black text-slate-900 mb-3">분석 데이터 로딩 중</h3>
+                                                                        <p className="text-slate-500 max-w-sm mx-auto text-xs leading-relaxed font-medium">
+                                                                            해당 경주마의 부마(<span className="text-slate-900 font-bold">{h.sire || '정보없음'}</span>)에 대한 상세 분석 데이터는 DB 등록 대기 중입니다.
+                                                                            수동 데이터 연동을 진행해 주세요.
+                                                                        </p>
+                                                                    </div>
+                                                                );
+                                                            }
+                                                        })()}
                                                     </div>
                                                 )}
 
@@ -1038,13 +1331,13 @@ function App() {
                                                 {subTab === 'judicial' && (
                                                     <div className="space-y-2">
                                                         {h.steward_trip_note ? (
-                                                                <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm border-l-[3px] border-orange-400">
-                                                                    <div className="flex items-center justify-between mb-2">
-                                                                        <span className="text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded capitalize">{h.steward_trip_note.date}</span>
-                                                                        <span className="text-[10px] text-slate-400 font-bold">심판리포트</span>
-                                                                    </div>
-                                                                    <p className="text-[12px] text-slate-700 leading-relaxed font-medium">{h.steward_trip_note.note}</p>
+                                                            <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm border-l-[3px] border-orange-400">
+                                                                <div className="flex items-center justify-between mb-2">
+                                                                    <span className="text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded capitalize">{h.steward_trip_note.date}</span>
+                                                                    <span className="text-[10px] text-slate-400 font-bold">심판리포트</span>
                                                                 </div>
+                                                                <p className="text-[12px] text-slate-700 leading-relaxed font-medium">{h.steward_trip_note.note}</p>
+                                                            </div>
                                                         ) : (
                                                             <div className="py-8 bg-white rounded-xl border border-dashed border-slate-200 text-center text-slate-400 text-xs">등록된 심판리포트가 없습니다.</div>
                                                         )}
@@ -1084,14 +1377,14 @@ function App() {
                                                                 <p className="text-[12px] text-slate-700 leading-relaxed font-medium">{h.special_note}</p>
                                                             </div>
                                                         )}
-                                                        
+
                                                         {horseNotes[h.name] && Array.isArray(horseNotes[h.name]) && horseNotes[h.name].filter(n => n && n.content && n.content.trim()).map((note) => (
                                                             <div key={note.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-md border-l-[4px] border-indigo-500 relative transition-all">
                                                                 <div className="flex items-center justify-between mb-2">
                                                                     <div className="flex items-center gap-2">
                                                                         <span className="text-[10px] font-black text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-lg border border-indigo-100">{note.date}</span>
                                                                     </div>
-                                                                    <button 
+                                                                    <button
                                                                         onClick={(e) => { e.stopPropagation(); deleteHorseNoteItem(h.name, note.id); }}
                                                                         className="flex items-center gap-1 px-2 py-1 bg-rose-50 text-rose-600 rounded-md hover:bg-rose-100 transition-all border border-rose-100"
                                                                         title="메모 삭제"
@@ -1114,7 +1407,7 @@ function App() {
                                                                 className="w-full text-xs p-3 rounded-xl border border-slate-200 outline-none focus:border-indigo-500 min-h-[80px] bg-white shadow-inner"
                                                                 placeholder={`${h.name}의 특이사항을 입력하세요... (${date} 날짜로 저장됩니다)`}
                                                                 value={notesInput[h.name] || ''}
-                                                                onChange={(e) => setNotesInput({...notesInput, [h.name]: e.target.value})}
+                                                                onChange={(e) => setNotesInput({ ...notesInput, [h.name]: e.target.value })}
                                                                 onClick={(e) => e.stopPropagation()}
                                                             />
                                                             <div className="flex justify-end mt-2">
