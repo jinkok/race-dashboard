@@ -202,8 +202,8 @@ const getBadgeStyle = (no) => {
 };
 
 const BarChart = ({ data, color }) => {
-    if (!data) return null;
-    const parsedData = data.map(d => ({ ...d, val: parseFloat(d.rec) }));
+    if (!data || data.length === 0) return null;
+    const parsedData = data.map(d => ({ ...d, val: parseFloat(String(d.rec).replace(/[^0-9.]/g, '')) || 0 }));
     const min = Math.min(...parsedData.map(d => d.val));
     const max = Math.max(...parsedData.map(d => d.val));
     const range = max - min || 1;
@@ -239,10 +239,11 @@ const BarChart = ({ data, color }) => {
 };
 
 const ValueChart = ({ data, color, valueKey }) => {
-    if (!data) return null;
+    if (!data || data.length === 0) return null;
     const parsedData = data.map(d => {
         const rawVal = d[valueKey];
-        const numVal = parseFloat(rawVal.replace(/[^0-9.]/g, '')) || 0;
+        const strVal = String(rawVal || '0');
+        const numVal = parseFloat(strVal.replace(/[^0-9.]/g, '')) || 0;
         return { ...d, val: numVal, raw: rawVal };
     });
     const max = Math.max(...parsedData.map(d => d.val)) || 1;
@@ -297,6 +298,45 @@ function App() {
         return map;
     });
 
+    const [selectedHorses, setSelectedHorses] = useState([]); // legacy UI sync
+    const [activeGameIdx, setActiveGameIdx] = useState(0);
+    const [betGames, setBetGames] = useState([
+        { id: 1, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 },
+        { id: 2, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 },
+        { id: 3, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 }
+    ]);
+    const [betMemo, setBetMemo] = useState('');
+    const [isBetPanelOpen, setIsBetPanelOpen] = useState(false);
+
+    // 베팅 조합(게임) 수 계산 로직
+    const getBetCombinationCount = (type, ranks) => {
+        const s1 = (ranks?.[1] || []).map(Number);
+        const s2 = (ranks?.[2] || []).map(Number);
+        const s3 = (ranks?.[3] || []).map(Number);
+
+        if (type === '단승' || type === '연승') return s1.length;
+        if (type === '복승' || type === '복연승' || type === '쌍승') {
+            if (s1.length === 0 || s2.length === 0) return 0;
+            let count = 0;
+            for (const a of s1) {
+                for (const b of s2) if (a !== b) count++;
+            }
+            return (type === '쌍승') ? count : count / 2;
+        }
+        if (type === '삼복승' || type === '삼쌍승') {
+            if (s1.length === 0 || s2.length === 0 || s3.length === 0) return 0;
+            let count = 0;
+            for (const a of s1) {
+                for (const b of s2) {
+                    if (a === b) continue;
+                    for (const c of s3) if (c !== a && c !== b) count++;
+                }
+            }
+            return (type === '삼쌍승') ? count : count / 6;
+        }
+        return 0;
+    };
+
     const defaultData = {
         date: "데이터 없음",
         locations: {
@@ -324,14 +364,25 @@ function App() {
         return () => clearInterval(interval);
     }, [date]);
 
+    // 경주(지역 또는 번호) 변경 시 베팅 슬립 초기화
+    useEffect(() => {
+        setBetGames([
+            { id: 1, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 },
+            { id: 2, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 },
+            { id: 3, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 }
+        ]);
+        setActiveGameIdx(0);
+    }, [loc, raceIdx]);
+
     const startSync = async () => {
         const { auth, db, doc, onSnapshot, signInAnonymously, onAuthStateChanged } = window.fb;
+        const appId = 'race-app-3e41d';
         try {
             await signInAnonymously(auth);
             onAuthStateChanged(auth, (u) => {
                 setUser(u);
                 if (u) {
-                    const docRef = doc(db, 'artifacts', 'race-app-3e41d', 'public', 'data', 'raceDataJson', date);
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'raceDataJson', date);
                     onSnapshot(docRef, (snap) => {
                         if (snap.exists()) {
                             setDbData(snap.data());
@@ -342,17 +393,83 @@ function App() {
                         }
                     });
 
-                    const notesRef = doc(db, 'artifacts', 'race-app-3e41d', 'public', 'horseNotesData');
+                    const notesRef = doc(db, 'artifacts', appId, 'public', 'horseNotesData');
                     onSnapshot(notesRef, (snap) => {
                         if (snap.exists()) {
                             setHorseNotes(snap.data());
                         }
                     });
+
+                    // 마이 베팅 슬립 동기화
+                    const pickPath = `picks_${date}_${loc}_${raceIdx + 1}`;
+                    const picksDocRef = doc(db, 'artifacts', appId, 'users', u.uid, 'myPicks', pickPath);
+                    onSnapshot(picksDocRef, (snap) => {
+                        if (snap.exists()) {
+                            const data = snap.data();
+                            if (data.games) setBetGames(data.games);
+                            if (data.memo) setBetMemo(data.memo);
+                        } else {
+                            setBetGames([
+                                { id: 1, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 },
+                                { id: 2, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 },
+                                { id: 3, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 }
+                            ]);
+                            setBetMemo('');
+                        }
+                    }, (err) => console.error("Picks data sync error:", err));
                 }
             });
         } catch (e) {
             setSyncStatus('error');
         }
+    };
+
+    const toggleHorseSelection = (no, rank) => {
+        setBetGames(prev => {
+            const next = [...prev];
+            const g = { ...next[activeGameIdx] };
+            const nextRanks = { ...g.ranks };
+
+            // 1. 상호 배타적 선택: 다른 등급에서 해당 마필 제거
+            [1, 2, 3].forEach(r => {
+                if (r !== rank) nextRanks[r] = (nextRanks[r] || []).filter(h => h !== no);
+            });
+
+            // 2. 현재 등급 토글
+            const currentArr = nextRanks[rank] || [];
+            if (currentArr.includes(no)) {
+                nextRanks[rank] = currentArr.filter(h => h !== no);
+            } else {
+                nextRanks[rank] = [...currentArr, no].sort((a, b) => a - b);
+            }
+
+            g.ranks = nextRanks;
+            next[activeGameIdx] = g;
+            return next;
+        });
+    };
+
+    // UI 동기화를 위해 selections가 변할 때 legacy selectedHorses(Rank 1) 업데이트
+    useEffect(() => {
+        const active = betGames[activeGameIdx];
+        setSelectedHorses(active?.ranks?.[1] || []);
+    }, [betGames, activeGameIdx]);
+
+    const savePicks = async () => {
+        if (!user) return alert('로그인 중...');
+        const { db, doc, setDoc } = window.fb;
+        const appId = 'race-app-3e41d';
+        const pickPath = `picks_${date}_${loc}_${raceIdx + 1}`;
+
+        try {
+            await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'myPicks', pickPath), {
+                games: betGames,
+                memo: betMemo,
+                updatedAt: new Date().toISOString()
+            });
+            setIsBetPanelOpen(false);
+            alert(`다중 슬롯 조합이 저장되었습니다.`);
+        } catch (e) { alert("저장 실패: " + e.message); }
     };
 
     const saveHorseNote = async (horseName, noteText) => {
@@ -570,7 +687,6 @@ function App() {
         return map;
     }, [currentLocData]);
 
-
     return (
         <div className="max-w-md mx-auto min-h-screen flex flex-col bg-[#f8fafc] relative shadow-2xl font-sans">
             <header className="bg-slate-900 text-white pt-6 pb-6 px-6 rounded-b-[30px] shadow-xl z-20 relative">
@@ -681,6 +797,7 @@ function App() {
                         <div className="px-4 space-y-3">
                             {race?.horses.map((h, i) => {
                                 const isExp = expanded === h.horse_no;
+                                const isSelected = selectedHorses.includes(h.horse_no);
                                 const picksText = expert?.picks_text?.find(p => parseInt(p.no) === h.horse_no)?.coment;
                                 const isPick = expert?.picks?.includes(h.horse_no);
                                 const targetDist = info ? parseInt(info.distance.replace(/\D/g, '')) : 0;
@@ -769,7 +886,7 @@ function App() {
 
 
                                 return (
-                                    <div key={h.horse_no} className={`bg-white rounded-2xl shadow-sm border transition-all duration-300 overflow-hidden animate-up ${isExp ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-slate-100'}`} style={{ animationDelay: `${0.2 + (i * 0.05)}s` }}>
+                                    <div key={h.horse_no} className={`bg-white rounded-2xl shadow-sm border transition-all duration-300 overflow-hidden animate-up relative ${isExp ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-slate-100'}`} style={{ animationDelay: `${0.2 + (i * 0.05)}s` }}>
                                         <div className="p-3 flex items-stretch cursor-pointer" onClick={() => {
                                             if (expanded === h.horse_no) {
                                                 setExpanded(null);
@@ -1118,8 +1235,8 @@ function App() {
                                                                                         <span
                                                                                             key={ridx}
                                                                                             className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${multiRaces[rNo] > 1
-                                                                                                    ? 'text-rose-600 bg-rose-50 border-rose-200 shadow-sm'
-                                                                                                    : 'text-emerald-500 bg-emerald-50 border-emerald-100/50'
+                                                                                                ? 'text-rose-600 bg-rose-50 border-rose-200 shadow-sm'
+                                                                                                : 'text-emerald-500 bg-emerald-50 border-emerald-100/50'
                                                                                                 }`}
                                                                                         >
                                                                                             {rNo}
@@ -1423,12 +1540,11 @@ function App() {
                                                 )}
                                             </div>
                                         )}
-
                                     </div>
                                 );
                             })}
                         </div>
-                        {stats && (
+                        {stats ? (
                             <div className="px-4 pb-10">
                                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 animate-up">
                                     <h3 className="text-sm font-black text-slate-800 flex items-center gap-2 mb-6"><div className="bg-green-100 p-1 rounded text-green-600"><Icon name="bar-chart-2" size={14} /></div>데이터 분석</h3>
@@ -1457,10 +1573,193 @@ function App() {
                                     </div>
                                 </div>
                             </div>
-                        ) || <div className="px-4 py-10 text-center text-slate-400 text-xs">선택된 경주에 대한 분석 데이터가 없습니다.</div>}
+                        ) : (
+                            <div className="px-4 py-10 text-center text-slate-400 text-xs">선택된 경주에 대한 분석 데이터가 없습니다.</div>
+                        )}
                     </>
                 )}
             </main>
+
+            {/* 마이 베팅 슬립 (My Betting Slip) - 레퍼런스 이미지 반영 개편 */}
+            {viewMode === 'app' && (
+                <div className={`fixed bottom-0 inset-x-0 z-[100] transition-transform duration-500 ease-in-out ${isBetPanelOpen ? 'translate-y-0' : 'translate-y-[calc(100%-60px)]'}`}>
+                    <div className="bg-white rounded-t-[32px] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.3)] overflow-hidden border-t border-slate-200">
+                        {/* 1. 상단 한 줄 정보 헤더 */}
+                        <div
+                            className="bg-indigo-600 text-white h-[60px] px-5 flex items-center justify-between cursor-pointer active:bg-indigo-700 transition-colors"
+                            onClick={() => setIsBetPanelOpen(!isBetPanelOpen)}
+                        >
+                            <div className="flex items-center gap-2 overflow-hidden mr-2">
+                                <div className="bg-white/20 p-1.5 rounded-lg shrink-0">
+                                    <Icon name="shopping-cart" size={16} />
+                                </div>
+                                <div className="text-[12px] font-black whitespace-nowrap overflow-hidden text-ellipsis">
+                                    {betGames.map((g, idx) => {
+                                        const count = getBetCombinationCount(g.type, g.ranks);
+                                        if (count === 0) return null;
+                                        return <span key={idx} className="mr-2 px-1.5 py-0.5 bg-white/20 rounded">{idx + 1}게임: {g.type}</span>;
+                                    })}
+                                    {betGames.every(g => getBetCombinationCount(g.type, g.ranks) === 0) && "게임별 조합을 선택하세요"}
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <div className="text-right mr-2">
+                                    <div className="text-[10px] opacity-70">구매총합</div>
+                                    <div className="text-[12px] font-black">
+                                        {betGames.reduce((acc, g) => acc + (getBetCombinationCount(g.type, g.ranks) * g.amount), 0).toLocaleString()}원
+                                    </div>
+                                </div>
+                                <Icon name={isBetPanelOpen ? "chevron-down" : "chevron-up"} size={20} />
+                            </div>
+                        </div>
+
+                        {/* 2. 내부 패널 (마법보드) */}
+                        <div className="bg-slate-50 max-h-[50vh] overflow-y-auto scrollbar-hide pb-8 px-4 pt-4 space-y-6">
+                        {/* 게임 전환 탭 및 초기화 행 */}
+                        <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+                            <div className="flex gap-1 flex-1">
+                                {betGames.map((g, idx) => (
+                                    <button
+                                        key={g.id}
+                                        onClick={() => setActiveGameIdx(idx)}
+                                        className={`flex-1 py-2 rounded-lg text-[11px] font-black transition-all ${activeGameIdx === idx ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
+                                    >
+                                        {idx + 1}게임
+                                    </button>
+                                ))}
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setBetGames(prev =>
+                                        prev.map(g => ({
+                                            ...g,
+                                            type: '단승',
+                                            ranks: { 1: [], 2: [], 3: [] }
+                                        }))
+                                    );
+                                    setActiveGameIdx(0);
+                                }}
+                                className="px-3 py-2 bg-rose-50 text-rose-600 rounded-lg text-[10px] font-black border border-rose-100"
+                            >
+                                전체 초기화
+                            </button>
+                        </div>
+
+                        {/* 마번 그리드 영역 (활성 게임의 승식에 따라 1~3행 출력) */}
+                        <div className="space-y-4">
+                            {[1, 2, 3].map(r => {
+                                const g = betGames[activeGameIdx];
+                                const isNeeded = (r === 1) || (r === 2 && !['단승', '연승'].includes(g.type)) || (r === 3 && ['삼복승', '삼쌍승'].includes(g.type));
+                                if (!isNeeded) return null;
+
+                                const currentRace = dbData.locations[loc]?.races[raceIdx];
+                                const activeHorseNos = currentRace?.horses?.map(h => Number(h.horse_no)) || [];
+
+                                return (
+                                    <div key={r} className="space-y-1">
+                                        <div className="grid grid-cols-8 gap-1.5 p-3 bg-white rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden">
+                                            <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500/20"></div>
+                                            {Array.from({ length: 16 }, (_, i) => i + 1).map(no => {
+                                                const isSelected = g.ranks[r]?.includes(no);
+                                                const isParticipating = activeHorseNos.includes(no);
+
+                                                return (
+                                                    <button
+                                                        key={no}
+                                                        disabled={!isParticipating}
+                                                        onClick={() => toggleHorseSelection(no, r)}
+                                                        className={`aspect-square rounded-lg flex items-center justify-center text-[13px] font-black transition-all border-2 
+                                                                 ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                                                                : !isParticipating ? 'bg-slate-50 border-slate-50 text-slate-200 cursor-not-allowed'
+                                                                    : 'bg-white border-slate-100 text-slate-800 active:bg-slate-100 active:scale-90 hover:border-indigo-200 opacity-100'}`}
+                                                    >
+                                                        {no}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* 승식 퀵 셀렉터 (활성 게임타입 변경) */}
+                        <div className="flex gap-1 overflow-x-auto scrollbar-hide py-1">
+                            {['단승', '연승', '복승', '쌍승', '복연승', '삼복승', '삼쌍승'].map(t => (
+                                <button
+                                    key={t}
+                                    onClick={() => {
+                                        const next = [...betGames];
+                                        next[activeGameIdx] = { ...next[activeGameIdx], type: t };
+                                        setBetGames(next);
+                                    }}
+                                    className={`px-4 py-2 rounded-lg text-[11px] font-black whitespace-nowrap transition-all border ${betGames[activeGameIdx].type === t ? 'bg-slate-800 border-slate-800 text-white shadow-md' : 'bg-white border-slate-200 text-slate-500'}`}
+                                >
+                                    {t}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* 베팅 금액 유닛 선택 (활성 슬롯금액 변경) */}
+                        <div className="grid grid-cols-4 gap-1.5">
+                            {[100, 500, 1000, 5000, 10000, 50000, 100000].map(amt => (
+                                <button
+                                    key={amt}
+                                    onClick={() => {
+                                        const next = [...betGames];
+                                        next[activeGameIdx] = { ...next[activeGameIdx], amount: amt };
+                                        setBetGames(next);
+                                    }}
+                                    className={`py-2 rounded-lg text-[11px] font-black transition-all border-2 ${betGames[activeGameIdx].amount === amt ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm' : 'bg-white border-slate-200 text-slate-500'}`}
+                                >
+                                    {amt >= 10000 ? `${amt / 10000}만` : amt.toLocaleString()}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* 하단 요약 및 저장 (이미지 스타일 요약바) */}
+                        <div className="bg-indigo-50 rounded-2xl p-5 border border-indigo-100 mt-4">
+                            <div className="flex justify-between items-center text-center">
+                                <div className="flex-1 border-r border-indigo-200/50">
+                                    <div className="text-[10px] font-bold text-slate-500 mb-1">경주당 구매한도</div>
+                                    <div className="text-[16px] font-black text-slate-800">100,000</div>
+                                </div>
+                                <div className="flex-1 border-r border-indigo-200/50">
+                                    <div className="text-[10px] font-bold text-slate-500 mb-1">잔액</div>
+                                    <div className="text-[16px] font-black text-slate-800">19,000</div>
+                                </div>
+                                <div className="flex-1">
+                                    <div className="text-[10px] font-bold text-slate-500 mb-1">구매합계</div>
+                                    <div className="text-[20px] font-black text-rose-500">
+                                        {betGames.reduce((acc, g) => acc + (getBetCombinationCount(g.type, g.ranks) * g.amount), 0).toLocaleString()}원
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={savePicks}
+                            disabled={betGames.every(g => getBetCombinationCount(g.type, g.ranks) === 0)}
+                            className={`w-full py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all shadow-xl active:scale-95 ${betGames.some(g => getBetCombinationCount(g.type, g.ranks) > 0) ? 'bg-indigo-600 text-white shadow-indigo-200 hover:bg-indigo-500' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`}
+                        >
+                            <Icon name="save" size={18} />
+                            나의 조합 클라우드 저장
+                        </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <style>{`
+                @keyframes up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+                .animate-up { animation: up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+                .scrollbar-hide::-webkit-scrollbar { display: none; }
+                .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+                .animate-fade-in { animation: fadeIn 0.4s ease-out; }
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                .sticky-header-blur { backdrop-filter: blur(12px); background: rgba(255, 255, 255, 0.85); }
+                .bar-fill { transition: width 1s cubic-bezier(0.16, 1, 0.3, 1); }
+            `}</style>
         </div>
     );
 }
