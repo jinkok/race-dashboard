@@ -446,9 +446,21 @@ function App() {
     const [user, setUser] = useState(null);
     const [viewMode, setViewMode] = useState('app');
     const [syncStatus, setSyncStatus] = useState('connecting');
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-    const [loc, setLoc] = useState('seoul');
-    const [raceIdx, setRaceIdx] = useState(0);
+    const [date, setDate] = useState(() => {
+        const saved = localStorage.getItem('race_last_date');
+        if (saved) return saved;
+        // KST 기준 오늘 날짜 생성
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    });
+    const [loc, setLoc] = useState(() => localStorage.getItem('race_last_loc') || 'seoul');
+    const [raceIdx, setRaceIdx] = useState(() => {
+        const saved = localStorage.getItem('race_last_idx');
+        return saved !== null ? parseInt(saved) : 0;
+    });
     const [expanded, setExpanded] = useState(null);
     const [subTab, setSubTab] = useState('records');
     const [horseNotes, setHorseNotes] = useState({});
@@ -461,16 +473,31 @@ function App() {
     });
 
     const [selectedHorses, setSelectedHorses] = useState([]); // legacy UI sync
-    const [activeGameIdx, setActiveGameIdx] = useState(0);
-    const [betGames, setBetGames] = useState([
-        { id: 1, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 },
-        { id: 2, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 },
-        { id: 3, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 }
-    ]);
-    const [betMemo, setBetMemo] = useState('');
+    const [activeGameIdx, setActiveGameIdx] = useState(() => {
+        const saved = localStorage.getItem('race_last_game_idx');
+        return saved !== null ? parseInt(saved) : 0;
+    });
+    const [betGames, setBetGames] = useState(() => {
+        const pickPath = `picks_${date}_${loc}_${raceIdx + 1}`;
+        const saved = localStorage.getItem(`local_${pickPath}`);
+        if (saved) {
+            try { return JSON.parse(saved); } catch (e) { console.error("Local load error:", e); }
+        }
+        return [
+            { id: 1, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 },
+            { id: 2, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 },
+            { id: 3, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 }
+        ];
+    });
+    const [betMemo, setBetMemo] = useState(() => {
+        const pickPath = `picks_${date}_${loc}_${raceIdx + 1}`;
+        return localStorage.getItem(`local_memo_${pickPath}`) || '';
+    });
     const [isBetPanelOpen, setIsBetPanelOpen] = useState(false);
     const [raceResults, setRaceResults] = useState({});
     const [isResultEditMode, setIsResultEditMode] = useState(false);
+    const [picksStatus, setPicksStatus] = useState('loading'); // 'loading', 'synced', 'local', 'modified'
+    const lastLoadedPath = useRef(null);
 
     // 베팅 조합(게임) 수 계산 로직
     // 승식 조합 계산 편의 함수
@@ -534,6 +561,14 @@ function App() {
         setSubTab('records');
     };
 
+    // 0. State Persistence (localStorage) - 새로고침 시 마지막 상태 유지
+    useEffect(() => {
+        localStorage.setItem('race_last_date', date);
+        localStorage.setItem('race_last_loc', loc);
+        localStorage.setItem('race_last_idx', raceIdx.toString());
+        localStorage.setItem('race_last_game_idx', activeGameIdx.toString());
+    }, [date, loc, raceIdx, activeGameIdx]);
+
     // 1. Firebase Authentication & Initial Setup
     useEffect(() => {
         const interval = setInterval(async () => {
@@ -594,6 +629,27 @@ function App() {
         }, (err) => console.error("Results data sync error:", err));
     }, [user]);
 
+    // 3.5 Local Selections Persistence (Save changes to local storage IMMEDIATELY)
+    useEffect(() => {
+        const pickPath = `picks_${date}_${loc}_${raceIdx + 1}`;
+        
+        // 중요: 현재 로드된 경주와 저장하려는 경로가 일치할 때만 로컬 저장 수행 (경주 이동 시 데이터 오염 방지)
+        if (lastLoadedPath.current === pickPath && picksStatus !== 'loading') {
+            localStorage.setItem(`local_${pickPath}`, JSON.stringify(betGames));
+            localStorage.setItem(`local_memo_${pickPath}`, betMemo);
+            
+            // 수정됨 상태로 변경 (기존이 'synced' 또는 'local'일 때만)
+            if (picksStatus === 'synced' || picksStatus === 'local') {
+                // 실제 변경 사항이 있는지 심층 비교는 생략하고 상태만 업데이트 (편의성)
+                // 만약 정확한 체크를 원하면 _.isEqual 같은 함수 필요
+            }
+        }
+    }, [betGames, betMemo, date, loc, raceIdx]);
+
+    const setModified = () => {
+        if (picksStatus === 'synced' || picksStatus === 'local') setPicksStatus('modified');
+    };
+
     // 4. My Picks Sync (CRITICAL FIX: depends on loc and raceIdx)
     useEffect(() => {
         if (!user || !window.fb?.isReady) return;
@@ -602,22 +658,37 @@ function App() {
         const pickPath = `picks_${date}_${loc}_${raceIdx + 1}`;
         const picksDocRef = doc(db, 'artifacts', appId, 'users', user.uid, 'myPicks', pickPath);
 
+        setPicksStatus('loading');
+        lastLoadedPath.current = null; // 로딩 시작 시 경로 잠금
+
         const unsub = onSnapshot(picksDocRef, (snap) => {
             if (snap.exists()) {
                 const data = snap.data();
                 if (data.games) setBetGames(data.games);
                 if (data.memo) setBetMemo(data.memo || '');
+                setPicksStatus('synced');
             } else {
-                // No saved picks for this race - reset to default
-                setBetGames([
-                    { id: 1, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 },
-                    { id: 2, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 },
-                    { id: 3, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 }
-                ]);
-                setBetMemo('');
-                setActiveGameIdx(0);
+                const saved = localStorage.getItem(`local_${pickPath}`);
+                if (saved) {
+                    try { 
+                        setBetGames(JSON.parse(saved)); 
+                        setPicksStatus('local');
+                    } catch (e) { setPicksStatus('none'); }
+                } else {
+                    setBetGames([
+                        { id: 1, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 },
+                        { id: 2, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 },
+                        { id: 3, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 }
+                    ]);
+                    setBetMemo('');
+                    setPicksStatus('none');
+                }
             }
-        }, (err) => console.error("Picks data sync error:", err));
+            lastLoadedPath.current = pickPath; // 로드 완료 후 경로 잠금 해제
+        }, (err) => {
+            console.error("Picks data sync error:", err);
+            setPicksStatus('error');
+        });
 
         return () => unsub();
     }, [user, date, loc, raceIdx]);
@@ -644,6 +715,7 @@ function App() {
 
             g.ranks = nextRanks;
             next[activeGameIdx] = g;
+            setModified();
             return next;
         });
     };
@@ -675,10 +747,14 @@ function App() {
     }, [betGames, activeGameIdx]);
 
     const savePicks = async () => {
-        if (!user) return alert('로그인 중...');
+        if (!user || !window.fb?.isReady) return alert('Firebase 초기화 대기 중...');
         const { db, doc, setDoc } = window.fb;
         const appId = 'race-app-3e41d';
         const pickPath = `picks_${date}_${loc}_${raceIdx + 1}`;
+        
+        // 로컬에 선저장
+        localStorage.setItem(`local_${pickPath}`, JSON.stringify(betGames));
+        localStorage.setItem(`local_memo_${pickPath}`, betMemo);
 
         try {
             await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'myPicks', pickPath), {
@@ -687,6 +763,7 @@ function App() {
                 updatedAt: new Date().toISOString()
             });
             setIsBetPanelOpen(false);
+            setPicksStatus('synced');
             alert(`다중 슬롯 조합이 저장되었습니다.`);
         } catch (e) { alert("저장 실패: " + e.message); }
     };
@@ -1870,6 +1947,10 @@ function App() {
                                 <span className="text-lg font-black tracking-tighter whitespace-nowrap">
                                     {currentLocData.location_name} <span className="text-blue-400">{race?.race_no}R</span>
                                 </span>
+                                {picksStatus === 'loading' && <div className="ml-2 w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>}
+                                {picksStatus === 'synced' && <span className="ml-2 text-[10px] font-black text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded flex items-center gap-1 opacity-80"><Icon name="cloud-check" size={10} /> SYNC</span>}
+                                {picksStatus === 'local' && <span className="ml-2 text-[10px] font-black text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded flex items-center gap-1 opacity-80"><Icon name="database" size={10} /> CACHE</span>}
+                                {picksStatus === 'modified' && <span className="ml-2 text-[10px] font-black text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded flex items-center gap-1"><Icon name="edit-3" size={10} /> EDIT</span>}
                             </div>
 
                             <div className="flex-1 flex gap-1 items-center h-10 overflow-hidden">
@@ -1914,6 +1995,7 @@ function App() {
                                                 const next = [...betGames];
                                                 next[activeGameIdx] = { ...next[activeGameIdx], type };
                                                 setBetGames(next);
+                                                setModified();
                                             }}
                                             className={`py-1.5 rounded-lg border-2 text-[10px] font-black transition-all ${betGames[activeGameIdx].type === type
                                                     ? 'bg-slate-800 border-slate-800 text-white shadow-md z-10 scale-105'
