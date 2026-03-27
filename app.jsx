@@ -293,64 +293,151 @@ const ValueChart = ({ data, color, valueKey }) => {
 };
 
 function App() {
-    const TicketSlot = ({ idx, activeGameIdx, setActiveGameIdx, g, count, isBetPanelOpen }) => {
+    const getBetStatus = (game, results) => {
+        // 결과 정보가 없거나 베팅 정보가 없으면 판정 불필요
+        if (!results || results.length === 0 || !game || !game.ranks) return null;
+        
+        // 베팅 조합이 하나도 없으면(미배팅 상태) 판정 제외
+        const hasSelection = Object.values(game.ranks).some(r => r && r.length > 0);
+        if (!hasSelection) return null;
+
+        const r1 = results[0]; // 1착 마번
+        const r2 = results[1]; // 2착 마번
+        const r3 = results[2]; // 3착 마번
+        
+        const b1 = game.ranks[1] || []; // 베팅 1순위(또는 박스/단승 선택) 마번들
+        const b2 = game.ranks[2] || []; // 베팅 2순위 마번들
+        const b3 = game.ranks[3] || []; // 베팅 3순위 마번들
+
+        const n1 = b1.length;
+        const n2 = b2.length;
+        const n3 = b3.length;
+
+        // 박스 조합 여부: 1순위에만 마번이 집중된 경우
+        const isBox = n1 >= (game.type.includes('삼') ? 3 : 2) && n2 === 0 && n3 === 0;
+        
+        // 축마(Banker) 조합 여부: 1순위와 2순위에만 마번이 있는 삼복승/삼쌍승의 경우
+        const isBanker = game.type.includes('삼') && n1 > 0 && n2 > 0 && n3 === 0;
+
+        // 승식 유형별 적중 판정 로직
+        switch (game.type) {
+            case '단승':
+                // 단승(Win): 1위(r1)가 선택 목록(b1)에 포함되어야 함
+                return b1.includes(r1) ? 'hit' : 'miss';
+                
+            case '연승':
+                // 연승(Place): 1, 2, 3위 중 어떤 마번이라도 선택 목록(b1)에 포함되면 적중
+                return (b1.includes(r1) || b1.includes(r2) || b1.includes(r3)) ? 'hit' : 'miss';
+                
+            case '복승':
+            case '쌍승': {
+                // 박스 조합인 경우: 순서 상관없이 1, 2위가 모두 선택 목록(b1)에 있어야 함
+                if (isBox) return (b1.includes(r1) && b1.includes(r2)) ? 'hit' : 'miss';
+                
+                // 일반 조합인 경우
+                if (game.type === '복승') {
+                    // 복승(Quinella): 1, 2위가 순서 상관없이 1순위와 2순위에 걸쳐 있어야 함
+                    return ((b1.includes(r1) && b2.includes(r2)) || (b1.includes(r2) && b2.includes(r1))) ? 'hit' : 'miss';
+                } else {
+                    // 쌍승(Exacta): 1위는 1순위(b1)에, 2위는 2순위(b2)에 정확히 있어야 함
+                    return (b1.includes(r1) && b2.includes(r2)) ? 'hit' : 'miss';
+                }
+            }
+                
+            case '삼복승':
+            case '삼쌍승': {
+                const winners3 = [r1, r2, r3].filter(Boolean);
+                if (winners3.length < 3) return null; // 3위 결과가 아직 안 나왔으면 판정 보류
+
+                // 1. 박스 조합인 경우
+                if (isBox) return (b1.includes(r1) && b1.includes(r2) && b1.includes(r3)) ? 'hit' : 'miss';
+
+                // 2. 축마(Banker) 조합인 경우 (예: 1 / 2,3,4)
+                if (isBanker) {
+                    if (game.type === '삼쌍승') {
+                        // 삼쌍승 축마: 1순위가 1착이어야 하고, 나머지가 2,3착인 경우 (1축)
+                        // 또는 1순위가 1,2착이고 나머지가 3착인 경우 (2축) 등 조합에 따라 다름
+                        if (n1 === 1) { // 1축마: r1이 b1에 있고, r2, r3가 모두 b2에 있어야 함
+                            return (b1.includes(r1) && b2.includes(r2) && b2.includes(r3)) ? 'hit' : 'miss';
+                        } else if (n1 === 2) { // 2축마: r1, r2가 모두 b1에 있고, r3가 b2에 있어야 함
+                            return (b1.includes(r1) && b1.includes(r2) && b2.includes(r3)) ? 'hit' : 'miss';
+                        }
+                    } else { // 삼복승 축마
+                        if (n1 === 1) { // 1축마: r1, r2, r3 중 하나가 b1에 있고 나머지가 b2에 있는 경우
+                            const inB1 = winners3.filter(w => b1.includes(w)).length;
+                            const inB2 = winners3.filter(w => b2.includes(w)).length;
+                            return (inB1 === 1 && inB2 === 2) ? 'hit' : 'miss';
+                        } else if (n1 === 2) { // 2축마: r1, r2, r3 중 두 개가 b1에 있고 나머지가 b2에 있는 경우
+                            const inB1 = winners3.filter(w => b1.includes(w)).length;
+                            const inB2 = winners3.filter(w => b2.includes(w)).length;
+                            return (inB1 === 2 && inB2 === 1) ? 'hit' : 'miss';
+                        }
+                    }
+                }
+
+                // 3. 일반 순위별 조합인 경우
+                if (game.type === '삼복승') {
+                    // 삼복승(Trio): 1, 2, 3위 세 마리가 순서 상관없이 모든 순위(b1, b2, b3) 내에 포함되어야 함
+                    const allIn = winners3.every(w => b1.includes(w) || b2.includes(w) || b3.includes(w));
+                    return allIn ? 'hit' : 'miss';
+                } else {
+                    // 삼쌍승(Trifecta): 1위는 b1, 2위는 b2, 3위는 b3에 정확히 있어야 함
+                    return (b1.includes(r1) && b2.includes(r2) && b3.includes(r3)) ? 'hit' : 'miss';
+                }
+            }
+                
+            case '복연승':
+                // 복연승(Quinella Place): 1-2, 1-3, 2-3위 조합 중 하나가 선택 목록에 포함되어야 함 (간이 판정)
+                const hits = [ (b1.includes(r1) && b2.includes(r2)) || (b1.includes(r2) && b2.includes(r1)),
+                               (b1.includes(r1) && b2.includes(r3)) || (b1.includes(r3) && b2.includes(r1)),
+                               (b1.includes(r2) && b2.includes(r3)) || (b1.includes(r3) && b2.includes(r2)) ];
+                return hits.some(h => h) ? 'hit' : 'miss';
+
+            default:
+                // 기타 승식은 기본적으로 1착 포함 여부로 판정
+                return b1.includes(r1) ? 'hit' : 'miss';
+        }
+    };
+
+    const TicketSlot = ({ idx, activeGameIdx, setActiveGameIdx, g, count, results }) => {
         const isActive = activeGameIdx === idx;
         const hasSelection = count > 0;
-        const [isTruncated, setIsTruncated] = useState(false);
-        const containerRef = useRef(null);
-        const textRef = useRef(null);
+        const status = getBetStatus(g, results);
 
-        // truncation detection
-        useLayoutEffect(() => {
-            if (!hasSelection) {
-                setIsTruncated(false);
-                return;
-            }
-            const check = () => {
-                if (textRef.current && containerRef.current) {
-                    const hasOverflow = textRef.current.scrollWidth > textRef.current.offsetWidth;
-                    if (hasOverflow !== isTruncated) setIsTruncated(hasOverflow);
-                }
-            };
-            check();
-            window.addEventListener('resize', check);
-            return () => window.removeEventListener('resize', check);
-        }, [g, count, hasSelection, isBetPanelOpen]);
-
-        // Expansion priority: T1(shrink-1) > T2(shrink-3) > T3(shrink-5)
-        const shrinkClass = idx === 0 ? "flex-shrink" : (idx === 1 ? "flex-shrink-[3]" : "flex-shrink-[5]");
+        // 결과에 따른 보더 색상 결정
+        const getResultBorder = () => {
+            if (status === 'hit') return 'border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)] ring-1 ring-emerald-500/50';
+            if (status === 'miss') return 'border-rose-500 opacity-80';
+            return isActive ? 'border-blue-500' : 'border-slate-700';
+        };
 
         return (
             <button
-                ref={containerRef}
                 onClick={() => setActiveGameIdx(idx)}
-                className={`h-full rounded-xl font-black transition-all duration-300 ease-out flex items-center px-2 relative border-2 ${shrinkClass} ${isActive
-                        ? 'flex-[10] bg-blue-600 border-blue-500 text-white shadow-lg'
-                        : 'flex-1 bg-slate-800 border-slate-700 text-slate-500 hover:text-slate-400'
-                    } ${isTruncated && !isActive ? 'min-w-[44px]' : ''}`}
+                className={`h-full rounded-xl font-black transition-all duration-300 ease-out flex items-center px-1.5 relative border-2 ${isActive
+                        ? 'flex-[12] bg-blue-600 text-white shadow-lg'
+                        : 'flex-1 bg-slate-800 text-slate-500 hover:text-slate-400'
+                    } ${getResultBorder()}`}
             >
-                <span className={`text-[10px] shrink-0 font-black ${isActive ? 'bg-blue-800 px-1.5 py-0.5 rounded-lg mr-2' : ''}`}>
-                    T{idx + 1}
-                </span>
-
-                {hasSelection && (
-                    <div ref={textRef} className={`flex-1 flex items-center min-w-0 animate-in fade-in slide-in-from-right-2 duration-500 ${isTruncated && !isActive ? 'hidden' : 'block'}`}>
-                        <span className="text-[11px] font-bold leading-tight truncate text-left whitespace-nowrap">
-                            {`${g.type}>${Object.values(g.ranks).map(r => r.join(',')).filter(s => s).join('/')} (${count}조)`}
-                        </span>
-                    </div>
-                )}
-                {!hasSelection && isActive && (
-                    <div className="flex-1 flex items-center min-w-0 animate-in fade-in slide-in-from-right-2 duration-500">
-                        <span className="text-[11px] font-bold leading-tight truncate text-left">베팅 구성 중...</span>
-                    </div>
-                )}
-
-                {hasSelection && (
-                    <span className={`absolute top-1 right-1 ${isActive ? 'text-white' : 'text-emerald-400'}`}>
-                        <Icon name="check-circle-2" size={isActive ? 10 : 8} />
+                <div className="flex items-center min-w-0 w-full h-full relative">
+                    <span className={`text-[10px] shrink-0 font-black ${isActive ? 'bg-blue-800 px-1.5 py-1 rounded-lg mr-2' : (hasSelection ? 'text-emerald-400' : 'text-slate-600')}`}>
+                        {idx + 1}
                     </span>
-                )}
+
+                    {isActive ? (
+                        <div className="flex-1 flex items-center min-w-0 animate-in fade-in slide-in-from-right-2 duration-300">
+                            <span className="text-[11px] font-bold leading-tight truncate text-left whitespace-nowrap">
+                                {hasSelection ? `${g.type}>${Object.values(g.ranks).map(r => r.join(',')).filter(s => s).join('/')} (${count}조)` : "미배팅"}
+                            </span>
+                        </div>
+                    ) : (
+                        hasSelection && (
+                            <div className="absolute right-0 top-1/2 -translate-y-1/2 text-emerald-400 animate-in zoom-in duration-300">
+                                <Icon name="check-circle-2" size={10} />
+                            </div>
+                        )
+                    )}
+                </div>
             </button>
         );
     };
@@ -382,6 +469,8 @@ function App() {
     ]);
     const [betMemo, setBetMemo] = useState('');
     const [isBetPanelOpen, setIsBetPanelOpen] = useState(false);
+    const [raceResults, setRaceResults] = useState({});
+    const [isResultEditMode, setIsResultEditMode] = useState(false);
 
     // 베팅 조합(게임) 수 계산 로직
     // 승식 조합 계산 편의 함수
@@ -445,77 +534,96 @@ function App() {
         setSubTab('records');
     };
 
+    // 1. Firebase Authentication & Initial Setup
     useEffect(() => {
-        const interval = setInterval(() => {
+        const interval = setInterval(async () => {
             if (window.fb && window.fb.isReady) {
                 clearInterval(interval);
-                startSync();
+                const { auth, signInAnonymously, onAuthStateChanged } = window.fb;
+                try {
+                    await signInAnonymously(auth);
+                    onAuthStateChanged(auth, u => {
+                        setUser(u);
+                        if (!u) setSyncStatus('connecting');
+                    });
+                } catch (e) { 
+                    console.error("Auth error:", e);
+                    setSyncStatus('error'); 
+                }
             }
         }, 100);
         return () => clearInterval(interval);
-    }, [date]);
+    }, []);
 
-    // 경주(지역 또는 번호) 변경 시 베팅 슬립 초기화
+    // 2. Race Data Sync (depends on date)
     useEffect(() => {
-        setBetGames([
-            { id: 1, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 },
-            { id: 2, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 },
-            { id: 3, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 }
-        ]);
-        setActiveGameIdx(0);
-    }, [loc, raceIdx]);
-
-    const startSync = async () => {
-        const { auth, db, doc, onSnapshot, signInAnonymously, onAuthStateChanged } = window.fb;
+        if (!user || !window.fb?.isReady) return;
+        const { db, doc, onSnapshot } = window.fb;
         const appId = 'race-app-3e41d';
-        try {
-            await signInAnonymously(auth);
-            onAuthStateChanged(auth, (u) => {
-                setUser(u);
-                if (u) {
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'raceDataJson', date);
-                    onSnapshot(docRef, (snap) => {
-                        if (snap.exists()) {
-                            setDbData(snap.data());
-                            setSyncStatus('synced');
-                        } else {
-                            setDbData(defaultData);
-                            setSyncStatus('no-data');
-                        }
-                    });
-
-                    const notesRef = doc(db, 'artifacts', appId, 'public', 'horseNotesData');
-                    onSnapshot(notesRef, (snap) => {
-                        if (snap.exists()) {
-                            setHorseNotes(snap.data());
-                        }
-                    });
-
-                    // 마이 베팅 슬립 동기화
-                    const pickPath = `picks_${date}_${loc}_${raceIdx + 1}`;
-                    const picksDocRef = doc(db, 'artifacts', appId, 'users', u.uid, 'myPicks', pickPath);
-                    onSnapshot(picksDocRef, (snap) => {
-                        if (snap.exists()) {
-                            const data = snap.data();
-                            if (data.games) setBetGames(data.games);
-                            if (data.memo) setBetMemo(data.memo);
-                        } else {
-                            setBetGames([
-                                { id: 1, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 },
-                                { id: 2, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 },
-                                { id: 3, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 }
-                            ]);
-                            setBetMemo('');
-                        }
-                    }, (err) => console.error("Picks data sync error:", err));
-                }
-            });
-        } catch (e) {
+        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'raceDataJson', date);
+        
+        const unsub = onSnapshot(docRef, (snap) => {
+            if (snap.exists()) {
+                setDbData(snap.data());
+                setSyncStatus('synced');
+            } else {
+                setDbData(defaultData);
+                setSyncStatus('no-data');
+            }
+        }, (err) => {
+            console.error("Race data sync error:", err);
             setSyncStatus('error');
-        }
-    };
+        });
+        
+        return () => unsub();
+    }, [user, date]);
+
+    // 3. Horse Notes Sync (Global)
+    useEffect(() => {
+        if (!user || !window.fb?.isReady) return;
+        const { db, doc, onSnapshot } = window.fb;
+        const notesRef = doc(db, 'artifacts', 'race-app-3e41d', 'public', 'horseNotesData');
+        const resultsRef = doc(db, 'artifacts', 'race-app-3e41d', 'public', 'raceResultsData');
+        
+        onSnapshot(notesRef, (snap) => {
+            if (snap.exists()) setHorseNotes(snap.data());
+        }, (err) => console.error("Notes data sync error:", err));
+
+        onSnapshot(resultsRef, (snap) => {
+            if (snap.exists()) setRaceResults(snap.data());
+        }, (err) => console.error("Results data sync error:", err));
+    }, [user]);
+
+    // 4. My Picks Sync (CRITICAL FIX: depends on loc and raceIdx)
+    useEffect(() => {
+        if (!user || !window.fb?.isReady) return;
+        const { db, doc, onSnapshot } = window.fb;
+        const appId = 'race-app-3e41d';
+        const pickPath = `picks_${date}_${loc}_${raceIdx + 1}`;
+        const picksDocRef = doc(db, 'artifacts', appId, 'users', user.uid, 'myPicks', pickPath);
+
+        const unsub = onSnapshot(picksDocRef, (snap) => {
+            if (snap.exists()) {
+                const data = snap.data();
+                if (data.games) setBetGames(data.games);
+                if (data.memo) setBetMemo(data.memo || '');
+            } else {
+                // No saved picks for this race - reset to default
+                setBetGames([
+                    { id: 1, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 },
+                    { id: 2, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 },
+                    { id: 3, type: '단승', ranks: { 1: [], 2: [], 3: [] }, amount: 1000 }
+                ]);
+                setBetMemo('');
+                setActiveGameIdx(0);
+            }
+        }, (err) => console.error("Picks data sync error:", err));
+
+        return () => unsub();
+    }, [user, date, loc, raceIdx]);
 
     const toggleHorseSelection = (no, rank) => {
+        if (isLocked) return;
         setBetGames(prev => {
             const next = [...prev];
             const g = { ...next[activeGameIdx] };
@@ -538,6 +646,26 @@ function App() {
             next[activeGameIdx] = g;
             return next;
         });
+    };
+
+    const toggleRaceResult = async (no) => {
+        if (!user) return alert('로그인 중...');
+        const resKey = `${date}_${loc}_${race?.race_no}`;
+        const currentRes = raceResults[resKey] || [];
+        
+        let nextRes;
+        if (currentRes.includes(no)) {
+            nextRes = currentRes.filter(h => h !== no);
+        } else {
+            if (currentRes.length >= 3) return alert('이미 3위까지 입력되었습니다. 먼저 삭제 후 추가하세요.');
+            nextRes = [...currentRes, no];
+        }
+
+        const { db, doc, setDoc } = window.fb;
+        const resultsRef = doc(db, 'artifacts', 'race-app-3e41d', 'public', 'raceResultsData');
+        try {
+            await setDoc(resultsRef, { [resKey]: nextRes }, { merge: true });
+        } catch (e) { alert("결과 저장 실패: " + e.message); }
     };
 
     // UI 동기화를 위해 selections가 변할 때 legacy selectedHorses(Rank 1) 업데이트
@@ -634,6 +762,33 @@ function App() {
     const expert = race?.expert_opinion;
     const stats = race?.stats_analysis;
     const info = race?.race_info;
+
+    // 🔒 출발시간 마감 로직 (출발 0분 후 마감)
+    const isLocked = (() => {
+        if (!info?.start_time || !date) return false;
+        try {
+            const [hours, minutes] = info.start_time.split(':').map(Number);
+            const raceDate = new Date(date);
+            raceDate.setHours(hours, minutes, 0, 0);
+            const lockTime = new Date(raceDate.getTime());
+            return new Date() > lockTime;
+        } catch (e) { return false; }
+    })();
+
+    // 🏆 결과 입력 가능 로직 (출발 3분 후 가능)
+    const isResultEntryPossible = (() => {
+        if (!info?.start_time || !date) return false;
+        try {
+            const [hours, minutes] = info.start_time.split(':').map(Number);
+            const raceDate = new Date(date);
+            raceDate.setHours(hours, minutes, 0, 0);
+            const possibleTime = new Date(raceDate.getTime() + 3 * 60 * 1000);
+            return new Date() > possibleTime;
+        } catch (e) { return false; }
+    })();
+
+    const resultKey = `${date}_${loc}_${race?.race_no}`;
+    const results = raceResults[resultKey] || [];
 
     const getNum = (str) => {
         if (!str) return 0;
@@ -797,7 +952,18 @@ function App() {
                             <div>
                                 <div className="text-[11px] text-slate-400 font-medium mb-1 flex items-center gap-1 opacity-80"><Icon name="calendar" size={12} /> {dbData.date || date}</div>
                                 <div className="flex items-center gap-2">
-                                    <h2 className="text-2xl font-black text-white italic tracking-tight">{currentLocData.location_name} {race?.race_no}<span className="text-lg font-bold text-slate-400 not-italic ml-1">경주</span></h2>
+                                    <div className="flex items-center gap-1.5">
+                                        <h2 className="text-2xl font-black text-white italic tracking-tight">{currentLocData.location_name} {race?.race_no}<span className="text-lg font-bold text-slate-400 not-italic ml-1">경주</span></h2>
+                                    </div>
+                                    {isResultEntryPossible && (
+                                        <button 
+                                            onClick={() => setIsResultEditMode(!isResultEditMode)} 
+                                            className={`ml-1 flex items-center gap-1.5 px-2 py-1 rounded-lg border-2 transition-all active:scale-95 ${isResultEditMode ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
+                                        >
+                                            <Icon name={isResultEditMode ? "check-circle" : "edit-2"} size={12} />
+                                            <span className="text-[10px] font-black">{isResultEditMode ? "입력완료" : "결과입력"}</span>
+                                        </button>
+                                    )}
                                     <div className="flex bg-slate-800 rounded-lg p-0.5 ml-2 border border-slate-700">
                                         <button onClick={() => changeLocation('seoul')} className={`px-2.5 py-1.5 rounded-md text-[10px] font-black transition-all ${loc === 'seoul' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-400'}`}>서울</button>
                                         <button onClick={() => changeLocation('busan')} className={`px-2.5 py-1.5 rounded-md text-[10px] font-black transition-all ${loc === 'busan' ? 'bg-blue-600 text-white shadow-md shadow-blue-900/50' : 'text-slate-400'}`}>부산</button>
@@ -844,9 +1010,26 @@ function App() {
                                                 </div>
                                             )}
                                         </div>
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-[10px] text-slate-400 font-bold uppercase">우승마 평균기록</span>
-                                            <div className="font-black text-slate-800 text-sm tabular flex items-center gap-1"><Icon name="timer" size={14} className="text-indigo-500" />{stats?.avg_record || '-'}</div>
+                                        <div className="flex items-center gap-3">
+                                            {results?.length > 0 && (
+                                                <div className="flex items-center gap-1.5 pr-3 border-r border-slate-200">
+                                                    {results.map((no, rIdx) => (
+                                                        <div key={rIdx} className="flex flex-col items-center gap-0.5">
+                                                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter leading-none">{rIdx + 1}착</span>
+                                                            <button 
+                                                                onClick={(e) => { e.stopPropagation(); if(isResultEditMode) toggleRaceResult(no); }}
+                                                                className={`w-7 h-7 rounded-lg font-black text-sm flex items-center justify-center shadow-sm transition-all ${isResultEditMode ? 'hover:scale-110 active:bg-red-500 active:text-white' : 'pointer-events-none'} ${getBadgeStyle(no)}`}
+                                                            >
+                                                                {no}
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <div className="flex flex-col items-end">
+                                                <span className="text-[10px] text-slate-400 font-bold uppercase">우승마 평균기록</span>
+                                                <div className="font-black text-slate-800 text-sm tabular flex items-center gap-1"><Icon name="timer" size={14} className="text-indigo-500" />{stats?.avg_record || '-'}</div>
+                                            </div>
                                         </div>
                                     </div>
                                     {expert && (
@@ -977,9 +1160,11 @@ function App() {
 
 
                                 return (
-                                    <div key={h.horse_no} className={`bg-white rounded-2xl shadow-sm border transition-all duration-300 overflow-hidden animate-up relative ${isExp ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-slate-100'}`} style={{ animationDelay: `${0.2 + (i * 0.05)}s` }}>
+                                    <div key={h.horse_no} className={`bg-white rounded-2xl shadow-sm border transition-all duration-300 overflow-hidden animate-up relative ${isExp ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-slate-100'} ${isResultEditMode && results.includes(h.horse_no) ? 'ring-2 ring-indigo-600 ring-offset-2' : ''}`} style={{ animationDelay: `${0.2 + (i * 0.05)}s` }}>
                                         <div className="p-3 flex items-stretch cursor-pointer" onClick={() => {
-                                            if (expanded === h.horse_no) {
+                                            if (isResultEditMode) {
+                                                toggleRaceResult(h.horse_no);
+                                            } else if (expanded === h.horse_no) {
                                                 setExpanded(null);
                                             } else {
                                                 setExpanded(h.horse_no);
@@ -1673,7 +1858,7 @@ function App() {
 
             {/* 마이 베팅 슬립 (My Betting Slip) - app_bet_ui.jsx 스타일 반영 */}
             {viewMode === 'app' && (
-                <div className={`fixed bottom-0 inset-x-0 z-[100] transition-transform duration-500 ease-in-out ${isBetPanelOpen ? 'translate-y-0' : 'translate-y-[calc(100%-60px)]'}`}>
+                <div className={`fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-[100] transition-transform duration-500 ease-in-out ${isBetPanelOpen ? 'translate-y-0' : 'translate-y-[calc(100%-60px)]'}`}>
                     <div className="bg-white rounded-t-[32px] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.3)] overflow-hidden border-t border-slate-200 flex flex-col">
                         
                         {/* 🟢 상단 통합 헤더 */}
@@ -1688,6 +1873,7 @@ function App() {
                             </div>
 
                             <div className="flex-1 flex gap-1 items-center h-10 overflow-hidden">
+                                {isLocked && null}
                                 {[0, 1, 2].map(idx => (
                                     <TicketSlot
                                         key={idx}
@@ -1696,18 +1882,19 @@ function App() {
                                         setActiveGameIdx={setActiveGameIdx}
                                         g={betGames[idx]}
                                         count={getBetCombinationCount(betGames[idx].type, betGames[idx].ranks)}
-                                        isBetPanelOpen={isBetPanelOpen}
+                                        results={results}
                                     />
                                 ))}
                             </div>
 
                             <button
+                                disabled={isLocked}
                                 onClick={() => {
                                     setBetGames(prev => prev.map((g, idx) => 
                                         idx === activeGameIdx ? { ...g, ranks: { 1: [], 2: [], 3: [] } } : g
                                     ));
                                 }}
-                                className="h-10 flex flex-col items-center justify-center bg-slate-800 hover:bg-red-900/40 text-slate-400 hover:text-red-400 rounded-xl transition-all shrink-0 active:scale-95 duration-500 px-2"
+                                className={`h-10 flex flex-col items-center justify-center rounded-xl transition-all shrink-0 active:scale-95 duration-500 px-2 ${isLocked ? 'bg-slate-800 text-slate-700 opacity-50 cursor-not-allowed' : 'bg-slate-800 hover:bg-red-900/40 text-slate-400 hover:text-red-400'}`}
                             >
                                 <Icon name="rotate-ccw" size={16} />
                                 <span className="text-[8px] font-black mt-1">초기화</span>
@@ -1722,6 +1909,7 @@ function App() {
                                     {['단승', '연승', '복승', '쌍승', '복연승', '삼복승', '삼쌍승'].map(type => (
                                         <button
                                             key={type}
+                                            disabled={isLocked}
                                             onClick={() => {
                                                 const next = [...betGames];
                                                 next[activeGameIdx] = { ...next[activeGameIdx], type };
@@ -1730,7 +1918,7 @@ function App() {
                                             className={`py-1.5 rounded-lg border-2 text-[10px] font-black transition-all ${betGames[activeGameIdx].type === type
                                                     ? 'bg-slate-800 border-slate-800 text-white shadow-md z-10 scale-105'
                                                     : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
-                                                }`}
+                                                } ${isLocked ? 'opacity-50 cursor-not-allowed grayscale-[0.5]' : ''}`}
                                         >
                                             {type}
                                         </button>
@@ -1788,13 +1976,13 @@ function App() {
                                                     return (
                                                         <button
                                                             key={num}
-                                                            disabled={!isParticipating}
+                                                            disabled={!isParticipating || isLocked}
                                                             onClick={() => toggleHorseSelection(num, r)}
                                                             className={`h-8 rounded-lg text-xs font-bold border-2 transition-all ${!isParticipating ? 'invisible' :
                                                                     isSelected ? 'bg-blue-600 border-blue-600 text-white shadow-lg z-10 scale-105' :
                                                                         usedElsewhere ? 'bg-slate-50 border-slate-100 text-slate-200 cursor-not-allowed opacity-50' :
                                                                             'bg-white border-slate-100 text-slate-700 hover:border-blue-200'
-                                                                }`}
+                                                                } ${isLocked ? 'opacity-40 grayscale-[0.8] cursor-not-allowed' : ''}`}
                                                         >
                                                             {num}
                                                         </button>
@@ -1809,13 +1997,22 @@ function App() {
 
                                 <button
                                     onClick={savePicks}
-                                    disabled={betGames.every(g => getBetCombinationCount(g.type, g.ranks) === 0)}
-                                    className={`w-full py-3 rounded-2xl font-black text-base shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-3 ${betGames.some(g => getBetCombinationCount(g.type, g.ranks) > 0)
-                                            ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-100'
-                                            : 'bg-slate-100 text-slate-300 shadow-none'
+                                    disabled={isLocked || betGames.every(g => getBetCombinationCount(g.type, g.ranks) === 0)}
+                                    className={`w-full py-3 rounded-2xl font-black text-base shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-3 ${isLocked
+                                            ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                                            : betGames.some(g => getBetCombinationCount(g.type, g.ranks) > 0)
+                                                ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-100'
+                                                : 'bg-slate-100 text-slate-300 shadow-none'
                                         }`}
                                 >
-                                    {betGames.some(g => getBetCombinationCount(g.type, g.ranks) > 0) ? (
+                                    {isLocked ? (
+                                        <>
+                                            <Icon name="lock" size={20} />
+                                            <div className="bg-red-500/20 px-3 py-1 rounded-xl text-xs font-black text-red-400">
+                                                LOCK
+                                            </div>
+                                        </>
+                                    ) : betGames.some(g => getBetCombinationCount(g.type, g.ranks) > 0) ? (
                                         <>
                                             <Icon name="save" size={20} />
                                             <span>조합 클라우드 저장</span>
