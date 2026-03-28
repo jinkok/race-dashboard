@@ -602,21 +602,44 @@ function App() {
         const interval = setInterval(async () => {
             if (window.fb && window.fb.isReady) {
                 clearInterval(interval);
-                const { auth, signInAnonymously, onAuthStateChanged } = window.fb;
-                try {
-                    await signInAnonymously(auth);
-                    onAuthStateChanged(auth, u => {
-                        setUser(u);
-                        if (!u) setSyncStatus('connecting');
-                    });
-                } catch (e) { 
-                    console.error("Auth error:", e);
-                    setSyncStatus('error'); 
-                }
+                const { auth, onAuthStateChanged, signInAnonymously } = window.fb;
+                
+                // 인증 상태 감시
+                onAuthStateChanged(auth, u => {
+                    setUser(u);
+                    if (!u) {
+                        // 로그아웃 상태면 일단 익명 로그인 시도 (기능 유지를 위해)
+                        signInAnonymously(auth).catch(e => console.error("Anon auth error:", e));
+                    }
+                    setSyncStatus(u ? 'synced' : 'connecting');
+                });
             }
         }, 100);
         return () => clearInterval(interval);
     }, []);
+
+    const loginWithGoogle = async () => {
+        if (!window.fb?.isReady) return;
+        const { auth, googleProvider, signInWithPopup } = window.fb;
+        try {
+            await signInWithPopup(auth, googleProvider);
+        } catch (e) {
+            if (e.code !== 'auth/popup-closed-by-user') {
+                alert("로그인 중 오류가 발생했습니다: " + e.message);
+            }
+        }
+    };
+
+    const logout = async () => {
+        if (!window.fb?.isReady) return;
+        if (!confirm('로그아웃 하시겠습니까?')) return;
+        const { auth, signOut } = window.fb;
+        try {
+            await signOut(auth);
+        } catch (e) {
+            alert("로그아웃 오류: " + e.message);
+        }
+    };
 
     // 2. Race Data Sync (depends on date)
     useEffect(() => {
@@ -749,7 +772,7 @@ function App() {
     };
 
     const toggleRaceResult = async (no) => {
-        if (!user) return alert('로그인 중...');
+        if (!user || user.isAnonymous) return alert('결과를 입력하려면 구글 계정으로 로그인해 주세요.');
         const resKey = `${date}_${loc}_${race?.race_no}`;
         const currentRes = raceResults[resKey] || [];
         
@@ -775,7 +798,8 @@ function App() {
     }, [betGames, activeGameIdx]);
 
     const savePicks = async () => {
-        if (!user || !window.fb?.isReady) return alert('Firebase 초기화 대기 중...');
+        if (!user || user.isAnonymous) return alert('배팅 조합을 저장하려면 구글 계정으로 로그인해 주세요.');
+        if (!window.fb?.isReady) return alert('Firebase 초기화 대기 중...');
         const { db, doc, setDoc } = window.fb;
         const appId = 'race-app-3e41d';
         const pickPath = `picks_${date}_${loc}_${raceIdx + 1}`;
@@ -797,7 +821,7 @@ function App() {
     };
 
     const saveHorseNote = async (horseName, noteText) => {
-        if (!user) return alert('로그인 중...');
+        if (!user || user.isAnonymous) return alert('메모를 작성하려면 구글 계정으로 로그인해 주세요.');
         if (!noteText?.trim()) return alert('내용을 입력해주세요.');
 
         const { db, doc, setDoc } = window.fb;
@@ -822,7 +846,7 @@ function App() {
     };
 
     const deleteHorseNoteItem = async (horseName, noteId) => {
-        if (!user) return alert('로그인 중...');
+        if (!user || user.isAnonymous) return alert('메모를 삭제하려면 구글 계정으로 로그인해 주세요.');
         if (!confirm('이 메모를 삭제하시겠습니까?')) return;
 
         const { db, doc, setDoc } = window.fb;
@@ -840,6 +864,7 @@ function App() {
     };
 
     const handleJsonUpload = (e) => {
+        if (!user || user.isAnonymous) return alert('파일을 업로드하려면 구글 계정으로 로그인해 주세요.');
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
@@ -850,7 +875,7 @@ function App() {
                 const targetDate = dateMatch ? dateMatch[1] : date;
                 setDate(targetDate);
                 setDbData(json);
-                if (user) {
+                if (user && !user.isAnonymous) {
                     const { db, doc, setDoc } = window.fb;
                     const docRef = doc(db, 'artifacts', 'race-app-3e41d', 'public', 'data', 'raceDataJson', targetDate);
                     await setDoc(docRef, { ...json, lastUpdated: new Date().toISOString() });
@@ -1045,10 +1070,34 @@ function App() {
                     <div className="flex items-center gap-2">
                         <div className="bg-yellow-400 p-1.5 rounded-lg text-slate-900"><Icon name="trophy" size={16} /></div>
                         <span className="font-black italic text-lg tracking-tighter">SMART<span className="text-yellow-400">RACING</span> V10</span>
+                        
+                        {user && !user.isAnonymous ? (
+                            <button 
+                                onClick={logout}
+                                className="group relative flex items-center justify-center animate-fade-in ml-1"
+                                title="로그아웃 하시겠습니까?"
+                            >
+                                <div className="absolute inset-0 bg-yellow-400/20 rounded-full blur-sm opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                <img src={user.photoURL} className="w-7 h-7 rounded-full ring-2 ring-slate-700 group-hover:ring-yellow-400 shadow-lg transition-all relative z-10" alt="Profile" />
+                                <div className="absolute -top-1 -right-1 bg-rose-500 text-white p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-sm border border-white/20">
+                                    <Icon name="log-out" size={8} />
+                                </div>
+                            </button>
+                        ) : (
+                            <button 
+                                onClick={loginWithGoogle}
+                                className="w-7 h-7 bg-slate-800 rounded-full flex items-center justify-center border border-slate-700 hover:border-indigo-400 hover:bg-slate-700 transition-all shadow-lg group ml-1"
+                                title="구글 로그인"
+                            >
+                                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" alt="G" />
+                            </button>
+                        )}
                     </div>
                     <div className="flex items-center gap-2">
                         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="bg-slate-800 text-white text-xs font-bold px-2 py-1.5 rounded-lg outline-none border border-slate-700 focus:border-yellow-400" />
-                        <button onClick={() => setViewMode(viewMode === 'app' ? 'admin' : 'app')} className={`p-2 rounded-full transition-colors ${viewMode === 'admin' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}><Icon name={viewMode === 'app' ? 'settings' : 'x'} size={16} /></button>
+                        {user && !user.isAnonymous && (
+                            <button onClick={() => setViewMode(viewMode === 'app' ? 'admin' : 'app')} className={`p-2 rounded-full transition-colors ${viewMode === 'admin' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}><Icon name={viewMode === 'app' ? 'settings' : 'x'} size={16} /></button>
+                        )}
                     </div>
                 </div>
                 {viewMode === 'app' && (
@@ -1060,7 +1109,7 @@ function App() {
                                     <div className="flex items-center gap-1.5">
                                         <h2 className="text-2xl font-black text-white italic tracking-tight">{currentLocData.location_name} {race?.race_no}<span className="text-lg font-bold text-slate-400 not-italic ml-1">경주</span></h2>
                                     </div>
-                                    {isResultEntryPossible && (
+                                    {isResultEntryPossible && user && !user.isAnonymous && (
                                         <button 
                                             onClick={() => setIsResultEditMode(!isResultEditMode)} 
                                             className={`ml-1 flex items-center gap-1.5 px-2 py-1 rounded-lg border-2 transition-all active:scale-95 ${isResultEditMode ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
@@ -1069,9 +1118,11 @@ function App() {
                                             <span className="text-[10px] font-black">{isResultEditMode ? "입력완료" : "결과입력"}</span>
                                         </button>
                                     )}
-                                    <div className="flex bg-slate-800 rounded-lg p-0.5 ml-2 border border-slate-700">
-                                        <button onClick={() => changeLocation('seoul')} className={`px-2.5 py-1.5 rounded-md text-[10px] font-black transition-all ${loc === 'seoul' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-400'}`}>서울</button>
-                                        <button onClick={() => changeLocation('busan')} className={`px-2.5 py-1.5 rounded-md text-[10px] font-black transition-all ${loc === 'busan' ? 'bg-blue-600 text-white shadow-md shadow-blue-900/50' : 'text-slate-400'}`}>부산</button>
+                                    <div className="flex items-center gap-2 ml-2">
+                                        <div className="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700 shadow-inner">
+                                            <button onClick={() => changeLocation('seoul')} className={`px-2.5 py-1.5 rounded-md text-[10px] font-black transition-all ${loc === 'seoul' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-400'}`}>서울</button>
+                                            <button onClick={() => changeLocation('busan')} className={`px-2.5 py-1.5 rounded-md text-[10px] font-black transition-all ${loc === 'busan' ? 'bg-blue-600 text-white shadow-md shadow-blue-900/50' : 'text-slate-400'}`}>부산</button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
