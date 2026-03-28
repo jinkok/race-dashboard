@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 
@@ -18,7 +18,13 @@ try {
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
-    window.fb = { auth, db, doc, setDoc, onSnapshot, signInAnonymously, onAuthStateChanged, isReady: true };
+    const googleProvider = new GoogleAuthProvider();
+    window.fb = { 
+        auth, db, doc, setDoc, onSnapshot, 
+        signInAnonymously, onAuthStateChanged, 
+        googleProvider, signInWithPopup, signOut,
+        isReady: true 
+    };
 } catch (e) {
     console.error("Firebase Init Error:", e);
 }
