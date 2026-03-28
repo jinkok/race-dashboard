@@ -293,121 +293,17 @@ const ValueChart = ({ data, color, valueKey }) => {
 };
 
 function App() {
-    const getBetStatus = (game, results) => {
-        // 결과 정보가 없거나 베팅 정보가 없으면 판정 불필요
-        if (!results || results.length === 0 || !game || !game.ranks) return null;
-        
-        // 베팅 조합이 하나도 없으면(미배팅 상태) 판정 제외
-        const hasSelection = Object.values(game.ranks).some(r => r && r.length > 0);
-        if (!hasSelection) return null;
 
-        const r1 = results[0]; // 1착 마번
-        const r2 = results[1]; // 2착 마번
-        const r3 = results[2]; // 3착 마번
-        
-        const b1 = game.ranks[1] || []; // 베팅 1순위(또는 박스/단승 선택) 마번들
-        const b2 = game.ranks[2] || []; // 베팅 2순위 마번들
-        const b3 = game.ranks[3] || []; // 베팅 3순위 마번들
-
-        const n1 = b1.length;
-        const n2 = b2.length;
-        const n3 = b3.length;
-
-        // 박스 조합 여부: 1순위에만 마번이 집중된 경우
-        const isBox = n1 >= (game.type.includes('삼') ? 3 : 2) && n2 === 0 && n3 === 0;
-        
-        // 축마(Banker) 조합 여부: 1순위와 2순위에만 마번이 있는 삼복승/삼쌍승의 경우
-        const isBanker = game.type.includes('삼') && n1 > 0 && n2 > 0 && n3 === 0;
-
-        // 승식 유형별 적중 판정 로직
-        switch (game.type) {
-            case '단승':
-                // 단승(Win): 1위(r1)가 선택 목록(b1)에 포함되어야 함
-                return b1.includes(r1) ? 'hit' : 'miss';
-                
-            case '연승':
-                // 연승(Place): 1, 2, 3위 중 어떤 마번이라도 선택 목록(b1)에 포함되면 적중
-                return (b1.includes(r1) || b1.includes(r2) || b1.includes(r3)) ? 'hit' : 'miss';
-                
-            case '복승':
-            case '쌍승': {
-                // 박스 조합인 경우: 순서 상관없이 1, 2위가 모두 선택 목록(b1)에 있어야 함
-                if (isBox) return (b1.includes(r1) && b1.includes(r2)) ? 'hit' : 'miss';
-                
-                // 일반 조합인 경우
-                if (game.type === '복승') {
-                    // 복승(Quinella): 1, 2위가 순서 상관없이 1순위와 2순위에 걸쳐 있어야 함
-                    return ((b1.includes(r1) && b2.includes(r2)) || (b1.includes(r2) && b2.includes(r1))) ? 'hit' : 'miss';
-                } else {
-                    // 쌍승(Exacta): 1위는 1순위(b1)에, 2위는 2순위(b2)에 정확히 있어야 함
-                    return (b1.includes(r1) && b2.includes(r2)) ? 'hit' : 'miss';
-                }
-            }
-                
-            case '삼복승':
-            case '삼쌍승': {
-                const winners3 = [r1, r2, r3].filter(Boolean);
-                if (winners3.length < 3) return null; // 3위 결과가 아직 안 나왔으면 판정 보류
-
-                // 1. 박스 조합인 경우
-                if (isBox) return (b1.includes(r1) && b1.includes(r2) && b1.includes(r3)) ? 'hit' : 'miss';
-
-                // 2. 축마(Banker) 조합인 경우 (예: 1 / 2,3,4)
-                if (isBanker) {
-                    if (game.type === '삼쌍승') {
-                        // 삼쌍승 축마: 1순위가 1착이어야 하고, 나머지가 2,3착인 경우 (1축)
-                        // 또는 1순위가 1,2착이고 나머지가 3착인 경우 (2축) 등 조합에 따라 다름
-                        if (n1 === 1) { // 1축마: r1이 b1에 있고, r2, r3가 모두 b2에 있어야 함
-                            return (b1.includes(r1) && b2.includes(r2) && b2.includes(r3)) ? 'hit' : 'miss';
-                        } else if (n1 === 2) { // 2축마: r1, r2가 모두 b1에 있고, r3가 b2에 있어야 함
-                            return (b1.includes(r1) && b1.includes(r2) && b2.includes(r3)) ? 'hit' : 'miss';
-                        }
-                    } else { // 삼복승 축마
-                        if (n1 === 1) { // 1축마: r1, r2, r3 중 하나가 b1에 있고 나머지가 b2에 있는 경우
-                            const inB1 = winners3.filter(w => b1.includes(w)).length;
-                            const inB2 = winners3.filter(w => b2.includes(w)).length;
-                            return (inB1 === 1 && inB2 === 2) ? 'hit' : 'miss';
-                        } else if (n1 === 2) { // 2축마: r1, r2, r3 중 두 개가 b1에 있고 나머지가 b2에 있는 경우
-                            const inB1 = winners3.filter(w => b1.includes(w)).length;
-                            const inB2 = winners3.filter(w => b2.includes(w)).length;
-                            return (inB1 === 2 && inB2 === 1) ? 'hit' : 'miss';
-                        }
-                    }
-                }
-
-                // 3. 일반 순위별 조합인 경우
-                if (game.type === '삼복승') {
-                    // 삼복승(Trio): 1, 2, 3위 세 마리가 순서 상관없이 모든 순위(b1, b2, b3) 내에 포함되어야 함
-                    const allIn = winners3.every(w => b1.includes(w) || b2.includes(w) || b3.includes(w));
-                    return allIn ? 'hit' : 'miss';
-                } else {
-                    // 삼쌍승(Trifecta): 1위는 b1, 2위는 b2, 3위는 b3에 정확히 있어야 함
-                    return (b1.includes(r1) && b2.includes(r2) && b3.includes(r3)) ? 'hit' : 'miss';
-                }
-            }
-                
-            case '복연승':
-                // 복연승(Quinella Place): 1-2, 1-3, 2-3위 조합 중 하나가 선택 목록에 포함되어야 함 (간이 판정)
-                const hits = [ (b1.includes(r1) && b2.includes(r2)) || (b1.includes(r2) && b2.includes(r1)),
-                               (b1.includes(r1) && b2.includes(r3)) || (b1.includes(r3) && b2.includes(r1)),
-                               (b1.includes(r2) && b2.includes(r3)) || (b1.includes(r3) && b2.includes(r2)) ];
-                return hits.some(h => h) ? 'hit' : 'miss';
-
-            default:
-                // 기타 승식은 기본적으로 1착 포함 여부로 판정
-                return b1.includes(r1) ? 'hit' : 'miss';
-        }
-    };
 
     const TicketSlot = ({ idx, activeGameIdx, setActiveGameIdx, g, count, results }) => {
         const isActive = activeGameIdx === idx;
         const hasSelection = count > 0;
-        const status = getBetStatus(g, results);
+        const isWin = results && checkBetWin(g.type, g.ranks, results);
 
         // 결과에 따른 보더 색상 결정
         const getResultBorder = () => {
-            if (status === 'hit') return 'border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)] ring-1 ring-emerald-500/50';
-            if (status === 'miss') return 'border-rose-500 opacity-80';
+            if (isWin) return 'border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)] ring-1 ring-emerald-500/50';
+            if (results && hasSelection && !isWin) return 'border-rose-500 opacity-80';
             return isActive ? 'border-blue-500' : 'border-slate-700';
         };
 
@@ -420,7 +316,7 @@ function App() {
                     } ${getResultBorder()}`}
             >
                 <div className="flex items-center min-w-0 w-full h-full relative">
-                    <span className={`text-[10px] shrink-0 font-black ${isActive ? 'bg-blue-800 px-1.5 py-1 rounded-lg mr-2' : (hasSelection ? 'text-emerald-400' : 'text-slate-600')}`}>
+                    <span className={`text-[10px] shrink-0 font-black ${isActive ? 'bg-blue-800 px-1.5 py-1 rounded-lg mr-2' : (isWin ? 'text-emerald-400' : 'text-slate-600')}`}>
                         {idx + 1}
                     </span>
 
@@ -429,11 +325,12 @@ function App() {
                             <span className="text-[11px] font-bold leading-tight truncate text-left whitespace-nowrap">
                                 {hasSelection ? `${g.type}>${Object.values(g.ranks).map(r => r.join(',')).filter(s => s).join('/')} (${count}조)` : "미배팅"}
                             </span>
+                            {isWin && <Icon name="trophy" size={12} className="ml-2 text-yellow-400 animate-bounce" />}
                         </div>
                     ) : (
-                        hasSelection && (
-                            <div className="absolute right-0 top-1/2 -translate-y-1/2 text-emerald-400 animate-in zoom-in duration-300">
-                                <Icon name="check-circle-2" size={10} />
+                        (isWin || hasSelection) && (
+                            <div className={`absolute right-0 top-1/2 -translate-y-1/2 ${isWin ? 'text-emerald-400' : 'text-slate-500'} animate-in zoom-in duration-300`}>
+                                <Icon name={isWin ? "trophy" : "check-circle-2"} size={10} />
                             </div>
                         )
                     )}
@@ -509,39 +406,108 @@ function App() {
         return Math.floor(res);
     };
 
-    const permutations = (n, r) => {
-        if (r < 0 || r > n) return 0;
-        let res = 1;
-        for (let i = 0; i < r; i++) res *= (n - i);
-        return res;
+    // 🐎 [수정됨] 실전 베팅 룰이 적용된 상세 조합 생성 로직 (배열 형태)
+    const getBetCombinationList = (type, ranks) => {
+        const r1 = ranks?.[1] || [];
+        const r2 = ranks?.[2] || [];
+        const r3 = ranks?.[3] || [];
+        if (r1.length === 0) return [];
+
+        let results = [];
+        const typeKey = type; // 단승, 연승, 복승 등
+
+        // 1. 박스(BOX) 판정 (1열에만 듬뿍 찍었을 때)
+        const minRequired = type.includes('삼') ? 3 : (['단승', '연승'].includes(type) ? 1 : 2);
+        const isBox = r1.length >= minRequired && r2.length === 0 && r3.length === 0 && ['복승', '쌍승', '복연승', '삼복승', '삼쌍승'].includes(type);
+
+        if (isBox) {
+            if (type === '삼쌍승') {
+                for (let i of r1) for (let j of r1) for (let k of r1) if (i !== j && i !== k && j !== k) results.push([i, j, k]);
+            } else if (type === '삼복승') {
+                for (let i = 0; i < r1.length; i++) for (let j = i + 1; j < r1.length; j++) for (let k = j + 1; k < r1.length; k++) results.push([r1[i], r1[j], r1[k]]);
+            } else if (type === '쌍승') {
+                for (let i of r1) for (let j of r1) if (i !== j) results.push([i, j]);
+            } else if (['복승', '복연승'].includes(type)) {
+                for (let i = 0; i < r1.length; i++) for (let j = i + 1; j < r1.length; j++) results.push([r1[i], r1[j]]);
+            }
+            return results;
+        }
+
+        // 2. 포메이션(Formation) / 축마 모드
+        if (type === '삼쌍승') {
+            r1.forEach(h1 => {
+                r2.forEach(h2 => {
+                    if (h1 === h2) return;
+                    r3.forEach(h3 => {
+                        if (h3 === h1 || h3 === h2) return;
+                        results.push([h1, h2, h3]);
+                    });
+                });
+            });
+        } else if (type === '삼복승') {
+            const uniqueSets = new Set();
+            r1.forEach(h1 => {
+                r2.forEach(h2 => {
+                    if (h1 === h2) return;
+                    // 실전 룰: 3착이 없으면 2착 풀 공유
+                    const r3Pool = r3.length > 0 ? r3 : r2;
+                    r3Pool.forEach(h3 => {
+                        if (h3 === h1 || h3 === h2) return;
+                        const combo = [h1, h2, h3].sort((a, b) => a - b);
+                        const key = combo.join(',');
+                        if (!uniqueSets.has(key)) { uniqueSets.add(key); results.push(combo); }
+                    });
+                });
+            });
+        } else if (['쌍승', '복승', '복연승'].includes(type)) {
+            const isOrdered = type === '쌍승';
+            const uniqueSets = new Set();
+            r1.forEach(h1 => {
+                r2.forEach(h2 => {
+                    if (h1 === h2) return;
+                    if (isOrdered) {
+                        results.push([h1, h2]);
+                    } else {
+                        const combo = [h1, h2].sort((a, b) => a - b);
+                        const key = combo.join(',');
+                        if (!uniqueSets.has(key)) { uniqueSets.add(key); results.push(combo); }
+                    }
+                });
+            });
+        } else if (['단승', '연승'].includes(type)) {
+            r1.forEach(h => results.push([h]));
+        }
+
+        return results;
+    };
+
+    // 🏆 [신규] 당첨여부 판정 로직
+    const checkBetWin = (type, ranks, officialResults) => {
+        if (!officialResults || !officialResults[1]) return false;
+        const res = [Number(officialResults[1]), Number(officialResults[2]), Number(officialResults[3])];
+        const combos = getBetCombinationList(type, ranks);
+        if (combos.length === 0) return false;
+
+        return combos.some(combo => {
+            // 순서 상관 있는 승식
+            if (['단승', '쌍승', '삼쌍승'].includes(type)) {
+                return combo.every((h, i) => h === res[i]);
+            }
+            // 연승 (3위 이내 1두)
+            if (type === '연승') return res.includes(combo[0]);
+            // 복연승 (3위 이내 2두)
+            if (type === '복연승') return combo.every(h => res.includes(h));
+            // 복승/삼복승 (순서 상관 없이 정렬후 비교)
+            const sortedRes = res.slice(0, combo.length).sort((a, b) => a - b);
+            const sortedCombo = [...combo].sort((a, b) => a - b);
+            return JSON.stringify(sortedRes) === JSON.stringify(sortedCombo);
+        });
     };
 
     const getBetCombinationCount = (type, ranks) => {
-        const n1 = (ranks?.[1] || []).length;
-        const n2 = (ranks?.[2] || []).length;
-        const n3 = (ranks?.[3] || []).length;
-
-        const minRequired = type.includes('삼') ? 3 : (type === '단승' || type === '연승' ? 1 : 2);
-        const isBox = n1 >= minRequired && n2 === 0 && n3 === 0 && ['복승', '쌍승', '복연승', '삼복승', '삼쌍승'].includes(type);
-
-        if (isBox) {
-            if (type.includes('삼')) return type === '삼쌍승' ? permutations(n1, 3) : combinations(n1, 3);
-            return type === '쌍승' ? permutations(n1, 2) : combinations(n1, 2);
-        }
-
-        // 2. Banker/Wheel Mode (R1 & R2 selection for 3-horse bets)
-        if (type.includes('삼') && n1 > 0 && n2 > 0 && n3 === 0) {
-            if (n1 === 1 && n2 >= 2) return type === '삼쌍승' ? permutations(n2, 2) : combinations(n2, 2);
-            if (n1 === 2 && n2 >= 1) return type === '삼쌍승' ? 2 * n2 : n2;
-        }
-
-        // 3. Standard Multi-rank
-        switch (type) {
-            case '단승': case '연승': return n1;
-            case '복승': case '쌍승': case '복연승': return n1 * n2;
-            case '삼복승': case '삼쌍승': return n1 * n2 * n3;
-            default: return 0;
-        }
+        // 복잡한 케이스가 많으므로 실제 리스트 생성 함수의 길이를 반환 (일관성 보장)
+        // 단, 성능을 위해 실무에선 최적화 가능하지만 현재 데이터 세트에선 리스트 생성이 더 정확함
+        return getBetCombinationList(type, ranks).length;
     };
 
     const defaultData = {
@@ -1947,10 +1913,6 @@ function App() {
                                 <span className="text-lg font-black tracking-tighter whitespace-nowrap">
                                     {currentLocData.location_name} <span className="text-blue-400">{race?.race_no}R</span>
                                 </span>
-                                {picksStatus === 'loading' && <div className="ml-2 w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>}
-                                {picksStatus === 'synced' && <span className="ml-2 text-[10px] font-black text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded flex items-center gap-1 opacity-80"><Icon name="cloud-check" size={10} /> SYNC</span>}
-                                {picksStatus === 'local' && <span className="ml-2 text-[10px] font-black text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded flex items-center gap-1 opacity-80"><Icon name="database" size={10} /> CACHE</span>}
-                                {picksStatus === 'modified' && <span className="ml-2 text-[10px] font-black text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded flex items-center gap-1"><Icon name="edit-3" size={10} /> EDIT</span>}
                             </div>
 
                             <div className="flex-1 flex gap-1 items-center h-10 overflow-hidden">
@@ -1964,22 +1926,10 @@ function App() {
                                         g={betGames[idx]}
                                         count={getBetCombinationCount(betGames[idx].type, betGames[idx].ranks)}
                                         results={results}
+                                        checkBetWin={checkBetWin}
                                     />
                                 ))}
                             </div>
-
-                            <button
-                                disabled={isLocked}
-                                onClick={() => {
-                                    setBetGames(prev => prev.map((g, idx) => 
-                                        idx === activeGameIdx ? { ...g, ranks: { 1: [], 2: [], 3: [] } } : g
-                                    ));
-                                }}
-                                className={`h-10 flex flex-col items-center justify-center rounded-xl transition-all shrink-0 active:scale-95 duration-500 px-2 ${isLocked ? 'bg-slate-800 text-slate-700 opacity-50 cursor-not-allowed' : 'bg-slate-800 hover:bg-red-900/40 text-slate-400 hover:text-red-400'}`}
-                            >
-                                <Icon name="rotate-ccw" size={16} />
-                                <span className="text-[8px] font-black mt-1">초기화</span>
-                            </button>
                         </div>
 
                         {/* 메인 내용 영역 */}
@@ -2013,6 +1963,19 @@ function App() {
                                     <div className="flex items-center gap-2">
                                         <div className="w-1.5 h-4 bg-blue-600 rounded-full"></div>
                                         <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Select Horses</span>
+                                        <button
+                                            disabled={isLocked}
+                                            onClick={() => {
+                                                setBetGames(prev => prev.map((g, idx) => 
+                                                    idx === activeGameIdx ? { ...g, ranks: { 1: [], 2: [], 3: [] } } : g
+                                                ));
+                                            }}
+                                            className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-all active:scale-95 ${isLocked ? 'text-slate-200' : 'text-slate-400 hover:text-red-500 hover:bg-red-50'}`}
+                                            title="현재 슬롯 초기화"
+                                        >
+                                            <Icon name="rotate-ccw" size={12} />
+                                            <span className="text-[10px] font-black">RESET</span>
+                                        </button>
                                     </div>
                                     <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-2xl border border-slate-200 shadow-sm">
                                         <span className="text-[10px] font-black text-slate-400 uppercase leading-none">Live Combo</span>
@@ -2097,9 +2060,19 @@ function App() {
                                     ) : betGames.some(g => getBetCombinationCount(g.type, g.ranks) > 0) ? (
                                         <>
                                             <Icon name="save" size={20} />
-                                            <span>조합 클라우드 저장</span>
-                                            <div className="bg-white/20 px-2 py-0.5 rounded text-sm font-bold">
-                                                {betGames.reduce((acc, g) => acc + getBetCombinationCount(g.type, g.ranks), 0).toLocaleString()}조
+                                            <div className="flex flex-col items-start leading-tight">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span>조합 클라우드 저장</span>
+                                                    <div className="bg-white/20 px-2 py-0.5 rounded text-xs font-bold">
+                                                        {betGames.reduce((acc, g) => acc + getBetCombinationCount(g.type, g.ranks), 0).toLocaleString()}조
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-1 opacity-80 scale-90 -ml-1">
+                                                    {picksStatus === 'loading' && <div className="w-2 h-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
+                                                    {picksStatus === 'synced' && <span className="text-[9px] font-black text-emerald-300 flex items-center gap-0.5"><Icon name="cloud-check" size={10} /> SYNCED</span>}
+                                                    {picksStatus === 'local' && <span className="text-[9px] font-black text-amber-300 flex items-center gap-0.5"><Icon name="database" size={10} /> CACHED</span>}
+                                                    {picksStatus === 'modified' && <span className="text-[9px] font-black text-blue-200 flex items-center gap-0.5"><Icon name="edit-3" size={10} /> EDITING</span>}
+                                                </div>
                                             </div>
                                         </>
                                     ) : (
