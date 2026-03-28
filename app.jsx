@@ -510,6 +510,8 @@ function App() {
         return getBetCombinationList(type, ranks).length;
     };
 
+
+
     const defaultData = {
         date: "데이터 없음",
         locations: {
@@ -518,6 +520,66 @@ function App() {
         }
     };
     const [dbData, setDbData] = useState(defaultData);
+
+    // 이름 정규화 함수 (감량기호 등 제거)
+    const normalizeName = (name) => (name || '').replace(/[^가-힣]/g, '').trim();
+
+    // 🏆 [신규] 금일 기수/조교사 성적 집계 (트로피용) - flat object 구조 대응
+    // 🏆 [신규] 금일 기수/조교사 성적 집계 (트로피용) - 누적 방식 (해당 경주 이전+현재 결과까지)
+    const winStatsToday = React.useMemo(() => {
+        const stats = { jockeys: {}, trainers: {} };
+        if (!raceResults || !dbData.locations[loc]?.races) return stats;
+
+        const prefix = `${date}_${loc}_`;
+        const currentRaceNo = raceIdx + 1; // 현재 경주 번호 (1~12 등)
+        
+        Object.entries(raceResults).forEach(([key, resArr]) => {
+            if (!key.startsWith(prefix) || !Array.isArray(resArr)) return;
+
+            const rNo = Number(key.split('_').pop());
+            // 🔥 [수정] 해당 경주 "이후" 경주들의 결과만 제외 (현재 경주 성적은 포함!)
+            if (rNo > currentRaceNo) return;
+
+            const raceData = dbData.locations[loc].races.find(r => Number(r.race_no) === rNo);
+            if (!raceData) return;
+
+            resArr.forEach((horseNo, idx) => {
+                const rank = idx + 1;
+                if (!horseNo) return;
+                
+                const horse = raceData.horses.find(h => Number(h.horse_no) === Number(horseNo));
+                if (!horse) return;
+
+                if (horse.jockey) {
+                    const jName = normalizeName(horse.jockey);
+                    if (!stats.jockeys[jName]) stats.jockeys[jName] = { 1: 0, 2: 0, 3: 0 };
+                    stats.jockeys[jName][rank]++;
+                }
+                if (horse.trainer) {
+                    const tName = normalizeName(horse.trainer);
+                    if (!stats.trainers[tName]) stats.trainers[tName] = { 1: 0, 2: 0, 3: 0 };
+                    stats.trainers[tName][rank]++;
+                }
+            });
+        });
+        return stats;
+    }, [raceResults, date, loc, dbData, raceIdx]);
+
+    const TrophyBadge = ({ rank, count }) => {
+        if (!count || count <= 0) return null;
+        const emojis = { 1: "🥇", 2: "🥈", 3: "🥉" };
+        
+        return (
+            <div className="flex items-center gap-0.5 animate-fade-in">
+                <span className="text-sm">{emojis[rank]}</span>
+                {count > 1 && (
+                    <span className="text-[10px] font-black text-slate-500 -ml-0.5 mt-1 opacity-80">
+                        {count}
+                    </span>
+                )}
+            </div>
+        );
+    };
 
     // 지역 변경 시 인덱스 초기화
     const changeLocation = (newLoc) => {
@@ -1239,11 +1301,33 @@ function App() {
                                                             <span className="text-slate-400">{h.origin}/{h.sex}/{h.age}</span>
                                                             <span className="text-indigo-600 font-bold ml-1">
                                                                 {h.jockey}
+                                                                {(() => {
+                                                                    const stats = winStatsToday.jockeys[normalizeName(h.jockey)];
+                                                                    if (!stats) return "";
+                                                                    return (
+                                                                        <span className="ml-1 tracking-[-2px]">
+                                                                            {"🥇".repeat(stats[1] || 0)}
+                                                                            {"🥈".repeat(stats[2] || 0)}
+                                                                            {"🥉".repeat(stats[3] || 0)}
+                                                                        </span>
+                                                                    );
+                                                                })()}
                                                             </span>
                                                         </div>
                                                         <div className="text-[8px] text-slate-400 truncate">
                                                             <span className={race?.horses?.filter(horse => horse.trainer === h.trainer).length > 1 ? 'text-rose-600 font-black' : ''}>
                                                                 {h.trainer}
+                                                                {(() => {
+                                                                    const stats = winStatsToday.trainers[normalizeName(h.trainer)];
+                                                                    if (!stats) return "";
+                                                                    return (
+                                                                        <span className="ml-1 tracking-[-2px]">
+                                                                            {"🥇".repeat(stats[1] || 0)}
+                                                                            {"🥈".repeat(stats[2] || 0)}
+                                                                            {"🥉".repeat(stats[3] || 0)}
+                                                                        </span>
+                                                                    );
+                                                                })()}
                                                             </span> / <span className={race?.horses?.filter(horse => horse.owner === h.owner).length > 1 ? 'text-rose-600 font-black' : ''}>
                                                                 {h.owner}
                                                             </span>
@@ -1484,23 +1568,46 @@ function App() {
                                                                 <div className="flex items-center gap-2">
                                                                     <Icon name="user" size={14} className="text-indigo-600" />
                                                                     <span className="text-xs font-black text-slate-800">기수 성적: {h.jockey}</span>
-                                                                    {(() => {
-                                                                        const jName = (h.jockey || '').replace(/[^가-힣]/g, '');
-                                                                        const rides = jockeyRidesMap[jName];
-                                                                        if (rides && rides.length > 0) {
-                                                                            const uniqueRides = [...new Set(rides)];
-                                                                            return <span className="text-[9px] text-indigo-400 font-bold bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100/50">[{uniqueRides.join(', ')}]</span>;
-                                                                        }
-                                                                        return null;
-                                                                    })()}
                                                                 </div>
-                                                                <span className="text-[10px] bg-indigo-600 text-white px-2 py-0.5 rounded-full font-bold">
-                                                                    오늘 {(() => {
-                                                                        const jName = (h.jockey || '').replace(/[^가-힣]/g, '');
-                                                                        const rides = jockeyRidesMap[jName];
-                                                                        return rides ? rides.length : 0;
-                                                                    })()}회 기승
-                                                                </span>
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto scrollbar-hide py-1">
+                                                                        {(() => {
+                                                                            const jName = normalizeName(h.jockey);
+                                                                            const rides = jockeyRidesMap[jName];
+                                                                            if (!rides || rides.length === 0) return null;
+                                                                            const uniqueRides = [...new Set(rides)];
+                                                                            
+                                                                            return (
+                                                                                <div className="flex flex-wrap gap-1 items-center">
+                                                                                    {uniqueRides.map((rNo, ridx) => {
+                                                                                        const res = raceResults[`${date}_${loc}_${rNo}`];
+                                                                                        let emoji = "";
+                                                                                        if (res && rNo <= raceIdx + 1) {
+                                                                                            const rData = currentLocData.races.find(r => Number(r.race_no) === Number(rNo));
+                                                                                            const horseInRace = rData?.horses.find(bh => normalizeName(bh.jockey) === jName);
+                                                                                            if (horseInRace) {
+                                                                                                const rank = res.indexOf(Number(horseInRace.horse_no)) + 1;
+                                                                                                if (rank >= 1 && rank <= 3) emoji = ["🥇", "🥈", "🥉"][rank - 1];
+                                                                                            }
+                                                                                        }
+                                                                                        return (
+                                                                                            <span key={ridx} className="text-[10px] text-indigo-500 font-black bg-white px-1.5 py-0.5 rounded border border-indigo-100 shadow-sm flex items-center justify-center min-w-[24px]">
+                                                                                                {rNo}{emoji}
+                                                                                            </span>
+                                                                                        );
+                                                                                    })}
+                                                                                </div>
+                                                                            );
+                                                                        })()}
+                                                                    </div>
+                                                                    <span className="text-[10px] bg-indigo-600 text-white px-2.5 py-1 rounded-full font-black shadow-md shadow-indigo-100 shrink-0 ml-auto self-start mt-1">
+                                                                        오늘 {(() => {
+                                                                            const jName = normalizeName(h.jockey);
+                                                                            const rides = jockeyRidesMap[jName];
+                                                                            return rides ? rides.length : 0;
+                                                                        })()}회 기승
+                                                                    </span>
+                                                                </div>
                                                             </div>
                                                             {h.jockey_stats && h.jockey_stats.career ? (
                                                                 <div className="grid grid-cols-2 gap-4">
@@ -1517,7 +1624,7 @@ function App() {
                                                                         {h.jockey_stats.recent_stats ? (
                                                                             <>
                                                                                 <div className="flex justify-between items-end">
-                                                                                    <span className="text-xl font-black text-indigo-600">{h.jockey_stats.recent_stats.win_rate}<span className="text-xs font-medium ml-0.5 text-indigo-300">%</span></span>
+                                                                                    <span className="text-xl font-black text-indigo-600">{h.jockey_stats.recent_stats.win_rate}<span className="text-[10px] font-medium ml-0.5 text-indigo-300">%</span></span>
                                                                                     <span className="text-[10px] text-slate-400 font-medium mb-1">{h.jockey_stats.recent_stats.runs}전</span>
                                                                                 </div>
                                                                                 <div className="text-[9px] text-slate-500 font-medium">1착 {h.jockey_stats.recent_stats.wins} / 2착 {h.jockey_stats.recent_stats.seconds} / 3착 {h.jockey_stats.recent_stats.thirds}</div>
@@ -1539,40 +1646,45 @@ function App() {
                                                                     <span className={`text-xs font-black transition-colors ${race?.horses?.filter(horse => horse.trainer === h.trainer).length > 1 ? 'text-rose-600' : 'text-slate-800'}`}>
                                                                         조교사 성적: {h.trainer}
                                                                     </span>
-                                                                    {(() => {
-                                                                        const entries = trainerEntriesMap[h.trainer];
-                                                                        if (entries && entries.length > 0) {
-                                                                            const rNos = [...new Set(entries.map(e => e.race_no))];
-                                                                            const multiRaces = entries.reduce((acc, curr) => {
-                                                                                acc[curr.race_no] = (acc[curr.race_no] || 0) + 1;
-                                                                                return acc;
-                                                                            }, {});
+                                                                </div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="flex flex-wrap items-center gap-1.5 py-1">
+                                                                        {(() => {
+                                                                            const tName = normalizeName(h.trainer);
+                                                                            const entries = trainerEntriesMap[h.trainer];
+                                                                            if (!entries || entries.length === 0) return null;
+                                                                            const rNos = [...new Set(entries.map(e => Number(e.race_no)))].sort((a, b) => a - b);
 
                                                                             return (
-                                                                                <div className="flex flex-wrap gap-1">
-                                                                                    {rNos.map((rNo, ridx) => (
-                                                                                        <span
-                                                                                            key={ridx}
-                                                                                            className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${multiRaces[rNo] > 1
-                                                                                                ? 'text-rose-600 bg-rose-50 border-rose-200 shadow-sm'
-                                                                                                : 'text-emerald-500 bg-emerald-50 border-emerald-100/50'
-                                                                                                }`}
-                                                                                        >
-                                                                                            {rNo}
-                                                                                        </span>
-                                                                                    ))}
+                                                                                <div className="flex flex-wrap gap-1 items-center">
+                                                                                    {rNos.map((rNo, ridx) => {
+                                                                                        const res = raceResults[`${date}_${loc}_${rNo}`];
+                                                                                        let emoji = "";
+                                                                                        if (res && rNo <= raceIdx + 1) {
+                                                                                            const rData = currentLocData.races.find(r => Number(r.race_no) === Number(rNo));
+                                                                                            const horsesInRace = rData?.horses.filter(bh => normalizeName(bh.trainer) === tName) || [];
+                                                                                            emoji = horsesInRace.map(bh => {
+                                                                                                const rank = res.indexOf(Number(bh.horse_no)) + 1;
+                                                                                                return (rank >= 1 && rank <= 3) ? ["🥇", "🥈", "🥉"][rank - 1] : "";
+                                                                                            }).join("");
+                                                                                        }
+                                                                                        return (
+                                                                                            <span key={ridx} className="text-[10px] text-emerald-500 font-black bg-white px-1.5 py-0.5 rounded border border-emerald-100 shadow-sm flex items-center justify-center min-w-[24px]">
+                                                                                                {rNo}{emoji}
+                                                                                            </span>
+                                                                                        );
+                                                                                    })}
                                                                                 </div>
                                                                             );
-                                                                        }
-                                                                        return null;
-                                                                    })()}
+                                                                        })()}
+                                                                    </div>
+                                                                    <span className="text-[10px] bg-emerald-600 text-white px-2.5 py-1 rounded-full font-black shadow-md shadow-emerald-100 shrink-0 ml-auto self-start mt-1">
+                                                                        오늘 {(() => {
+                                                                            const ent = trainerEntriesMap[h.trainer];
+                                                                            return ent ? ent.length : 0;
+                                                                        })()}두 출전
+                                                                    </span>
                                                                 </div>
-                                                                <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-bold">
-                                                                    오늘 {(() => {
-                                                                        const ent = trainerEntriesMap[h.trainer];
-                                                                        return ent ? ent.length : 0;
-                                                                    })()}두 출전
-                                                                </span>
                                                             </div>
                                                             {h.trainer_stats && h.trainer_stats.career ? (
                                                                 <div className="grid grid-cols-2 gap-4">
