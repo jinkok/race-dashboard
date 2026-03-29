@@ -295,10 +295,28 @@ const ValueChart = ({ data, color, valueKey }) => {
 function App() {
 
 
-    const TicketSlot = ({ idx, activeGameIdx, setActiveGameIdx, g, count, results }) => {
+    const TicketSlot = ({ idx, activeGameIdx, setActiveGameIdx, g, count, results, realtimeResults, checkBetWin }) => {
         const isActive = activeGameIdx === idx;
         const hasSelection = count > 0;
-        const isWin = results && checkBetWin(g.type, g.ranks, results);
+        
+        // 🥇 결과 우선순위: 크롤링 데이터 > 수동 입력 데이터
+        // 🚨 인덱싱 통일: { 1: 마번, 2: 마번, 3: 마번 } 형태로 변환 (checkBetWin 호환용)
+        let finalResults = null;
+        if (realtimeResults && realtimeResults.winners) {
+            finalResults = { 
+                1: realtimeResults.winners[0], 
+                2: realtimeResults.winners[1], 
+                3: realtimeResults.winners[2] 
+            };
+        } else if (Array.isArray(results) && results.length > 0) {
+            finalResults = { 
+                1: results[0], 
+                2: results[1], 
+                3: results[2] 
+            };
+        }
+            
+        const isWin = finalResults && checkBetWin(g.type, g.ranks, finalResults);
 
         // 결과에 따른 보더 색상 결정
         const getResultBorder = () => {
@@ -392,6 +410,8 @@ function App() {
     });
     const [isBetPanelOpen, setIsBetPanelOpen] = useState(false);
     const [raceResults, setRaceResults] = useState({});
+    const [realtimeResults, setRealtimeResults] = useState(null);
+    const [realtimeWeights, setRealtimeWeights] = useState(null);
     const [isResultEditMode, setIsResultEditMode] = useState(false);
     const [picksStatus, setPicksStatus] = useState('loading'); // 'loading', 'synced', 'local', 'modified'
     const lastLoadedPath = useRef(null);
@@ -528,19 +548,26 @@ function App() {
     // 🏆 [신규] 금일 기수/조교사 성적 집계 (트로피용) - 누적 방식 (해당 경주 이전+현재 결과까지)
     const winStatsToday = React.useMemo(() => {
         const stats = { jockeys: {}, trainers: {} };
-        if (!raceResults || !dbData.locations[loc]?.races) return stats;
+        if (!dbData?.locations?.[loc]?.races) return stats;
 
         const prefix = `${date}_${loc}_`;
-        const currentRaceNo = raceIdx + 1; // 현재 경주 번호 (1~12 등)
+        const currentRaceNo = raceIdx + 1;
         
-        Object.entries(raceResults).forEach(([key, resArr]) => {
+        // 1. Manual Results
+        const allResults = { ...raceResults };
+        
+        // 2. Override with current realtime data for current race
+        if (realtimeResults && realtimeResults.winners) {
+            allResults[`${prefix}${currentRaceNo}`] = realtimeResults.winners;
+        }
+
+        Object.entries(allResults).forEach(([key, resArr]) => {
             if (!key.startsWith(prefix) || !Array.isArray(resArr)) return;
 
             const rNo = Number(key.split('_').pop());
-            // 🔥 [수정] 해당 경주 "이후" 경주들의 결과만 제외 (현재 경주 성적은 포함!)
             if (rNo > currentRaceNo) return;
 
-            const raceData = dbData.locations[loc].races.find(r => Number(r.race_no) === rNo);
+            const raceData = dbData?.locations?.[loc]?.races?.find(r => Number(r.race_no) === rNo);
             if (!raceData) return;
 
             resArr.forEach((horseNo, idx) => {
@@ -563,7 +590,7 @@ function App() {
             });
         });
         return stats;
-    }, [raceResults, date, loc, dbData, raceIdx]);
+    }, [raceResults, realtimeResults, date, loc, dbData, raceIdx]);
 
     const TrophyBadge = ({ rank, count }) => {
         if (!count || count <= 0) return null;
@@ -679,6 +706,33 @@ function App() {
             if (snap.exists()) setRaceResults(snap.data());
         }, (err) => console.error("Results data sync error:", err));
     }, [user]);
+
+    // 3.1 [수정] 실시간 데이터 연동 (결과 및 체중) - 날짜 형식 보정 (YYYYMMDD)
+    useEffect(() => {
+        if (!user || !window.fb?.isReady || !date || !loc) return;
+        const { db, doc, onSnapshot } = window.fb;
+        
+        // 🔥 Crawler와 날짜 형식 통일 (2026-03-29 -> 20260329)
+        const fbDate = date.replace(/-/g, '');
+        
+        // 1. Results Sync
+        const resPath = `realtime/results/${fbDate}/${loc}/races/${raceIdx + 1}`;
+        const resRef = doc(db, resPath);
+        const unsubRes = onSnapshot(resRef, (snap) => {
+            if (snap.exists()) setRealtimeResults(snap.data());
+            else setRealtimeResults(null);
+        }, (err) => console.error("Realtime Results sync error:", err));
+
+        // 2. Weights Sync
+        const weightPath = `realtime/weights/${fbDate}/${loc}/races/${raceIdx + 1}`;
+        const weightRef = doc(db, weightPath);
+        const unsubWeight = onSnapshot(weightRef, (snap) => {
+            if (snap.exists()) setRealtimeWeights(snap.data());
+            else setRealtimeWeights(null);
+        }, (err) => console.error("Realtime Weights sync error:", err));
+
+        return () => { unsubRes(); unsubWeight(); };
+    }, [user, date, loc, raceIdx]);
 
     // 3.5 Local Selections Persistence (Save changes to local storage IMMEDIATELY)
     useEffect(() => {
@@ -871,22 +925,40 @@ function App() {
         reader.onload = async (ev) => {
             try {
                 const json = JSON.parse(ev.target.result);
-                const dateMatch = json.date.match(/(\d{4}-\d{2}-\d{2})/);
+                if (!json || !json.date) throw new Error("유효하지 않은 파일 형식입니다 (날짜 정보 없음).");
+                
+                // 🚨 실시간 동기화 파일(kra_sync) 등 불완전한 파일 업로드 방지
+                const hasRaces = json.locations && Object.values(json.locations).some(loc => loc.races && Array.isArray(loc.races));
+                if (!hasRaces) {
+                    throw new Error("경주마 정보(races)가 없는 불완전한 파일입니다. 메인 DB 파일 (Merged_Race_Data_*.json)을 업로드해주세요.");
+                }
+                
+                const dateMatch = String(json.date).match(/(\d{4}-\d{2}-\d{2})/);
                 const targetDate = dateMatch ? dateMatch[1] : date;
-                setDate(targetDate);
+                
+                // 🚨 실시간 상태 초기화
+                setRealtimeResults(null); 
+                setRealtimeWeights(null);
                 setDbData(json);
+                setRaceIdx(0); // 🚨 [필수] 인덱스 초기화
+                
+                setDate(targetDate);
+                
                 if (user && !user.isAnonymous) {
                     const { db, doc, setDoc } = window.fb;
                     const docRef = doc(db, 'artifacts', 'race-app-3e41d', 'public', 'data', 'raceDataJson', targetDate);
                     await setDoc(docRef, { ...json, lastUpdated: new Date().toISOString() });
                     setSyncStatus('synced');
                 }
-            } catch (err) { alert("오류: " + err.message); }
+            } catch (err) { 
+                console.error("Upload error:", err);
+                alert("파일 로드 실패: " + err.message); 
+            }
         };
         reader.readAsText(file);
     };
 
-    const currentLocData = dbData.locations[loc] || { location_name: loc === 'seoul' ? "서울" : "부산", races: [] };
+    const currentLocData = dbData?.locations?.[loc] || { location_name: loc === 'seoul' ? "서울" : "부산", races: [] };
     const races = currentLocData.races || [];
     const race = races[raceIdx];
     const expert = race?.expert_opinion;
@@ -987,9 +1059,10 @@ function App() {
             }
         });
 
-        const targetDistNum = info ? parseInt(info.distance.replace(/\D/g, '')) : 0;
-
-        const horsePerformance = race.horses.map(h => {
+        const targetDistNum = info && info.distance ? parseInt(String(info.distance).replace(/\D/g, '')) : 0;
+        
+        // 🚨 [필수] race 또는 horses가 없을 경우 대비 가드 (파일 업로드 직후 등)
+        const horsePerformance = (race && race.horses) ? race.horses.map(h => {
             const validHistory = h.recent_history?.filter(hist =>
                 parseInt(hist.distance) === targetDistNum && !hist.class?.includes("주행")
             ) || [];
@@ -1001,7 +1074,7 @@ function App() {
                 avg: times.reduce((a, b) => a + b, 0) / times.length,
                 recent: times[0]
             };
-        });
+        }) : [];
 
         const globalBestDistTime = Math.min(...horsePerformance.map(p => p.best));
         const globalBestDistAvg = Math.min(...horsePerformance.map(p => p.avg));
@@ -1033,7 +1106,7 @@ function App() {
         const map = {};
         if (!currentLocData || !currentLocData.races) return map;
         currentLocData.races.forEach(r => {
-            r.horses.forEach(h => {
+            r.horses?.forEach(h => {
                 if (!h.jockey) return;
                 const jName = (h.jockey || '').replace(/[^가-힣]/g, ''); // 이름만 추출
                 if (!map[jName]) map[jName] = [];
@@ -1050,7 +1123,7 @@ function App() {
         const map = {};
         if (!currentLocData || !currentLocData.races) return map;
         currentLocData.races.forEach(r => {
-            r.horses.forEach(h => {
+            r.horses?.forEach(h => {
                 if (!h.trainer) return;
                 const tName = h.trainer;
                 if (!map[tName]) map[tName] = [];
@@ -1171,7 +1244,7 @@ function App() {
                                                 <div className="flex items-center gap-1.5 pr-3 border-r border-slate-200">
                                                     {results.map((no, rIdx) => (
                                                         <div key={rIdx} className="flex flex-col items-center gap-0.5">
-                                                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter leading-none">{rIdx + 1}착</span>
+                                                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter leading-none">{rIdx === 0 ? '1st' : rIdx === 1 ? '2nd' : '3rd'}</span>
                                                             <button 
                                                                 onClick={(e) => { e.stopPropagation(); if(isResultEditMode) toggleRaceResult(no); }}
                                                                 className={`w-7 h-7 rounded-lg font-black text-sm flex items-center justify-center shadow-sm transition-all ${isResultEditMode ? 'hover:scale-110 active:bg-red-500 active:text-white' : 'pointer-events-none'} ${getBadgeStyle(no)}`}
@@ -1225,12 +1298,12 @@ function App() {
                         )}
 
                         <div className="px-4 space-y-3">
-                            {race?.horses.map((h, i) => {
+                            {race?.horses?.map((h, i) => {
                                 const isExp = expanded === h.horse_no;
                                 const isSelected = selectedHorses.includes(h.horse_no);
                                 const picksText = expert?.picks_text?.find(p => parseInt(p.no) === h.horse_no)?.coment;
                                 const isPick = expert?.picks?.includes(h.horse_no);
-                                const targetDist = info ? parseInt(info.distance.replace(/\D/g, '')) : 0;
+                                const targetDist = info && info.distance ? parseInt(String(info.distance).replace(/\D/g, '')) : 0;
                                 const recentRecObj = h.recent_history?.find(r => r.distance === targetDist);
                                 const recentRecord = recentRecObj ? recentRecObj.record : null;
                                 const myWeight = getNum(h.weight);
@@ -1241,7 +1314,7 @@ function App() {
                                 const rankBadges = [];
                                 if (h.recent_history) {
                                     h.recent_history.slice(0, 4).forEach(hist => {
-                                        const isSameDist = info && parseInt(info.distance.replace(/\D/g, '')) === parseInt(hist.distance?.toString().replace(/\D/g, ''));
+                                        const isSameDist = info && info.distance && parseInt(String(info.distance).replace(/\D/g, '')) === parseInt(hist.distance?.toString().replace(/\D/g, ''));
                                         const isTraining = hist.class?.includes("주행");
                                         const rank = hist.result_rank || '-';
                                         const isHighRank = parseInt(rank) <= 3;
@@ -1314,7 +1387,6 @@ function App() {
                                     });
                                 }
 
-
                                 return (
                                     <div key={h.horse_no} className={`bg-white rounded-2xl shadow-sm border transition-all duration-300 overflow-hidden animate-up relative ${isExp ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-slate-100'} ${isResultEditMode && results.includes(h.horse_no) ? 'ring-2 ring-indigo-600 ring-offset-2' : ''}`} style={{ animationDelay: `${0.2 + (i * 0.05)}s` }}>
                                         <div className="p-3 flex items-stretch cursor-pointer" onClick={() => {
@@ -1332,7 +1404,7 @@ function App() {
                                                 {/* Equipment Tooltip Overlay */}
                                                 {hoveredEq && hoveredEq.horseNo === h.horse_no && (
                                                     <div className="absolute inset-x-0 inset-y-[-4px] bg-slate-900/95 text-white p-2 rounded-xl z-[60] flex flex-col justify-center animate-fade-in shadow-xl border border-slate-700">
-                                                        <div className="flex items-center gap-1.5 mb-1 text-yellow-400 font-black text-[10px]">
+                                                        <div className="flex items-center gap-1.5 mb-1 text-yellow-400 font-black text-[10px] uppercase">
                                                             <Icon name="info" size={10} />
                                                             {hoveredEq.text}
                                                         </div>
@@ -1341,45 +1413,70 @@ function App() {
                                                         </div>
                                                     </div>
                                                 )}
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <div className={`w-[40px] h-[40px] rounded-xl flex items-center justify-center font-black text-lg italic tracking-tighter shrink-0 ${getBadgeStyle(h.horse_no)}`}>{h.horse_no}</div>
-                                                    <div className="flex flex-col justify-center overflow-hidden">
-                                                        <div className="flex items-center gap-1 mb-0.5">
-                                                            <h3 className="font-bold text-slate-900 text-[14px] truncate">{h.name}</h3>
-                                                            <span className="text-[9px] text-slate-400 font-bold bg-slate-100 px-1 rounded shrink-0">{h.grade}</span>
+                                                <div className="flex items-start gap-2.5 mb-2.5">
+                                                    {/* 🔢 좌측: 마번 + 체중 수직 스택 (밀도 조절) */}
+                                                    <div className="flex flex-col items-center shrink-0 w-[46px] gap-1 mt-0.5">
+                                                        <div className={`w-[40px] h-[40px] rounded-xl flex items-center justify-center font-black text-lg italic tracking-tighter shadow-sm border ${getBadgeStyle(h.horse_no)}`}>
+                                                            {h.horse_no}
                                                         </div>
-                                                        <div className="flex items-center gap-1 text-[9px] truncate">
-                                                            <span className="text-slate-400">{h.origin}/{h.sex}/{h.age}</span>
-                                                            <span className="text-indigo-600 font-bold ml-1">
+                                                        {(() => {
+                                                            const rtObj = realtimeWeights?.[h.horse_no];
+                                                            if (!rtObj || !rtObj.weight) return null;
+                                                            const diff = Number(rtObj.change) || 0;
+                                                            return (
+                                                                <div className="text-slate-600 text-[10px] text-center whitespace-nowrap animate-fade-in tabular-nums tracking-tighter">
+                                                                    {rtObj.weight}
+                                                                    <span className={`${Math.abs(diff) >= 10 ? 'text-rose-600 font-bold' : 'opacity-70'} ml-0.5`}>
+                                                                        ({diff > 0 ? `+${diff}` : diff})
+                                                                    </span>
+                                                                    <span className="text-[8px] opacity-40 ml-0.5 font-medium">kg</span>
+                                                                </div>
+                                                            );
+                                                        })()}
+                                                    </div>
+
+                                                    {/* 📝 우측: 마명 + 기수 + 조교사 (3줄 텍스트 레이아웃) */}
+                                                    <div className="flex flex-col flex-1 min-w-0 py-0.5 h-[58px] justify-between">
+                                                        {/* Line 1: 마명 & 등급 */}
+                                                        <div className="flex items-center gap-1.5 line-clamp-1">
+                                                            <h3 className="font-black text-slate-900 text-[14px] truncate leading-tight tracking-tight">{h.name}</h3>
+                                                            <span className="text-[9px] text-slate-500 font-bold bg-slate-100 px-1 py-0.5 rounded-md shrink-0 border border-slate-200/50">{h.grade}</span>
+                                                        </div>
+
+                                                        {/* Line 2: 기수 정보 */}
+                                                        <div className="flex items-center gap-1.5 text-[10px] truncate leading-none">
+                                                            <span className="text-slate-400 font-medium shrink-0">{h.origin}/{h.sex}/{h.age}</span>
+                                                            <span className="text-indigo-600 font-black flex items-center gap-0.5 truncate">
+                                                                <Icon name="user" size={10} />
                                                                 {h.jockey}
                                                                 {(() => {
-                                                                    const stats = winStatsToday.jockeys[normalizeName(h.jockey)];
+                                                                    const stats = winStatsToday?.jockeys?.[normalizeName(h.jockey)];
                                                                     if (!stats) return "";
                                                                     return (
-                                                                        <span className="ml-1 tracking-[-2px]">
-                                                                            {"🥇".repeat(stats[1] || 0)}
-                                                                            {"🥈".repeat(stats[2] || 0)}
-                                                                            {"🥉".repeat(stats[3] || 0)}
+                                                                        <span className="ml-1 tracking-[-2.5px] opacity-90 scale-90 inline-block">
+                                                                            {"🥇".repeat(stats[1] || 0)}{"🥈".repeat(stats[2] || 0)}{"🥉".repeat(stats[3] || 0)}
                                                                         </span>
                                                                     );
                                                                 })()}
                                                             </span>
                                                         </div>
-                                                        <div className="text-[8px] text-slate-400 truncate">
-                                                            <span className={race?.horses?.filter(horse => horse.trainer === h.trainer).length > 1 ? 'text-rose-600 font-black' : ''}>
+
+                                                        {/* Line 3: 조교사 & 마주 */}
+                                                        <div className="text-[9px] text-slate-500 truncate leading-none flex items-center gap-1 font-medium italic">
+                                                            <span className={`${race?.horses?.filter(horse => horse.trainer === h.trainer).length > 1 ? 'text-rose-600 font-bold' : ''}`}>
                                                                 {h.trainer}
                                                                 {(() => {
-                                                                    const stats = winStatsToday.trainers[normalizeName(h.trainer)];
+                                                                    const stats = winStatsToday?.trainers?.[normalizeName(h.trainer)];
                                                                     if (!stats) return "";
                                                                     return (
-                                                                        <span className="ml-1 tracking-[-2px]">
-                                                                            {"🥇".repeat(stats[1] || 0)}
-                                                                            {"🥈".repeat(stats[2] || 0)}
-                                                                            {"🥉".repeat(stats[3] || 0)}
+                                                                        <span className="ml-0.5 tracking-[-2.5px] opacity-90 scale-85 inline-block">
+                                                                            {"🥇".repeat(stats[1] || 0)}{"🥈".repeat(stats[2] || 0)}{"🥉".repeat(stats[3] || 0)}
                                                                         </span>
                                                                     );
                                                                 })()}
-                                                            </span> / <span className={race?.horses?.filter(horse => horse.owner === h.owner).length > 1 ? 'text-rose-600 font-black' : ''}>
+                                                            </span>
+                                                            <span className="text-slate-300">/</span>
+                                                            <span className="truncate">
                                                                 {h.owner}
                                                             </span>
                                                         </div>
@@ -1694,7 +1791,7 @@ function App() {
                                                             <div className="flex items-center justify-between mb-3 border-b border-emerald-100 pb-2">
                                                                 <div className="flex items-center gap-2">
                                                                     <Icon name="briefcase" size={14} className="text-emerald-600" />
-                                                                    <span className={`text-xs font-black transition-colors ${race?.horses?.filter(horse => horse.trainer === h.trainer).length > 1 ? 'text-rose-600' : 'text-slate-800'}`}>
+                                                                    <span className="text-xs font-black text-slate-800">
                                                                         조교사 성적: {h.trainer}
                                                                     </span>
                                                                 </div>
@@ -1946,7 +2043,7 @@ function App() {
                                                 {subTab === 'medical' && (
                                                     <div className="space-y-2">
                                                         {h.medical_alerts?.length > 0 ? (
-                                                            h.medical_alerts.map((med, mIdx) => (
+                                                            h.medical_alerts?.map((med, mIdx) => (
                                                                 <div key={mIdx} className={`bg-white p-4 rounded-xl border border-slate-100 shadow-sm border-l-[3px] ${med.detail?.includes("폐출혈") ? 'border-red-500 bg-red-50/20' : 'border-emerald-400'}`}>
                                                                     <div className="flex items-center justify-between mb-2">
                                                                         <span className={`text-[10px] font-black px-2 py-0.5 rounded ${med.detail?.includes("폐출혈") ? 'text-red-700 bg-red-100' : 'text-emerald-700 bg-emerald-100'}`}>
@@ -2089,6 +2186,7 @@ function App() {
                                         g={betGames[idx]}
                                         count={getBetCombinationCount(betGames[idx].type, betGames[idx].ranks)}
                                         results={results}
+                                        realtimeResults={realtimeResults}
                                         checkBetWin={checkBetWin}
                                     />
                                 ))}
@@ -2096,153 +2194,242 @@ function App() {
                         </div>
 
                         {/* 메인 내용 영역 */}
-                        <div className="bg-slate-50 max-h-[45vh] overflow-y-auto scrollbar-hide">
-                            {/* 승식 선택 그리드 */}
-                            <div className="bg-white p-3 border-b shadow-sm shrink-0 sticky top-0 z-10">
-                                <div className="grid grid-cols-7 gap-1">
-                                    {['단승', '연승', '복승', '쌍승', '복연승', '삼복승', '삼쌍승'].map(type => (
-                                        <button
-                                            key={type}
-                                            disabled={isLocked}
-                                            onClick={() => {
-                                                const next = [...betGames];
-                                                next[activeGameIdx] = { ...next[activeGameIdx], type };
-                                                setBetGames(next);
-                                                setModified();
-                                            }}
-                                            className={`py-1.5 rounded-lg border-2 text-[10px] font-black transition-all ${betGames[activeGameIdx].type === type
-                                                    ? 'bg-slate-800 border-slate-800 text-white shadow-md z-10 scale-105'
-                                                    : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
-                                                } ${isLocked ? 'opacity-50 cursor-not-allowed grayscale-[0.5]' : ''}`}
-                                        >
-                                            {type}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
+                        <div className="bg-slate-50 max-h-[50vh] overflow-y-auto scrollbar-hide">
+                            {(isLocked || (realtimeResults && realtimeResults.winners)) ? (
+                                <div className="p-4 space-y-4 animate-fade-in">
+                                    {/* 💰 상세 배당률 테이블 (Dividends Only) */}
+                                    <div className="bg-slate-900 rounded-[24px] p-4 shadow-xl border border-slate-800">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <div className="w-1.5 h-4 bg-indigo-500 rounded-full"></div>
+                                            <span className="text-[11px] font-black text-indigo-400 uppercase tracking-widest italic">Live Dividends</span>
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {realtimeResults?.dividends ? (
+                                                (() => {
+                                                    const dividendOrder = ['삼쌍승', '삼복승', '쌍승식', '복승식', '단승식', '연승식', '복연승'];
+                                                    return Object.entries(realtimeResults.dividends)
+                                                        .sort((a, b) => {
+                                                            const idxA = dividendOrder.indexOf(a[0]);
+                                                            const idxB = dividendOrder.indexOf(b[0]);
+                                                            const sortA = idxA === -1 ? 999 : idxA;
+                                                            const sortB = idxB === -1 ? 999 : idxB;
+                                                            return sortA - sortB;
+                                                        })
+                                                        .map(([type, value]) => {
+                                                            const winners = realtimeResults.winners || [];
+                                                            let displayContent = null;
 
-                            <div className="p-1.5 space-y-1.5">
-                                <div className="flex justify-between items-center mb-1 px-1">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-1.5 h-4 bg-blue-600 rounded-full"></div>
-                                        <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Select Horses</span>
-                                        <button
-                                            disabled={isLocked}
-                                            onClick={() => {
-                                                setBetGames(prev => prev.map((g, idx) => 
-                                                    idx === activeGameIdx ? { ...g, ranks: { 1: [], 2: [], 3: [] } } : g
-                                                ));
-                                            }}
-                                            className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-all active:scale-95 ${isLocked ? 'text-slate-200' : 'text-slate-400 hover:text-red-500 hover:bg-red-50'}`}
-                                            title="현재 슬롯 초기화"
-                                        >
-                                            <Icon name="rotate-ccw" size={12} />
-                                            <span className="text-[10px] font-black">RESET</span>
-                                        </button>
+                                                            // 🥇 상세 연승/복연승 매핑 (P1/P2/P3 or QP-Pairs)
+                                                            if ((type === '연승식' || type === '복연승') && Array.isArray(value) && winners.length >= 2) {
+                                                                const isQP = type === '복연승';
+                                                                displayContent = (
+                                                                    <div className="flex flex-wrap gap-x-2.5 gap-y-1">
+                                                                        {value.map((v, i) => {
+                                                                            let comboTitle = "";
+                                                                            if (isQP) {
+                                                                                if (i === 0) comboTitle = `(${winners[0]},${winners[1]})`;
+                                                                                else if (i === 1 && winners[2]) comboTitle = `(${winners[0]},${winners[2]})`;
+                                                                                else if (i === 2 && winners[2]) comboTitle = `(${winners[1]},${winners[2]})`;
+                                                                            } else {
+                                                                                if (winners[i]) comboTitle = `(${winners[i]})`;
+                                                                            }
+                                                                            if (!comboTitle) return null;
+                                                                            return (
+                                                                                <React.Fragment key={i}>
+                                                                                    {i > 0 && <span className="text-slate-600">/</span>}
+                                                                                    <span className="text-white"><span className="text-indigo-400 opacity-70">{comboTitle}</span> {v}</span>
+                                                                                </React.Fragment>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                );
+                                                            } else {
+                                                                let combo = "";
+                                                                if (type === '단승식' && winners[0]) combo = `(${winners[0]})`;
+                                                                else if (['복승식', '쌍승식'].includes(type) && winners[0] && winners[1]) {
+                                                                    combo = `(${winners[0]}-${winners[1]})`;
+                                                                } else if (['삼복승', '삼쌍승'].includes(type) && winners[0] && winners[1] && winners[2]) {
+                                                                    combo = `(${winners[0]}-${winners[1]}-${winners[2]})`;
+                                                                }
+                                                                
+                                                                displayContent = (
+                                                                    <div className="flex items-center gap-2">
+                                                                        {combo && <span className="text-indigo-400/60 font-black">{combo}</span>}
+                                                                        <span className="text-white">{Array.isArray(value) ? value[0] : value}</span>
+                                                                    </div>
+                                                                );
+                                                            }
+
+                                                            return (
+                                                                <div key={type} className="bg-slate-800/40 p-2.5 rounded-xl border border-slate-800/60 flex justify-between items-center shadow-sm hover:border-indigo-500/30 transition-all">
+                                                                    <span className="text-[10px] font-black text-slate-400 shrink-0">{type}</span>
+                                                                    <div className="text-[11px] font-black tabular-nums text-right flex-1 flex justify-end items-center">
+                                                                        {displayContent}
+                                                                        <span className="text-[9px] text-slate-600 font-medium ml-1.5 pt-0.5">배</span>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        });
+                                                })()
+                                            ) : (
+                                                <div className="py-8 text-center text-[10px] text-slate-600 font-black border border-dashed border-slate-800 rounded-2xl uppercase tracking-widest bg-slate-900/40">
+                                                    Waiting for Final Dividends...
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-2xl border border-slate-200 shadow-sm">
-                                        <span className="text-[10px] font-black text-slate-400 uppercase leading-none">Live Combo</span>
-                                        <span className="text-base font-black text-blue-600 tabular-nums leading-none">
-                                            {getBetCombinationCount(betGames[activeGameIdx].type, betGames[activeGameIdx].ranks).toLocaleString()}
-                                        </span>
-                                        {(() => {
-                                            const g = betGames[activeGameIdx];
-                                            const n1 = (g.ranks?.[1] || []).length;
-                                            const n2 = (g.ranks?.[2] || []).length;
-                                            const n3 = (g.ranks?.[3] || []).length;
-                                            const minRequired = g.type.includes('삼') ? 3 : (['단승', '연승'].includes(g.type) ? 1 : 2);
-                                            const isBox = n1 >= minRequired && n2 === 0 && n3 === 0 && ['복승', '쌍승', '복연승', '삼복승', '삼쌍승'].includes(g.type);
-                                            const isWheel = g.type.includes('삼') && n1 > 0 && n2 > 0 && n3 === 0 && (n1 + n2 >= 3);
-                                            
-                                            if (isBox) return <span className="text-[9px] bg-emerald-500 text-white px-1 rounded font-black">BOX</span>;
-                                            if (isWheel) return <span className="text-[9px] bg-indigo-500 text-white px-1 rounded font-black">WHEEL</span>;
-                                            return null;
-                                        })()}
-                                    </div>
+
+
+
+                                    {/* 💾 백업: 수동 결과 입력 (Admin 전용/사용자 백업) */}
+                                    {isResultEntryPossible && user && (
+                                        <div className="bg-white/50 p-3 rounded-xl border border-dashed border-slate-200 flex items-center justify-between">
+                                            <span className="text-[10px] font-bold text-slate-400">결과가 틀린 것 같나요?</span>
+                                            <button 
+                                                onClick={() => setIsResultEditMode(!isResultEditMode)} 
+                                                className="text-[10px] font-black text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded-lg transition-all"
+                                            >
+                                                {isResultEditMode ? "입력 종료" : "수동 입력 (백업)"}
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
+                            ) : (
+                                <>
+                                    {/* 승식 선택 그리드 */}
+                                    <div className="bg-white p-3 border-b shadow-sm shrink-0 sticky top-0 z-10">
+                                        <div className="grid grid-cols-7 gap-1">
+                                            {['단승', '연승', '복승', '쌍승', '복연승', '삼복승', '삼쌍승'].map(type => (
+                                                <button
+                                                    key={type}
+                                                    disabled={isLocked}
+                                                    onClick={() => {
+                                                        const next = [...betGames];
+                                                        next[activeGameIdx] = { ...next[activeGameIdx], type };
+                                                        setBetGames(next);
+                                                        setModified();
+                                                    }}
+                                                    className={`py-1.5 rounded-lg border-2 text-[10px] font-black transition-all ${betGames[activeGameIdx].type === type
+                                                            ? 'bg-slate-800 border-slate-800 text-white shadow-md z-10 scale-105'
+                                                            : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
+                                                        } ${isLocked ? 'opacity-50 cursor-not-allowed grayscale-[0.5]' : ''}`}
+                                                >
+                                                    {type}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
 
-                                {[1, 2, 3].map(r => {
-                                    const g = betGames[activeGameIdx];
-                                    const isNeeded = (r === 1) || (r === 2 && !['단승', '연승'].includes(g.type)) || (r === 3 && ['삼복승', '삼쌍승'].includes(g.type));
-                                    if (!isNeeded) return null;
-
-                                    const rowLabel = r === 1 ? (['단승', '연승'].includes(g.type) ? '마번 선택' : '1착/축') : (r === 2 ? '2착' : '3착');
-                                    const activeHorseNos = race?.horses?.map(h => Number(h.horse_no)) || [];
-
-                                    return (
-                                        <div key={r} className="bg-white p-1.5 rounded-2xl border border-slate-100 shadow-sm space-y-1">
-                                            <div className="flex justify-between items-center px-1">
-                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{rowLabel}</span>
-                                                <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg">{(g.ranks[r] || []).length}두</span>
+                                    <div className="p-1.5 space-y-1.5">
+                                        <div className="flex justify-between items-center mb-1 px-1">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-1.5 h-4 bg-blue-600 rounded-full"></div>
+                                                <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Select Horses</span>
+                                                <button
+                                                    disabled={isLocked}
+                                                    onClick={() => {
+                                                        setBetGames(prev => prev.map((g, idx) => 
+                                                            idx === activeGameIdx ? { ...g, ranks: { 1: [], 2: [], 3: [] } } : g
+                                                        ));
+                                                    }}
+                                                    className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-all active:scale-95 ${isLocked ? 'text-slate-200' : 'text-slate-400 hover:text-red-500 hover:bg-red-50'}`}
+                                                    title="현재 슬롯 초기화"
+                                                >
+                                                    <Icon name="rotate-ccw" size={12} />
+                                                    <span className="text-[10px] font-black">RESET</span>
+                                                </button>
                                             </div>
-                                            <div className="grid grid-cols-8 gap-1.5">
-                                                {Array.from({ length: 16 }, (_, i) => i + 1).map(num => {
-                                                    const isParticipating = activeHorseNos.includes(num);
-                                                    const isSelected = g.ranks[r]?.includes(num);
-                                                    const usedElsewhere = Object.entries(g.ranks).some(([rk, nums]) => Number(rk) !== r && nums.includes(num));
-                                                    
-                                                    return (
-                                                        <button
-                                                            key={num}
-                                                            disabled={!isParticipating || isLocked}
-                                                            onClick={() => toggleHorseSelection(num, r)}
-                                                            className={`h-8 rounded-lg text-xs font-bold border-2 transition-all ${!isParticipating ? 'invisible' :
-                                                                    isSelected ? 'bg-blue-600 border-blue-600 text-white shadow-lg z-10 scale-105' :
-                                                                        usedElsewhere ? 'bg-slate-50 border-slate-100 text-slate-200 cursor-not-allowed opacity-50' :
-                                                                            'bg-white border-slate-100 text-slate-700 hover:border-blue-200'
-                                                                } ${isLocked ? 'opacity-40 grayscale-[0.8] cursor-not-allowed' : ''}`}
-                                                        >
-                                                            {num}
-                                                        </button>
-                                                    );
-                                                })}
+                                            <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-2xl border border-slate-200 shadow-sm">
+                                                <span className="text-[10px] font-black text-slate-400 uppercase leading-none">Live Combo</span>
+                                                <span className="text-base font-black text-blue-600 tabular-nums leading-none">
+                                                    {getBetCombinationCount(betGames[activeGameIdx].type, betGames[activeGameIdx].ranks).toLocaleString()}
+                                                </span>
                                             </div>
                                         </div>
-                                    );
-                                })}
 
+                                        {[1, 2, 3].map(r => {
+                                            const g = betGames[activeGameIdx];
+                                            const isNeeded = (r === 1) || (r === 2 && !['단승', '연승'].includes(g.type)) || (r === 3 && ['삼복승', '삼쌍승'].includes(g.type));
+                                            if (!isNeeded) return null;
 
+                                            const rowLabel = r === 1 ? (['단승', '연승'].includes(g.type) ? '마번 선택' : '1착/축') : (r === 2 ? '2착' : '3착');
+                                            const activeHorseNos = race?.horses?.map(h => Number(h.horse_no)) || [];
 
-                                <button
-                                    onClick={savePicks}
-                                    disabled={isLocked || betGames.every(g => getBetCombinationCount(g.type, g.ranks) === 0)}
-                                    className={`w-full py-3 rounded-2xl font-black text-base shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-3 ${isLocked
-                                            ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                                            : betGames.some(g => getBetCombinationCount(g.type, g.ranks) > 0)
-                                                ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-100'
-                                                : 'bg-slate-100 text-slate-300 shadow-none'
-                                        }`}
-                                >
-                                    {isLocked ? (
-                                        <>
-                                            <Icon name="lock" size={20} />
-                                            <div className="bg-red-500/20 px-3 py-1 rounded-xl text-xs font-black text-red-400">
-                                                LOCK
-                                            </div>
-                                        </>
-                                    ) : betGames.some(g => getBetCombinationCount(g.type, g.ranks) > 0) ? (
-                                        <>
-                                            <Icon name="save" size={20} />
-                                            <div className="flex flex-col items-start leading-tight">
-                                                <div className="flex items-center gap-1.5">
-                                                    <span>조합 클라우드 저장</span>
-                                                    <div className="bg-white/20 px-2 py-0.5 rounded text-xs font-bold">
-                                                        {betGames.reduce((acc, g) => acc + getBetCombinationCount(g.type, g.ranks), 0).toLocaleString()}조
+                                            return (
+                                                <div key={r} className="bg-white p-1.5 rounded-2xl border border-slate-100 shadow-sm space-y-1">
+                                                    <div className="flex justify-between items-center px-1">
+                                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{rowLabel}</span>
+                                                        <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg">{(g.ranks[r] || []).length}두</span>
+                                                    </div>
+                                                    <div className="grid grid-cols-8 gap-1.5">
+                                                        {Array.from({ length: 16 }, (_, i) => i + 1).map(num => {
+                                                            const isParticipating = activeHorseNos.includes(num);
+                                                            const isSelected = g.ranks[r]?.includes(num);
+                                                            const usedElsewhere = Object.entries(g.ranks).some(([rk, nums]) => Number(rk) !== r && nums.includes(num));
+                                                            
+                                                            return (
+                                                                <button
+                                                                    key={num}
+                                                                    disabled={!isParticipating || isLocked}
+                                                                    onClick={() => toggleHorseSelection(num, r)}
+                                                                    className={`h-8 rounded-lg text-xs font-bold border-2 transition-all ${!isParticipating ? 'invisible' :
+                                                                            isSelected ? 'bg-blue-600 border-blue-600 text-white shadow-lg z-10 scale-105' :
+                                                                                usedElsewhere ? 'bg-slate-50 border-slate-100 text-slate-200 cursor-not-allowed opacity-50' :
+                                                                                    'bg-white border-slate-100 text-slate-700 hover:border-blue-200'
+                                                                        } ${isLocked ? 'opacity-40 grayscale-[0.8] cursor-not-allowed' : ''}`}
+                                                                >
+                                                                    {num}
+                                                                </button>
+                                                            );
+                                                        })}
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-1 opacity-80 scale-90 -ml-1">
-                                                    {picksStatus === 'loading' && <div className="w-2 h-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
-                                                    {picksStatus === 'synced' && <span className="text-[9px] font-black text-emerald-300 flex items-center gap-0.5"><Icon name="cloud-check" size={10} /> SYNCED</span>}
-                                                    {picksStatus === 'local' && <span className="text-[9px] font-black text-amber-300 flex items-center gap-0.5"><Icon name="database" size={10} /> CACHED</span>}
-                                                    {picksStatus === 'modified' && <span className="text-[9px] font-black text-blue-200 flex items-center gap-0.5"><Icon name="edit-3" size={10} /> EDITING</span>}
-                                                </div>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        '마번을 선택해주세요'
-                                    )}
-                                </button>
-                            </div>
+                                            );
+                                        })}
+
+                                        <button
+                                            onClick={savePicks}
+                                            disabled={isLocked || betGames.every(g => getBetCombinationCount(g.type, g.ranks) === 0)}
+                                            className={`w-full py-3 rounded-2xl font-black text-base shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-3 ${isLocked
+                                                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                                                    : betGames.some(g => getBetCombinationCount(g.type, g.ranks) > 0)
+                                                        ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-100'
+                                                        : 'bg-slate-100 text-slate-300 shadow-none'
+                                                }`}
+                                        >
+                                            {isLocked ? (
+                                                <>
+                                                    <Icon name="lock" size={20} />
+                                                    <div className="bg-red-500/20 px-3 py-1 rounded-xl text-xs font-black text-red-400">
+                                                        LOCK
+                                                    </div>
+                                                </>
+                                            ) : betGames.some(g => getBetCombinationCount(g.type, g.ranks) > 0) ? (
+                                                <>
+                                                    <Icon name="save" size={20} />
+                                                    <div className="flex flex-col items-start leading-tight">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span>조합 클라우드 저장</span>
+                                                            <div className="bg-white/20 px-2 py-0.5 rounded text-xs font-bold">
+                                                                {betGames.reduce((acc, g) => acc + getBetCombinationCount(g.type, g.ranks), 0).toLocaleString()}조
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-1 opacity-80 scale-90 -ml-1">
+                                                            {picksStatus === 'loading' && <div className="w-2 h-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
+                                                            {picksStatus === 'synced' && <span className="text-[9px] font-black text-emerald-300 flex items-center gap-0.5"><Icon name="cloud-check" size={10} /> SYNCED</span>}
+                                                            {picksStatus === 'local' && <span className="text-[9px] font-black text-amber-300 flex items-center gap-0.5"><Icon name="database" size={10} /> CACHED</span>}
+                                                            {picksStatus === 'modified' && <span className="text-[9px] font-black text-blue-200 flex items-center gap-0.5"><Icon name="edit-3" size={10} /> EDITING</span>}
+                                                        </div>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                '마번을 선택해주세요'
+                                            )}
+                                        </button>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
