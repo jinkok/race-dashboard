@@ -8,176 +8,7 @@ const Icon = ({ name, size = 16, className = "" }) => {
     return <i ref={ref} data-lucide={name}></i>;
 };
 
-const SIRE_DATA = [
-    {
-        "id": "menifee",
-        "kr": "메니피",
-        "en": "Menifee",
-        "origin": "USA",
-        "distance": "Middle",
-        "track": "Dirt",
-        "growth": "조숙형",
-        "stats": [9, 7, 8, 9, 7],
-        "desc": "한국 경마 역사상 가장 위대한 종모마 중 하나. 자마들은 뛰어난 초기 스피드와 강한 승부근성을 지니며, 한국의 모래 주로에 완벽한 적응력을 보입니다. 일찍 완성되는 조숙성을 띠어 2~3세 경주에서 압도적인 성적을 냅니다.",
-        "bestAptitude": "1400m ~ 1800m (모래)"
-    },
-    {
-        "id": "shackleford",
-        "kr": "섀클포드",
-        "en": "Shackleford",
-        "origin": "USA",
-        "distance": "Mile",
-        "track": "Dirt",
-        "growth": "조숙형",
-        "stats": [9, 6, 8, 8, 6],
-        "desc": "미국 프리크니스 스테이크스 우승마 출신. 특유의 전진 기세와 폭발적인 선행력을 자마들에게 물려줍니다. 거리가 길어지면 한계를 보이는 경우가 있으나, 마일(1600m) 이하에서는 압도적인 스피드를 발휘합니다.",
-        "bestAptitude": "1200m ~ 1600m (모래)"
-    },
-    {
-        "id": "maurice",
-        "kr": "모리스",
-        "en": "Maurice",
-        "origin": "JPN",
-        "distance": "Middle",
-        "track": "Turf",
-        "growth": "만숙형",
-        "stats": [8, 9, 9, 5, 8],
-        "desc": "일본과 홍콩을 제패한 명마. 자마들은 대체로 성장 속도가 느린 만숙형이지만, 나이가 들수록 근골격이 발달하며 파워풀한 추입력을 보여줍니다. 주로 잔디(Turf)에 강점이 있으나 모래에서도 준수합니다.",
-        "bestAptitude": "1600m ~ 2000m (잔디)"
-    },
-    {
-        "id": "daiwa_major",
-        "kr": "다이와메이저",
-        "en": "Daiwa Major",
-        "origin": "JPN",
-        "distance": "Mile",
-        "track": "Turf/Dirt",
-        "growth": "보통",
-        "stats": [9, 6, 8, 8, 7],
-        "desc": "선데이사일런스의 자식으로 탁월한 마일러들을 다수 배출합니다. 자마들은 튼튼한 체형과 우수한 선행/선입 능력을 갖추고 있으며, 경주 기복이 적어 꾸준한 성적을 내는 것이 특징입니다.",
-        "bestAptitude": "1600m (잔디/모래)"
-    },
-    {
-        "id": "dialed_in",
-        "kr": "다이얼드인",
-        "en": "Dialed In",
-        "origin": "USA",
-        "distance": "Middle",
-        "track": "Dirt",
-        "growth": "보통",
-        "stats": [7, 8, 7, 7, 8],
-        "desc": "안정적인 스태미나와 밸런스를 유전시킵니다. 초반 스피드보다는 경주 중반 이후 지속적인 걸음을 내는 데 유리하며, 장거리 성향이 짙은 암말과 교배 시 클래식 디스턴스(2000m) 적응력이 높아집니다.",
-        "bestAptitude": "1800m ~ 2000m (모래)"
-    },
-    {
-        "id": "maximum_security",
-        "kr": "맥시멈시큐리티",
-        "en": "Maximum Security",
-        "origin": "USA",
-        "distance": "Middle",
-        "track": "Dirt",
-        "growth": "보통",
-        "stats": [8, 9, 8, 7, 9],
-        "desc": "경이로운 심장과 지치지 않는 투지를 자랑한 명마. 자마들은 그의 강인한 투쟁심(근성)과 거친 모래를 이겨내는 파워를 물려받을 확률이 높습니다. 전천후 중거리 적성을 보일 것으로 기대됩니다.",
-        "bestAptitude": "1800m (모래)"
-    },
-    {
-        "id": "musket_man",
-        "kr": "머스킷매너",
-        "en": "Musket Man",
-        "origin": "USA",
-        "distance": "Sprint/Mile",
-        "track": "Dirt",
-        "growth": "조숙형",
-        "stats": [8, 6, 7, 8, 8],
-        "desc": "한국에서 안정적인 자마 성적을 내고 있습니다. 뛰어난 전술적 스피드(Tactical Speed)를 바탕으로 자리싸움에 능하며, 잔부상이 적고 튼튼한 다리를 유전시켜 실전 활용도가 높습니다.",
-        "bestAptitude": "1200m ~ 1400m (모래)"
-    },
-    {
-        "id": "runhappy",
-        "kr": "런해피",
-        "en": "Runhappy",
-        "origin": "USA",
-        "distance": "Sprint",
-        "track": "Dirt",
-        "growth": "조숙형",
-        "stats": [10, 5, 7, 8, 5],
-        "desc": "이름 그대로 뛰는 것을 즐기는 폭발적인 스피드의 스프린터. 자마들은 단거리에서 타의 추종을 불허하는 순발력을 보이나, 기질이 다소 예민하고 거리가 길어지면 급격히 페이스가 떨어질 수 있습니다.",
-        "bestAptitude": "1000m ~ 1200m (모래)"
-    },
-    {
-        "id": "bolt_doro",
-        "kr": "볼트도로",
-        "en": "Bolt d'Oro",
-        "origin": "USA",
-        "distance": "Middle",
-        "track": "Dirt",
-        "growth": "조숙형",
-        "stats": [8, 8, 8, 9, 7],
-        "desc": "2세 시즌부터 두각을 나타내는 특급 조숙성을 자랑합니다. 스피드와 스태미나의 밸런스가 매우 뛰어나며, 체격이 우수하여 경매 시장에서도 자마들의 인기가 매우 높습니다.",
-        "bestAptitude": "1600m ~ 1800m (모래)"
-    },
-    {
-        "id": "discreet_cat",
-        "kr": "디스크리트캣",
-        "en": "Discreet Cat",
-        "origin": "USA",
-        "distance": "Sprint/Mile",
-        "track": "Dirt",
-        "growth": "보통",
-        "stats": [9, 6, 7, 8, 7],
-        "desc": "스톰캣(Storm Cat)계열의 폭발적인 스피드를 유전시킵니다. 자마들은 민첩한 움직임과 부드러운 주행을 보여주며, 마일 이하의 거리에서 가장 좋은 효율을 냅니다.",
-        "bestAptitude": "1200m ~ 1600m (모래)"
-    },
-    {
-        "id": "rock_hard_ten",
-        "kr": "록하드텐",
-        "en": "Rock Hard Ten",
-        "origin": "USA",
-        "distance": "Middle",
-        "track": "Dirt/Turf",
-        "growth": "만숙형",
-        "stats": [6, 9, 10, 5, 6],
-        "desc": "거대한 체구와 압도적인 파워가 특징. 자마들 역시 체격이 매우 크고 성장이 더딘 편이나, 완성되었을 때의 폭발력과 묵직한 발걸음은 장거리 경주에서 빛을 발합니다.",
-        "bestAptitude": "2000m (다목적)"
-    },
-    {
-        "id": "mozu_ascot",
-        "kr": "모즈아스코트",
-        "en": "Mozu Ascot",
-        "origin": "USA/JPN",
-        "distance": "Mile",
-        "track": "Turf/Dirt",
-        "growth": "보통",
-        "stats": [9, 7, 8, 7, 8],
-        "desc": "위대한 프랭클(Frankel)의 자식으로 잔디와 모래 양대 마일 G1을 제패했습니다. 다목적 주로 적응력과 경쾌한 풋워크를 유전시키며, 엘리트 마일러를 기대할 수 있습니다.",
-        "bestAptitude": "1600m (잔디/모래)"
-    },
-    {
-        "id": "smart_falcon",
-        "kr": "스마트팔콘",
-        "en": "Smart Falcon",
-        "origin": "JPN",
-        "distance": "Middle",
-        "track": "Dirt",
-        "growth": "보통",
-        "stats": [8, 8, 7, 7, 8],
-        "desc": "일본 더트(모래) 경마의 최강자 중 하나. 지치지 않는 도주(선행) 능력이 일품이며, 자마들도 앞선에서 경주를 주도하며 끈끈하게 버티는 스타일이 많습니다.",
-        "bestAptitude": "1800m ~ 2000m (모래)"
-    },
-    {
-        "id": "bayern",
-        "kr": "바이언",
-        "en": "Bayern",
-        "origin": "USA",
-        "distance": "Mile/Middle",
-        "track": "Dirt",
-        "growth": "조숙형",
-        "stats": [10, 6, 7, 9, 7],
-        "desc": "2014년 브리더스 컵 클래식 우승마이자 와일드 어게인 계열의 대표마. 자마들은 부마를 닮아 폭발적인 초기 순발력과 게이트 이탈 능력을 보유하여 강력한 선행력을 발휘합니다. 한국의 모래 주로 적응력이 뛰어나며, 초반 기선 제압이 중요한 경주 체계에 최적화되어 있습니다.",
-        "bestAptitude": "1200m ~ 1800m (모래)"
-      }
-];
+
 
 const EQUIPMENT_INFO = {
     "눈가면": "시야의 좌우를 차단해 앞만 보고 달리게 하여 집중력을 높임 (산만하거나 딴짓을 하는 말에게 효과적)",
@@ -381,11 +212,24 @@ function App() {
     const [horseNotes, setHorseNotes] = useState({});
     const [notesInput, setNotesInput] = useState({});
     const [hoveredEq, setHoveredEq] = useState(null);
-    const [sireMap, setSireMap] = useState(() => {
-        const map = {};
-        SIRE_DATA.forEach(s => { map[s.kr] = s; });
-        return map;
-    });
+    const [sireMap, setSireMap] = useState({});
+
+    // 🐎 [신규] 외부 데이터 로드 (SIRE_DATA)
+    useEffect(() => {
+        fetch('sire_info.json')
+            .then(res => {
+                if (!res.ok) throw new Error("Failed to load sire_info.json");
+                return res.json();
+            })
+            .then(data => {
+                const map = {};
+                data.forEach(s => { 
+                    if (s.kr) map[s.kr] = s; 
+                });
+                setSireMap(map);
+            })
+            .catch(err => console.error("Sire data load error:", err));
+    }, []);
 
     const [selectedHorses, setSelectedHorses] = useState([]); // legacy UI sync
     const [activeGameIdx, setActiveGameIdx] = useState(() => {
