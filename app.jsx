@@ -3,6 +3,7 @@ import Icon from './src/components/Icon.jsx';
 import { getBadgeStyle } from './src/utils/getBadgeStyle.js';
 import BarChart from './src/components/Charts/BarChart.jsx';
 import ValueChart from './src/components/Charts/ValueChart.jsx';
+import SimulationZone from './src/components/Simulation/SimulationZone.jsx';
 
 const { useState, useEffect, useRef, useLayoutEffect } = React;
 
@@ -126,21 +127,33 @@ function App() {
     const [hoveredEq, setHoveredEq] = useState(null);
     const [sireMap, setSireMap] = useState({});
 
-    // 🐎 [신규] 외부 데이터 로드 (SIRE_DATA)
+    // 🐎 [신규] 외부 데이터 로드 (SIRE_DATA, TRACK_INFO, STATS)
+    const [trackInfo, setTrackInfo] = useState(null);
+    const [mergedRaceData, setMergedRaceData] = useState(null);
+    const [isSimOpen, setIsSimOpen] = useState(false);
+
     useEffect(() => {
+        // Sire Info
         fetch('sire_info.json')
-            .then(res => {
-                if (!res.ok) throw new Error("Failed to load sire_info.json");
-                return res.json();
-            })
+            .then(res => res.json())
             .then(data => {
                 const map = {};
-                data.forEach(s => { 
-                    if (s.kr) map[s.kr] = s; 
-                });
+                data.forEach(s => { if (s.kr) map[s.kr] = s; });
                 setSireMap(map);
-            })
-            .catch(err => console.error("Sire data load error:", err));
+            }).catch(err => console.error("Sire data load error:", err));
+
+        // Track Info
+        fetch('race_track_info.json')
+            .then(res => res.json())
+            .then(setTrackInfo)
+            .catch(err => console.error("Track info load error:", err));
+
+
+        // Merged Race Data (Optional, but contains stats_analysis)
+        fetch('Merged_Race_Data_20260405.json')
+            .then(res => res.json())
+            .then(setMergedRaceData)
+            .catch(err => console.error("Merged race data load error:", err));
     }, []);
 
     const [selectedHorses, setSelectedHorses] = useState([]); // legacy UI sync
@@ -1095,7 +1108,36 @@ function App() {
                                             )}
                                         </div>
                                     )}
+                                    <button 
+                                        onClick={() => setIsSimOpen(!isSimOpen)}
+                                        className={`w-full mt-2 py-1.5 flex items-center justify-center gap-2 border-t border-slate-100 hover:bg-slate-50 transition-all active:bg-slate-100 rounded-b-3xl -mx-4 w-[calc(100%+32px)] group transition-all duration-300`}
+                                    >
+                                        <div className="flex items-center gap-1.5">
+                                            <span className={`text-[10px] font-black tracking-tighter ${isSimOpen ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'}`}>
+                                                {isSimOpen ? "분석 보드 닫기" : "AI 몬테카를로 분석 보기"}
+                                            </span>
+                                            <Icon 
+                                                name={isSimOpen ? "chevron-up" : "chevron-down"} 
+                                                size={12} 
+                                                className={`transition-transform duration-300 ${isSimOpen ? 'text-indigo-500' : 'text-slate-300 group-hover:translate-y-0.5'}`} 
+                                            />
+                                        </div>
+                                    </button>
                                 </div>
+
+                            </div>
+                        )}
+
+                        {/* AI 시뮬레이션 존 (신규 엔진 통합, 토글 상태 반영) */}
+                        {isSimOpen && (
+                            <div className="px-4 mb-6">
+                                <SimulationZone 
+                                    race={race} 
+                                    info={info} 
+                                    loc={loc} 
+                                    trackInfo={trackInfo}
+                                    statsAnalysis={race?.stats_analysis}
+                                />
                             </div>
                         )}
 
