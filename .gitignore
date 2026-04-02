@@ -32,3 +32,7 @@ pnpm-debug.log*
 # [Sensitive]
 .env*
 docs/firebase-service-account.json
+!firebase-config.js
+!style.css
+!public/sire_info.json
+!public/race_track_info.json
