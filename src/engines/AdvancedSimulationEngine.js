@@ -80,34 +80,52 @@ export class AdvancedSimulationEngine {
             
             let meanTime = baseMeanTime;
 
-            // [NEW] 대상경주 전체 페이스 보정 (-0.2s Faster)
+            // [NEW] Endurance & Distance Decay Physics
+            const hist = h.recent_history?.[0];
+            const currentWeight = parseFloat(h.weight) || 54.0;
+            const distDiff = Math.max(0, distance - (parseInt(hist?.distance?.replace(/\D/g, '')) || distance));
+            
+            // 1. Endurance Index (G1F 효율) - 후반 끈기 분석
+            let g1fEfficiency = 0.5; // Default neutral
+            if (hist && hist.g1f && hist.g1f !== "-") {
+                const g1f = parseFloat(hist.g1f);
+                // G1F 13.5초를 기준으로 빠를수록 효율 상승 (지구력 보너스)
+                g1fEfficiency = Math.max(0, Math.min(1, (14.5 - g1f) / 2.0)); 
+            }
+
+            // 2. Weight-Distance Compounded Penalty (무거울수록 장거리에서 더 지침)
+            const extraWeight = Math.max(0, currentWeight - 53.0);
+            const weightDistPenalty = extraWeight * (distance / 1000) * 0.08; // Dist-weighted penalty
+            meanTime += weightDistPenalty;
+
+            // [NEW] 대상경주 전체 페이스 보정
             if (isStakes) meanTime -= 0.2;
             
-            // 특성 1: 과거 기록 기반 보정 (History Weighting)
-            if (h.recent_history && h.recent_history.length > 0) {
-                const hist = h.recent_history[0];
-                const histTimeStr = hist.record;
+            // 특성 1: 과거 기록 기반 보정 (History Weighting + Fatigue Curve)
+            if (hist && hist.record && hist.record.includes(':')) {
+                const parts = hist.record.split(':');
+                const histSecs = parseInt(parts[0]) * 60 + parseFloat(parts[1]);
+                const histDist = parseInt(hist.distance?.replace(/\D/g, '')) || distance;
                 const isTrial = hist.class?.includes("주행");
                 const isHistStakes = hist.class?.includes("대상");
+                
+                const speedPerM = histSecs / histDist;
+                let estTime = speedPerM * distance;
 
-                if (histTimeStr && histTimeStr.includes(':')) {
-                    const parts = histTimeStr.split(':');
-                    const histSecs = parseInt(parts[0]) * 60 + parseFloat(parts[1]);
-                    const histDist = parseInt(hist.distance?.replace(/\D/g, '')) || distance;
-                    const speedPerM = histSecs / histDist;
-                    const estTime = speedPerM * distance;
+                // [NEW] Fatigue Curve: 거리가 늘어남에 따른 속도 저하 시뮬레이션
+                if (distDiff > 0) {
+                    // 지구력(g1fEfficiency)이 낮을수록 피로도 급상승
+                    const fatigueDelay = (distDiff / 100) * (0.25 - (g1fEfficiency * 0.15));
+                    estTime += fatigueDelay;
+                }
 
-                    // Weighting Logic
-                    if (isTrial) {
-                        // Trial is practice, low weight (80% class average, 20% trial)
-                        meanTime = (meanTime * 0.8) + (estTime * 0.2);
-                    } else if (isHistStakes) {
-                        // Stakes is high intensity, high weight
-                        meanTime = (meanTime * 0.4) + (estTime * 0.6) - 0.2;
-                    } else {
-                        // Standard race (50/50 mix)
-                        meanTime = (meanTime + estTime) / 2;
-                    }
+                // Weighting Logic
+                if (isTrial) {
+                    meanTime = (meanTime * 0.8) + (estTime * 0.2);
+                } else if (isHistStakes) {
+                    meanTime = (meanTime * 0.4) + (estTime * 0.6) - 0.2;
+                } else {
+                    meanTime = (meanTime + estTime) / 2;
                 }
             }
 
