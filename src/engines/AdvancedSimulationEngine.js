@@ -48,6 +48,18 @@ export class AdvancedSimulationEngine {
 
         const distance = parseInt(this.race.distance || this.race.race_info?.distance) || 1200;
         const horses = this.race.horses;
+        const raceClass = this.race.race_info?.class || "";
+        const isHandicap = this.race.race_info?.conditions?.includes("핸디캡");
+        const isStakes = raceClass.includes("대상") || this.race.race_info?.conditions?.includes("대상");
+
+        // Helper: Convert class name to numeric rank (lower is higher/faster)
+        const getClassNum = (cls) => {
+            if (!cls) return 99;
+            if (cls.includes("대상")) return 0;
+            const m = cls.match(/\d+/);
+            return m ? parseInt(m[0]) : 99;
+        };
+        const currentClassNum = getClassNum(raceClass);
 
         // 1. 전개 분석 (런 스타일 분류)
         const runStyles = horses.map(h => this.paceAnalyzer.classifyRunStyle(h));
@@ -59,8 +71,7 @@ export class AdvancedSimulationEngine {
         const simItems = horses.map((h, index) => {
             const style = runStyles[index];
             
-            // Base Expected Time: Use class-based 'avg_record' from statsAnalysis if available, 
-            // otherwise fallback to distance-based calculation.
+            // Base Expected Time: Use class-based 'avg_record'
             let baseMeanTime = distance / 16.5; 
             if (this.statsAnalysis?.avg_record && this.statsAnalysis.avg_record.includes(':')) {
                 const [min, sec] = this.statsAnalysis.avg_record.split(':');
@@ -68,72 +79,92 @@ export class AdvancedSimulationEngine {
             }
             
             let meanTime = baseMeanTime;
+
+            // [NEW] 대상경주 전체 페이스 보정 (-0.2s Faster)
+            if (isStakes) meanTime -= 0.2;
             
-            // 특성 1: 과거 G1F, G3F, S1F 기반 보정
+            // 특성 1: 과거 기록 기반 보정 (History Weighting)
             if (h.recent_history && h.recent_history.length > 0) {
                 const hist = h.recent_history[0];
-                const histTimeStr = hist.record; // "1:15.5" -> 초로 변환
+                const histTimeStr = hist.record;
+                const isTrial = hist.class?.includes("주행");
+                const isHistStakes = hist.class?.includes("대상");
+
                 if (histTimeStr && histTimeStr.includes(':')) {
                     const parts = histTimeStr.split(':');
                     const histSecs = parseInt(parts[0]) * 60 + parseFloat(parts[1]);
-                    const histDist = parseInt(hist.distance?.replace(/\\D/g, '')) || distance;
-                    
-                    // 과거 속도 비율을 현재 거리에 매핑하여 기준 시간보다 약간 더 정교하게 보정
+                    const histDist = parseInt(hist.distance?.replace(/\D/g, '')) || distance;
                     const speedPerM = histSecs / histDist;
-                    meanTime = (meanTime + (speedPerM * distance)) / 2; // 평활화(Smoothing)
+                    const estTime = speedPerM * distance;
+
+                    // Weighting Logic
+                    if (isTrial) {
+                        // Trial is practice, low weight (80% class average, 20% trial)
+                        meanTime = (meanTime * 0.8) + (estTime * 0.2);
+                    } else if (isHistStakes) {
+                        // Stakes is high intensity, high weight
+                        meanTime = (meanTime * 0.4) + (estTime * 0.6) - 0.2;
+                    } else {
+                        // Standard race (50/50 mix)
+                        meanTime = (meanTime + estTime) / 2;
+                    }
+                }
+            }
+
+            // [NEW] 승급전 / 강급전 보정 (Class Status)
+            if (h.grade) {
+                const horseClassNum = getClassNum(h.grade);
+                if (currentClassNum < horseClassNum) {
+                    // Jumping to a faster/higher class (Promotion)
+                    meanTime += 0.4; // +0.4s Class Barrier Penalty
+                } else if (currentClassNum > horseClassNum) {
+                    // Dropping to a slower/lower class (Demotion)
+                    meanTime -= 0.3; // -0.3s Class Advantage Bonus
                 }
             }
 
             // 특성 2: 트랙 함수율 (Track Moisture Bias)
-            // 수분이 과다(15% 초과)할 경우 표면이 단단해져 E 성향 마필은 빨라지고 S 성향 추입마는 킥백으로 부진
             if (this.moistureIndex > 15) {
-                if (style === 'E' || style === 'E/P') meanTime -= 0.5; // 패스트 트랙 호주행
-                if (style === 'P' || style === 'S') meanTime += 0.8; // 킥백 및 미끄러짐
+                if (style === 'E' || style === 'E/P') meanTime -= 0.5;
+                if (style === 'P' || style === 'S') meanTime += 0.8;
             }
 
             // 특성 3: 게이트 및 지오메트리 보정
             const gatePenalty = this.paceAnalyzer.calculateGateBias(distance, this.location, h.horse_no, style);
             meanTime += gatePenalty;
 
-            // 특성 4: 선행마 오버페이스 (페이스 맵 붕괴)
+            // 특성 4: 선행마 오버페이스
             if (style === 'E' || style === 'E/P') {
-                meanTime += conflictPenalty; // 페널티 부과
+                meanTime += conflictPenalty;
             } else if (style === 'S' && conflictPenalty > 0) {
-                // 선행마 붕괴 시 추입마 역전 보너스
                 meanTime -= (conflictPenalty * 0.8);
             }
 
-            // 특성 5: 인적 시너지 (Embedded Stats 우선 참조)
+            // 특성 5: 인적 시너지
             let humanSynergy = 0;
-            
-            // 기수(Jockey) 보정
             const jStats = h.jockey_stats || (this.jockeyStats && this.jockeyStats[h.jockey]);
             if (jStats) {
                 const jWin = parseFloat(jStats.recent_stats?.win_rate || jStats.career?.win_rate || 10);
-                humanSynergy += (jWin - 10) * 0.02; // 평균(10%) 대비 기여도
+                humanSynergy += (jWin - 10) * 0.02;
             }
-            
-            // 조교사(Trainer) 보정
             const tStats = h.trainer_stats || (this.trainerStats && this.trainerStats[h.trainer]);
             if (tStats) {
                 const tWin = parseFloat(tStats.recent_stats?.win_rate || tStats.career?.win_rate || 10);
                 humanSynergy += (tWin - 10) * 0.01;
             }
-            
-            meanTime -= humanSynergy; // 시너지가 높을수록 시간 단축
+            meanTime -= humanSynergy;
 
-            // 4. 표준편차 (Standard Deviation - Volatility 구성)
-            // 일관성 없는 마필(S/P)은 분산이 크고, 선행(E/EP)은 기록이 일정함
+            // 4. 표준편차 (Standard Deviation - Volatility)
             let stdDev = 0.8; 
-            if (style === 'S') stdDev = 1.3; // 터지면 우승, 안터지면 꼴찌
+            if (style === 'S') stdDev = 1.3;
             else if (style === 'P') stdDev = 1.0;
-            else if (style === 'E/P') stdDev = 0.6; // 유도리 있는 안정성
-            else if (style === 'E') stdDev = 0.7; // 경합 리스크 포함
+            else if (style === 'E/P') stdDev = 0.6;
+            else if (style === 'E') stdDev = 0.7;
 
-            // 출발 늦음 잦은 마필 분산 증폭
-            if (h.steward_trip_note?.note?.includes("출발늦음")) {
-                stdDev += 0.4;
-            }
+            // [NEW] 핸디캡 경주 불확실성 증폭 (+20%)
+            if (isHandicap) stdDev *= 1.2;
+
+            if (h.steward_trip_note?.note?.includes("출발늦음")) stdDev += 0.4;
 
             return {
                 id: h.horse_no,
