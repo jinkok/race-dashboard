@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ update/refactory-vite-app ]
+    branches: [ feature/simulateEngine, main ]
 
 permissions:
   contents: read
