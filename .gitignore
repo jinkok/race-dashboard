@@ -5,12 +5,11 @@ dist-ssr
 *.local
 
 # [Data / Assets]
-# Excluding large or generated race data files
-public/Merged_Race_Data_*.json
-public/race_track_info.json
-public/sire_info.json
-public/style.css
-public/firebase-config.js
+# Including essential race data files for deployment
+# public/Merged_Race_Data_*.json (Keeping these in the repo since they are small/static for now)
+# !public/Merged_Race_Data_20260405.json
+# !public/race_track_info.json
+# !public/sire_info.json
 
 # [Logs]
 logs

@@ -1,0 +1,157 @@
+{
+    "racecourses": {
+      "seoul": {
+        "name": "서울경마장",
+        "starting_points": [
+          {
+            "distance_m": 1000,
+            "location": "2코너 외곽 슈트(연장주로)",
+            "characteristics": "본장 진입 전 130m의 독립된 직선 구간을 달린 후 3코너로 진입"
+          },
+          {
+            "distance_m": 1200,
+            "location": "건너편 직선주로(백스트레치)",
+            "characteristics": "직선주로 중간에서 출발하여 3코너까지 약간의 직선 구간 확보"
+          },
+          {
+            "distance_m": 1300,
+            "location": "건너편 직선주로(백스트레치)",
+            "characteristics": "1200m 지점보다 뒤에서 출발하여 코너 진입 전 직선 구간이 더 김"
+          },
+          {
+            "distance_m": 1400,
+            "location": "건너편 직선주로(백스트레치)",
+            "characteristics": "3코너 진입부에 비교적 가깝게 위치함"
+          },
+          {
+            "distance_m": 1700,
+            "location": "홈스트레치(결승선 맞은편 직선주로)",
+            "characteristics": "직선주로에서 출발하여 1코너 진입 전까지 짧은 직선 구간 주행"
+          },
+          {
+            "distance_m": 1800,
+            "location": "홈스트레치(결승선 맞은편 직선주로)",
+            "characteristics": "1700m 지점보다 뒤에서 출발"
+          },
+          {
+            "distance_m": 1900,
+            "location": "홈스트레치(결승선 맞은편 직선주로)",
+            "characteristics": "직선주로 후반부(1코너 부근)에서 출발하여 코너까지의 거리가 김"
+          },
+          {
+            "distance_m": 2000,
+            "location": "홈스트레치(결승선 맞은편 직선주로)",
+            "characteristics": "1900m 지점과 인접, 1코너 진입 전 충분한 직선 구간 확보"
+          },
+          {
+            "distance_m": 2300,
+            "location": "4코너 외곽 슈트(연장주로)",
+            "characteristics": "홈스트레치 진입부 외곽으로 돌출된 공간에서 출발"
+          }
+        ],
+        "track_dimensions": {
+          "homestretch_length_m": 400,
+          "backstretch_length_m": 450
+        },
+        "transverse_gradient": {
+          "straight_section": {
+            "width": "25m ~ 30m",
+            "inner_slope": "1.5%",
+            "outer_slope": "1.5%"
+          },
+          "curved_section": {
+            "width": "25m ~ 30m",
+            "slope_towards_inner": "2.5%"
+          }
+        },
+        "cross_section": {
+          "total_depth_cm": 61,
+          "layers": [
+            { "material": "모래", "thickness_cm": 8 },
+            { "material": "화강풍화토", "thickness_cm": 10 },
+            { "material": "혼합골재 (Φ40mm 이하)", "thickness_cm": 10 },
+            { "material": "보조기층 (Φ40mm 이상 Φ100mm 이하)", "thickness_cm": 33 }
+          ]
+        }
+      },
+      "busan_gyeongnam": {
+        "name": "부산경남경마장",
+        "starting_points": [
+          {
+            "distance_m": 1000,
+            "location": "2코너 외곽 슈트(연장주로)",
+            "characteristics": "본장 진입 전 182m의 독립된 직선 구간 주행 후 코너 진입"
+          },
+          {
+            "distance_m": 1200,
+            "location": "건너편 직선주로(백스트레치)",
+            "characteristics": "직선주로 중간에서 출발"
+          },
+          {
+            "distance_m": 1300,
+            "location": "건너편 직선주로(백스트레치)",
+            "characteristics": "1200m 지점 뒤에서 출발"
+          },
+          {
+            "distance_m": 1400,
+            "location": "건너편 직선주로(백스트레치)",
+            "characteristics": "1300m 지점 뒤에서 출발"
+          },
+          {
+            "distance_m": 1500,
+            "location": "건너편 직선주로(백스트레치)",
+            "characteristics": "3코너 진입부 부근에서 출발"
+          },
+          {
+            "distance_m": 1600,
+            "location": "3코너 우측 외곽 슈트",
+            "characteristics": "백스트레치 시작점 외곽 136m 연장주로에서 출발, 긴 직선 구간 확보"
+          },
+          {
+            "distance_m": 1800,
+            "location": "홈스트레치(결승선 맞은편 직선주로)",
+            "characteristics": "직선주로에서 출발하여 1코너 진입 전 직선 주행"
+          },
+          {
+            "distance_m": 1900,
+            "location": "홈스트레치(결승선 맞은편 직선주로)",
+            "characteristics": "1800m 지점과 인접하여 출발"
+          },
+          {
+            "distance_m": 2000,
+            "location": "홈스트레치(결승선 맞은편 직선주로)",
+            "characteristics": "1900m 지점 뒤에서 출발"
+          },
+          {
+            "distance_m": 2200,
+            "location": "홈스트레치(결승선 맞은편 직선주로)",
+            "characteristics": "1코너 진입 전 가장 긴 직선 구간을 달릴 수 있는 후방 위치"
+          }
+        ],
+        "track_dimensions": {
+          "homestretch_length_m": 460,
+          "backstretch_length_m": 500
+        },
+        "transverse_gradient": {
+          "straight_section": {
+            "width": "25m",
+            "inner_slope": "1.5%",
+            "outer_slope": "1.5%"
+          },
+          "curved_section": {
+            "width": "25m",
+            "slope_towards_inner": "2.0%"
+          }
+        },
+        "cross_section": {
+          "total_depth_cm": 58,
+          "layers": [
+            { "material": "모래", "thickness_cm": 8 },
+            { "material": "화강풍화토", "thickness_cm": 15 },
+            { "material": "쇄석기층 (Φ25mm)", "thickness_cm": 10 },
+            { "material": "쇄석보조기층 (Φ40mm)", "thickness_cm": 25 }
+          ]
+        }
+      }
+    }
+  }
