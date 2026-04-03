@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, doc, collection, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 
 const firebaseConfig = {
@@ -20,7 +20,7 @@ try {
     const db = getFirestore(app);
     const googleProvider = new GoogleAuthProvider();
     window.fb = { 
-        auth, db, doc, setDoc, onSnapshot, 
+        auth, db, doc, collection, setDoc, onSnapshot, 
         signInAnonymously, onAuthStateChanged, 
         googleProvider, signInWithPopup, signOut,
         isReady: true 
