@@ -180,6 +180,7 @@ function App() {
     const [isBetPanelOpen, setIsBetPanelOpen] = useState(false);
     const [raceResults, setRaceResults] = useState({});
     const [realtimeResults, setRealtimeResults] = useState(null);
+    const [allRealtimeResults, setAllRealtimeResults] = useState({});
     const [realtimeWeights, setRealtimeWeights] = useState(null);
     const [isResultEditMode, setIsResultEditMode] = useState(false);
     const [picksStatus, setPicksStatus] = useState('loading'); // 'loading', 'synced', 'local', 'modified'
@@ -342,10 +343,16 @@ function App() {
         // 1. Manual Results
         const allResults = { ...raceResults };
         
-        // 2. Override with current realtime data for current race
-        if (realtimeResults && realtimeResults.winners) {
-            allResults[`${prefix}${currentRaceNo}`] = realtimeResults.winners;
-        }
+        // 2. Automated Results (Merge allRealtimeResults)
+        Object.entries(allRealtimeResults).forEach(([rNo, data]) => {
+            if (data && data.winners) {
+                const key = `${prefix}${rNo}`;
+                // manual result has priority if already set
+                if (!allResults[key]) {
+                    allResults[key] = data.winners;
+                }
+            }
+        });
 
         Object.entries(allResults).forEach(([key, resArr]) => {
             if (!key.startsWith(prefix) || !Array.isArray(resArr)) return;
@@ -376,7 +383,7 @@ function App() {
             });
         });
         return stats;
-    }, [raceResults, realtimeResults, date, loc, dbData]);
+    }, [raceResults, allRealtimeResults, date, loc, dbData]);
 
     const TrophyBadge = ({ rank, count }) => {
         if (!count || count <= 0) return null;
@@ -520,6 +527,27 @@ function App() {
 
         return () => { unsubRes(); unsubWeight(); };
     }, [user, date, loc, raceIdx]);
+    
+    // 3.2 [신규] 금일 전체 실시간 데이터 연동 (트로피 집계용)
+    useEffect(() => {
+        if (!user || !window.fb?.isReady || !date || !loc) return;
+        const { db, collection, onSnapshot, query } = window.fb;
+        const fbDate = date.replace(/-/g, '');
+        if (!fbDate) return;
+
+        const racesPath = `realtime/results/${fbDate}/${loc}/races`;
+        const racesCol = collection(db, racesPath);
+        
+        const unsub = onSnapshot(racesCol, (snap) => {
+            const resultsMap = {};
+            snap.forEach(doc => {
+                resultsMap[doc.id] = doc.data(); // doc.id is race number (1, 2, 3...)
+            });
+            setAllRealtimeResults(resultsMap);
+        }, (err) => console.error("All Realtime Results sync error:", err));
+
+        return () => unsub();
+    }, [user, date, loc]);
 
     // 3.5 Local Selections Persistence (Save changes to local storage IMMEDIATELY)
     useEffect(() => {
@@ -1585,7 +1613,7 @@ function App() {
                                                                             return (
                                                                                 <div className="flex flex-wrap gap-1 items-center">
                                                                                     {uniqueRides.map((rNo, ridx) => {
-                                                                                        const res = raceResults[`${date}_${loc}_${rNo}`] || realtimeResults?.[`${date}_${loc}_${rNo}`]?.winners;
+                                                                                        const res = raceResults[`${date}_${loc}_${rNo}`] || allRealtimeResults[rNo]?.winners;
                                                                                         let emoji = "";
                                                                                         if (res) {
                                                                                             const rData = currentLocData.races.find(r => Number(r.race_no) === Number(rNo));
