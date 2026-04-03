@@ -358,7 +358,7 @@ function App() {
             if (!key.startsWith(prefix) || !Array.isArray(resArr)) return;
 
             const rNo = Number(key.split('_').pop());
-            // Filter removed: all trophies for the day are accumulated regardless of current raceIdx
+            // Trophies are accumulated for the entire day
 
             const raceData = dbData?.locations?.[loc]?.races?.find(r => Number(r.race_no) === rNo);
             if (!raceData) return;
@@ -1262,6 +1262,17 @@ function App() {
                                     if (myWeight === minWeight) badges.push({ emoji: "🪶", text: "부중↓", color: "cyan" });
                                     if (myWeight === maxWeight) badges.push({ emoji: "🏋️", text: "부중↑", color: "orange" });
                                 }
+
+                                // 🏆 [신규] 해당 경주 결과가 있는 경우 순위 트로피 배지 추가
+                                const currentWinners = raceResults[`${date}_${loc}_${raceIdx + 1}`] || realtimeResults?.winners;
+                                if (currentWinners) {
+                                    const winnersNum = currentWinners.map(w => Number(w));
+                                    const rank = winnersNum.indexOf(Number(h.horse_no)) + 1;
+                                    if (rank === 1) badges.unshift({ emoji: "🥇", text: "1착", color: "yellow" });
+                                    else if (rank === 2) badges.unshift({ emoji: "🥈", text: "2착", color: "gray" });
+                                    else if (rank === 3) badges.unshift({ emoji: "🥉", text: "3착", color: "orange" });
+                                }
+
                                 if (h.equipment) {
                                     h.equipment.split(',').forEach(eq => {
                                         const trimmed = eq.trim();
