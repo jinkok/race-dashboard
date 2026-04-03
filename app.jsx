@@ -967,41 +967,43 @@ function App() {
     return (
         <div className="max-w-md mx-auto min-h-screen flex flex-col bg-[#f8fafc] relative shadow-2xl font-sans">
             <header className="bg-slate-900 text-white pt-6 pb-6 px-6 rounded-b-[30px] shadow-xl z-20 relative">
-                <div className="flex justify-between items-center mb-6">
-                    <div className="flex items-center gap-2">
-                        <div className="bg-yellow-400 p-1.5 rounded-lg text-slate-900"><Icon name="trophy" size={16} /></div>
-                        <span className="font-black italic text-lg tracking-tighter">SMART<span className="text-yellow-400">RACING</span> V10</span>
+                <div className="flex items-center justify-between gap-2 mb-6">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                        <div className="bg-yellow-400 p-1 rounded-lg text-slate-900 shrink-0 scale-90 md:scale-100"><Icon name="trophy" size={14} /></div>
+                        <span className="font-black italic text-base md:text-lg tracking-tighter truncate leading-none">SMART<span className="text-yellow-400">RACING</span></span>
                         
-                        {user && !user.isAnonymous ? (
-                            <button 
-                                onClick={logout}
-                                className="group relative flex items-center justify-center animate-fade-in ml-1"
-                                title="로그아웃 하시겠습니까?"
-                            >
-                                <div className="absolute inset-0 bg-yellow-400/20 rounded-full blur-sm opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                <img src={user.photoURL} className="w-7 h-7 rounded-full ring-2 ring-slate-700 group-hover:ring-yellow-400 shadow-lg transition-all relative z-10" alt="Profile" />
-                                <div className="absolute -top-1 -right-1 bg-rose-500 text-white p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-sm border border-white/20">
-                                    <Icon name="log-out" size={8} />
-                                </div>
-                            </button>
-                        ) : (
-                            <button 
-                                onClick={loginWithGoogle}
-                                className="w-7 h-7 bg-slate-800 rounded-full flex items-center justify-center border border-slate-700 hover:border-indigo-400 hover:bg-slate-700 transition-all shadow-lg group ml-1"
-                                title="구글 로그인"
-                            >
-                                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" alt="G" />
-                            </button>
-                        )}
+                        <div className="shrink-0 flex items-center">
+                            {user && !user.isAnonymous ? (
+                                <button 
+                                    onClick={logout}
+                                    className="group relative flex items-center justify-center animate-fade-in ml-0.5"
+                                    title="로그아웃 하시겠습니까?"
+                                >
+                                    <div className="absolute inset-0 bg-yellow-400/20 rounded-full blur-sm opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                    <img src={user.photoURL} className="w-6 h-6 md:w-7 md:h-7 rounded-full ring-2 ring-slate-700 group-hover:ring-yellow-400 shadow-lg transition-all relative z-10" alt="Profile" />
+                                    <div className="absolute -top-1 -right-1 bg-rose-500 text-white p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-sm border border-white/20">
+                                        <Icon name="log-out" size={7} />
+                                    </div>
+                                </button>
+                            ) : (
+                                <button 
+                                    onClick={loginWithGoogle}
+                                    className="w-6 h-6 md:w-7 md:h-7 bg-slate-800 rounded-full flex items-center justify-center border border-slate-700 hover:border-indigo-400 hover:bg-slate-700 transition-all shadow-lg group ml-0.5"
+                                    title="구글 로그인"
+                                >
+                                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-3 h-3 md:w-3.5 md:h-3.5 group-hover:scale-110 transition-transform" alt="G" />
+                                </button>
+                            )}
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 ml-auto shrink-0">
                         <button 
                             onClick={() => dateInputRef.current?.showPicker()}
-                            className="relative flex items-center bg-slate-800 text-white text-[11px] font-black px-3 py-1.5 rounded-xl border border-slate-700/50 hover:border-yellow-400/50 transition-all shadow-lg group overflow-hidden"
+                            className="relative flex items-center bg-slate-800 text-white text-[10px] md:text-[11px] font-black px-2 py-1 md:px-3 md:py-1.5 rounded-xl border border-slate-700/50 hover:border-yellow-400/50 transition-all shadow-lg group overflow-hidden"
                         >
-                            <span className="flex items-center gap-1.5">
+                            <span className="flex items-center gap-1">
                                 {formatDisplayDate(date)}
-                                <Icon name="calendar" size={12} className="text-yellow-400 opacity-80 group-hover:scale-110 transition-transform" />
+                                <Icon name="calendar" size={10} className="text-yellow-400 opacity-80 group-hover:scale-110 transition-transform" />
                             </span>
                             <input 
                                 type="date"
@@ -1012,7 +1014,7 @@ function App() {
                             />
                         </button>
                         {user && !user.isAnonymous && (
-                            <button onClick={() => setViewMode(viewMode === 'app' ? 'admin' : 'app')} className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${viewMode === 'admin' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'}`}><Icon name={viewMode === 'app' ? 'settings' : 'x'} size={14} /></button>
+                            <button onClick={() => setViewMode(viewMode === 'app' ? 'admin' : 'app')} className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center transition-all ${viewMode === 'admin' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'}`}><Icon name={viewMode === 'app' ? 'settings' : 'x'} size={12} /></button>
                         )}
                     </div>
                 </div>
