@@ -23,7 +23,11 @@ dist-ssr
 *.sln
 *.sw?
 
-# Sensitive data
-firebase-config.js
+# [Sensitive]
+.env*
 docs/firebase-service-account.json
+!public/firebase-config.js
+!public/style.css
+!public/sire_info.json
+!public/race_track_info.json
 .env*
