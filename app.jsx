@@ -1578,7 +1578,7 @@ function App() {
                                                                         <td className="text-slate-700 text-[10px]">{hist.class}</td>
                                                                         <td>{hist.distance}</td>
                                                                         <td className="font-bold text-slate-900">{hist.record}</td>
-                                                                        <td className={`font-bold ${hist.result_rank <= 3 ? 'text-rose-600' : 'text-slate-400'}`}>{hist.result_rank}위</td>
+                                                                        <td className={`font-bold ${Number(hist.result_rank) <= 3 ? 'text-rose-600' : 'text-slate-400'}`}>{hist.result_rank}위</td>
                                                                         <td className="text-slate-600">{hist.weight}</td>
                                                                         <td className="text-[10px] font-medium">{hist.jockey}</td>
                                                                         <td>{hist.s1f}</td>
@@ -1613,13 +1613,14 @@ function App() {
                                                                             return (
                                                                                 <div className="flex flex-wrap gap-1 items-center">
                                                                                     {uniqueRides.map((rNo, ridx) => {
-                                                                                        const res = raceResults[`${date}_${loc}_${rNo}`] || allRealtimeResults[rNo]?.winners;
+                                                                                        const res = raceResults[`${date}_${loc}_${rNo}`] || allRealtimeResults[String(rNo)]?.winners;
                                                                                         let emoji = "";
                                                                                         if (res) {
                                                                                             const rData = currentLocData.races.find(r => Number(r.race_no) === Number(rNo));
                                                                                             const horseInRace = rData?.horses.find(bh => normalizeName(bh.jockey) === jName);
                                                                                             if (horseInRace) {
-                                                                                                const rank = res.indexOf(Number(horseInRace.horse_no)) + 1;
+                                                                                                const winnersNum = res.map(w => Number(w));
+                                                                                                const rank = winnersNum.indexOf(Number(horseInRace.horse_no)) + 1;
                                                                                                 if (rank >= 1 && rank <= 3) emoji = ["🥇", "🥈", "🥉"][rank - 1];
                                                                                             }
                                                                                         }
@@ -1691,13 +1692,14 @@ function App() {
                                                                             return (
                                                                                 <div className="flex flex-wrap gap-1 items-center">
                                                                                     {rNos.map((rNo, ridx) => {
-                                                                                        const res = raceResults[`${date}_${loc}_${rNo}`];
+                                                                                        const res = raceResults[`${date}_${loc}_${rNo}`] || allRealtimeResults[String(rNo)]?.winners;
                                                                                         let emoji = "";
-                                                                                        if (res && rNo <= raceIdx + 1) {
+                                                                                        if (res) {
                                                                                             const rData = currentLocData.races.find(r => Number(r.race_no) === Number(rNo));
                                                                                             const horsesInRace = rData?.horses.filter(bh => normalizeName(bh.trainer) === tName) || [];
+                                                                                            const winnersNum = res.map(w => Number(w));
                                                                                             emoji = horsesInRace.map(bh => {
-                                                                                                const rank = res.indexOf(Number(bh.horse_no)) + 1;
+                                                                                                const rank = winnersNum.indexOf(Number(bh.horse_no)) + 1;
                                                                                                 return (rank >= 1 && rank <= 3) ? ["🥇", "🥈", "🥉"][rank - 1] : "";
                                                                                             }).join("");
                                                                                         }

@@ -1,0 +1,12 @@
+# Project Rules & Guidelines
+
+## 🛡️ Git Operations (CRITICAL)
+- **Mandatory Approval**: ANY `git push` command MUST receive explicit permission from the USER before execution, regardless of the size or urgency of the change.
+- **Verification First**: Before requesting push permission, summarize what is being pushed and verify that it matches the user's requirements.
+
+## 💾 File Management
+- **Persistence**: Ensure critical config files like `firebase-config.js` and `style.css` remain in the `public/` directory for correct Vite bundling.
+
+## 🐎 Race Dashboard Logic
+- **Trophy Accumulation**: Trophies (🥇🥈🥉) should always reflect the total results for the entire day across all finished races, regardless of the currently selected race index.
+- **Automated Results**: Prioritize real-time automated results from Firestore while allowing manual overrides if necessary.
