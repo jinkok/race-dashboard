@@ -1137,6 +1137,8 @@ function App() {
                                     loc={loc} 
                                     trackInfo={trackInfo}
                                     statsAnalysis={race?.stats_analysis}
+                                    sireInfo={Object.values(sireMap)}
+                                    user={user}
                                 />
                             </div>
                         )}
