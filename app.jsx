@@ -133,7 +133,7 @@ function App() {
     const [isSimOpen, setIsSimOpen] = useState(false);
 
     useEffect(() => {
-        // Sire Info
+        // Sire Info (Static)
         fetch('sire_info.json')
             .then(res => res.json())
             .then(data => {
@@ -142,19 +142,25 @@ function App() {
                 setSireMap(map);
             }).catch(err => console.error("Sire data load error:", err));
 
-        // Track Info
+        // Track Info (Static)
         fetch('race_track_info.json')
             .then(res => res.json())
             .then(setTrackInfo)
             .catch(err => console.error("Track info load error:", err));
+    }, []);
 
-
-        // Merged Race Data (Optional, but contains stats_analysis)
-        fetch('Merged_Race_Data_20260405.json')
+    // 🐎 [수정] 날짜 변경 시 해당 날짜의 Merged Race Data 로드
+    useEffect(() => {
+        if (!date) return;
+        const formattedDate = date.replace(/-/g, '');
+        fetch(`Merged_Race_Data_${formattedDate}.json`)
             .then(res => res.json())
             .then(setMergedRaceData)
-            .catch(err => console.error("Merged race data load error:", err));
-    }, []);
+            .catch(err => {
+                console.warn(`Merged race data for ${date} not found index:`, err);
+                setMergedRaceData(null); // 데이터 없을 경우 초기화
+            });
+    }, [date]);
 
     const [selectedHorses, setSelectedHorses] = useState([]); // legacy UI sync
     const [activeGameIdx, setActiveGameIdx] = useState(() => {
