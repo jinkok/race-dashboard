@@ -51,3 +51,4 @@ npm run build
 
 > [!IMPORTANT]
 > 경주별 데이터 유출(Leak)을 방지하기 위해 각 경주는 고유한 `pickPath`로 독립적으로 관리됩니다.
+> 분석엔진 추가 업데이트 해보자 
