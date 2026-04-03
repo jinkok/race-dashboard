@@ -968,7 +968,7 @@ function App() {
         <div className="max-w-md mx-auto min-h-screen flex flex-col bg-[#f8fafc] relative shadow-2xl font-sans">
             <header className="bg-slate-900 text-white pt-6 pb-6 px-6 rounded-b-[30px] shadow-xl z-20 relative">
                 <div className="flex items-center justify-between gap-2 mb-6">
-                    <div className="flex items-center gap-1.5 min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0 shrink-0">
                         <div className="bg-yellow-400 p-1 rounded-lg text-slate-900 shrink-0 scale-90 md:scale-100"><Icon name="trophy" size={14} /></div>
                         <span className="font-black italic text-base md:text-lg tracking-tighter truncate leading-none">SMART<span className="text-yellow-400">RACING</span></span>
                         
@@ -996,7 +996,10 @@ function App() {
                             )}
                         </div>
                     </div>
-                    <div className="flex items-center gap-1.5 ml-auto shrink-0">
+                    
+                    <div className="flex-1"></div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
                         <button 
                             onClick={() => dateInputRef.current?.showPicker()}
                             className="relative flex items-center bg-slate-800 text-white text-[10px] md:text-[11px] font-black px-2 py-1 md:px-3 md:py-1.5 rounded-xl border border-slate-700/50 hover:border-yellow-400/50 transition-all shadow-lg group overflow-hidden"
@@ -1010,7 +1013,7 @@ function App() {
                                 ref={dateInputRef}
                                 value={date} 
                                 onChange={(e) => setDate(e.target.value)} 
-                                className="absolute inset-0 opacity-0 pointer-events-none w-0 h-0" 
+                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-20" 
                             />
                         </button>
                         {user && !user.isAnonymous && (
