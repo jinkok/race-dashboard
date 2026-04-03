@@ -16,9 +16,10 @@ const SimulationZone = ({ race, loc, trackInfo, statsAnalysis, sireInfo, jockeyS
     const requestRef = useRef();
 
     const toggleTrace = (horseNo) => {
+        const id = String(horseNo);
         setExpandedTraces(prev => ({
             ...prev,
-            [horseNo]: !prev[horseNo]
+            [id]: !prev[id]
         }));
     };
 
@@ -27,7 +28,7 @@ const SimulationZone = ({ race, loc, trackInfo, statsAnalysis, sireInfo, jockeyS
         setIsSimulating(true);
         setIsRunning(false);
         setSimResults([]);
-        setHorsePositions({});
+        setExpandedTraces({}); // Reset expanded states
         
         if (requestRef.current) cancelAnimationFrame(requestRef.current);
 
@@ -48,6 +49,8 @@ const SimulationZone = ({ race, loc, trackInfo, statsAnalysis, sireInfo, jockeyS
                 
                 if (results && results.length > 0) {
                     setSimResults(results);
+                    // Auto-expand the winner's trace for immediate feedback
+                    setExpandedTraces({ [String(results[0].horse_no)]: true });
                     // Start track animation with the stable server-style logic
                     setTimeout(() => startTrackAnimation(results), 50);
                 }
@@ -120,37 +123,76 @@ const SimulationZone = ({ race, loc, trackInfo, statsAnalysis, sireInfo, jockeyS
     const HorseAnalysisCard = ({ r, index, isRanked = false }) => {
         const horseData = race?.horses?.find(h => h.horse_no === r.horse_no);
         const isWinner = index === 0;
+        const isExpanded = expandedTraces[String(r.horse_no)];
         
         return (
-            <div className={`bg-[#0f172a] border ${isWinner ? 'border-yellow-500/50 shadow-[0_0_20px_rgba(234,179,8,0.1)]' : 'border-slate-800'} p-6 rounded-[32px] relative overflow-hidden transition-all hover:bg-[#1e293b]/80`}>
-                <div className="flex items-center gap-5 mb-8">
-                    <div className={`w-14 h-14 rounded-full flex items-center justify-center font-black text-xl shadow-lg ${isWinner ? 'bg-[#eab308] text-[#0f172a]' : 'bg-[#1e293b] text-white border border-slate-700'}`}>
-                        {r.horse_no}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="text-[11px] text-slate-500 font-bold uppercase tracking-widest mb-1">{index + 1}위 도달 예상</div>
-                        <div className="text-lg font-black text-white truncate uppercase tracking-tight">
-                            {horseData?.name || '알 수 없음'}
+            <div className={`bg-[#0f172a] border transition-all duration-500 overflow-hidden rounded-[32px] hover:bg-[#1e293b]/80 group ${isWinner ? 'border-yellow-500/50 shadow-[0_0_25px_rgba(234,179,8,0.15)] ring-1 ring-yellow-500/10' : 'border-slate-800/60 shadow-xl'}`}>
+                <div className="p-6">
+                    <div className="flex items-center gap-5 mb-8">
+                        <div className={`w-14 h-14 rounded-full flex items-center justify-center font-black text-xl shadow-lg transform transition-transform group-hover:scale-110 ${isWinner ? 'bg-gradient-to-br from-amber-300 to-amber-500 text-[#0f172a]' : 'bg-[#1e293b] text-white border border-slate-700'}`}>
+                            {r.horse_no}
                         </div>
-                    </div>
-                </div>
-                
-                <div className="space-y-8">
-                    <div>
-                        <div className="flex justify-between items-end mb-3">
-                            <span className="text-[11px] text-slate-400 font-bold uppercase tracking-[0.2em]">우승 확률</span>
-                            <span className={`text-2xl font-black leading-none ${isWinner ? 'text-white' : 'text-slate-200'}`}>{r.winProbability.toFixed(1)}%</span>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-md tracking-widest ${r.style === '선행' ? 'bg-rose-500/20 text-rose-400' : r.style === '선입' ? 'bg-blue-500/20 text-blue-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                                    {r.style}
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">{index + 1}위 예상</span>
+                            </div>
+                            <div className="text-lg font-black text-white truncate tracking-tight">
+                                {horseData?.name || '알 수 없음'}
+                            </div>
                         </div>
-                        <div className="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800/50">
-                            <div className={`h-full transition-all duration-1000 ease-out rounded-full ${isWinner ? 'bg-[#eab308]' : 'bg-indigo-600'}`} style={{ width: `${r.winProbability}%` }} />
-                        </div>
+                        <button 
+                            onClick={() => toggleTrace(r.horse_no)}
+                            className={`p-2 rounded-xl transition-all ${isExpanded ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-500 hover:text-white hover:bg-slate-700'}`}
+                        >
+                            <Icon name={isExpanded ? "chevron-up" : "activity"} size={16} />
+                        </button>
                     </div>
+                    
+                    <div className="space-y-8">
+                        <div>
+                            <div className="flex justify-between items-end mb-3 px-1">
+                                <span className="text-[11px] text-slate-400 font-black uppercase tracking-[0.2em]">우석 확률</span>
+                                <span className={`text-2xl font-black leading-none italic ${isWinner ? 'text-amber-400' : 'text-slate-200'}`}>{r.winProbability.toFixed(1)}%</span>
+                            </div>
+                            <div className="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800/80 p-0.5 shadow-inner">
+                                <div className={`h-full transition-all duration-1000 ease-out rounded-full ${isWinner ? 'bg-gradient-to-r from-amber-400 to-orange-500' : 'bg-gradient-to-r from-indigo-600 to-indigo-400 font-bold'}`} style={{ width: `${r.winProbability}%` }} />
+                            </div>
+                        </div>
 
-                    <div className="flex justify-between items-center text-[12px] font-bold py-4 px-2 bg-black/20 rounded-2xl border border-slate-800/30">
-                        <span className="text-slate-500 uppercase tracking-widest text-[9px]">기록 기복(표준편차)</span>
-                        <span className={`${isWinner ? 'text-yellow-500' : 'text-indigo-400'} font-black text-base`}>{r.stdDev.toFixed(2)}초</span>
+                        <div className="flex justify-between items-center text-[12px] font-bold py-4 px-5 bg-black/40 rounded-2xl border border-white/5 group-hover:border-white/10 transition-colors">
+                            <span className="text-slate-500 uppercase tracking-widest text-[9px]">기록 변동성 (StdDev)</span>
+                            <span className={`${isWinner ? 'text-amber-400' : 'text-indigo-400'} font-black text-base tabular-nums`}>{r.stdDev.toFixed(2)}초</span>
+                        </div>
                     </div>
                 </div>
+
+                {/* [NEW] Logic Trace Panel - Visualization of current adjustment factors */}
+                {isExpanded && (
+                    <div className="bg-black/40 border-t border-slate-800 animate-slide-down">
+                        <div className="p-5 space-y-3">
+                            <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4 flex items-center gap-2">
+                                <div className="w-1 h-1 bg-indigo-500 rounded-full" /> 시뮬레이션 보정 근거 (Logic Trace)
+                            </div>
+                            <div className="grid grid-cols-1 gap-2">
+                                {r.trace && r.trace.length > 0 ? r.trace.map((t, tidx) => (
+                                    <div key={tidx} className="flex items-center justify-between py-2 px-3 bg-slate-900/50 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                                        <span className="text-[12px] font-black text-slate-400">{t.factor}</span>
+                                        <span className={`text-[12px] font-black tabular-nums ${t.impact.includes('-') ? 'text-emerald-400' : t.impact.includes('+') ? 'text-rose-400' : 'text-slate-200'}`}>
+                                            {t.impact}
+                                        </span>
+                                    </div>
+                                )) : (
+                                    <div className="text-center py-4 text-slate-600 text-[10px] font-bold italic tracking-wide">
+                                        기초 능력치 기반 연산됨
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     };
@@ -277,9 +319,23 @@ const SimulationZone = ({ race, loc, trackInfo, statsAnalysis, sireInfo, jockeyS
                         <div className="p-10 bg-[#0f172a] border border-slate-800/80 rounded-[40px] relative overflow-hidden group">
                             <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-600 shadow-[0_0_15px_rgba(37,99,235,0.5)]" />
                             <p className="text-[15px] font-bold text-slate-300 leading-[1.9] flex items-center gap-4">
-                                {simResults.length > 0 && simResults.filter(r => r.style === '선행').length >= 3 
-                                    ? "대량의 선행마 경합이 예상됩니다. 초반 페이스 과열로 인해 후반 지침 현상이 발생할 수 있으며, 추입마의 반격 가능성이 높습니다."
-                                    : "선두권 전개가 비교적 한산합니다. 초반에 자리를 잡은 선행/선입마들이 페이스를 주도하며 유리한 고지를 점할 것으로 분석됩니다."}
+                                {(() => {
+                                    const earlyCount = simResults.filter(r => r.style === '선행').length;
+                                    let text = "";
+                                    
+                                    if (moisture <= 10) {
+                                        text += "건조 주로의 영향으로 모래가 깊어 선행마들의 체력 소모가 큽니다. ";
+                                    } else if (moisture >= 18) {
+                                        text += "다습 주로의 영향으로 주로가 단단해져 선행마들의 스피드가 잘 유지되는 유리한 환경입니다. ";
+                                    }
+
+                                    if (earlyCount >= 3) {
+                                        text += "또한 3두 이상의 선행 경합이 예상되어 초방 페이스 과열에 따른 후반 변수가 클 것으로 분석됩니다.";
+                                    } else {
+                                        text += "선두권 경합이 치열하지 않아 안정적인 전개가 예상됩니다.";
+                                    }
+                                    return text;
+                                })()}
                             </p>
                         </div>
                     </div>
@@ -290,7 +346,12 @@ const SimulationZone = ({ race, loc, trackInfo, statsAnalysis, sireInfo, jockeyS
                             <div className="bg-[#0f172a] p-8 rounded-[36px] border border-slate-800/50 group hover:border-blue-900/50 transition-all duration-300">
                                 <span className="text-[9px] text-slate-500 font-black uppercase tracking-[0.2em] mb-3 block">예상 평균 기록</span>
                                 <span className="text-3xl font-black text-white leading-none">
-                                    {simResults.length > 0 ? `1:${(simResults[0].expectedTime - 60).toFixed(2)}` : '1:21.12'}
+                                    {simResults.length > 0 ? (() => {
+                                        const totalSecs = simResults[0].expectedTime;
+                                        const mins = Math.floor(totalSecs / 60);
+                                        const secs = (totalSecs % 60).toFixed(2);
+                                        return `${mins}:${secs.padStart(5, '0')}`;
+                                    })() : '1:21.12'}
                                 </span>
                             </div>
                             <div className="bg-[#0f172a] p-8 rounded-[36px] border border-slate-800/50 group hover:border-blue-900/50 transition-all duration-300">
