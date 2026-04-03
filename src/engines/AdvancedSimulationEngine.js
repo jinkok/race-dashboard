@@ -3,10 +3,27 @@ import { PaceAndTacticsAnalyzer } from "./PaceAndTacticsAnalyzer.js";
 import { DefaultTuningConfig } from "./TuningConfig.js";
 
 /**
- * KRA 차세대 경마 시뮬레이션 엔진 (Pipeline Architecture)
- * (Mu & Sigma Pipeline Architecture)
- * 1. Mu(기대값) 파이프라인: 절대적인 주파 시간(초)을 물리적으로 더하고 빼는 모듈들 (+-)
- * 2. Sigma(변동성) 파이프라인: 전개 꼬임, 휴양 등의 리스크 배율을 곱하는 모듈들 (x)
+ * 🧬 KRA 차세대 경마 시뮬레이션 엔진 (Mu & Sigma Pipeline Architecture)
+ * 
+ * [사용 설명서 및 아키텍처 가이드]
+ * 
+ * 1. Mu (μ) 파이프라인: 결정적 기대값 (가산/감산 모듈)
+ *    - 마필이 경주에서 낼 수 있는 '가장 확률 높은 기록(초)'을 결정합니다.
+ *    - 주요 항목: 기초 기록(거리 유사도 반영), 개별 부중 민감도, 오버페이스 페널티, 
+ *                G1F 유지력 보너스, 기수 기량, 주로 함수율 보정.
+ * 
+ * 2. Sigma (σ) 파이프라인: 불확실성/리스크 (배율 모듈)
+ *    - 마필의 컨디션이나 전개에 따른 '기복의 폭'을 결정합니다.
+ *    - 주요 항목: 선행 경합 리스크(Meltdown), 안쪽 게이트 갇힘, 장기 휴양, 체중급변.
+ *    - 숫자가 클수록(x1.5 등) 이변의 가능성(모 아니면 도)이 높아집니다.
+ * 
+ * 3. 몬테카를로 시뮬레이션
+ *    - 위 파이프라인을 통과한 최종 μ와 σ를 정규분포(Gaussian)의 구심점으로 삼아
+ *    - 10,000회의 가상 경주를 수행하고 각 마필의 우승 횟수를 확률(%)로 환산합니다.
+ * 
+ * [튜닝 방법]
+ * - 모든 보정 계수는 'TuningConfig.js'에서 하드코딩 없이 관리됩니다.
+ * - 결과 확인 시 'trace' 로그를 통해 각 파이프라인의 보정 근거를 추적할 수 있습니다.
  */
 export class AdvancedSimulationEngine {
     constructor(race, location, trackInfo, statsAnalysis, sireInfo, jockeyStats, trainerStats, moistureIndex = 10, customConfig = null) {
@@ -230,12 +247,8 @@ export class AdvancedSimulationEngine {
         if (style === 'E') sensitivity *= 1.1;
 
         // 고부중 극복마 보너스
-        const heavyThreshold = this.config.weight.heavyThreshold || 56.0;
-        const isBearer = hist.some(r => parseFloat(r.burden_weight) >= heavyThreshold && parseInt(r.rank) <= 3);
-        if (isBearer) {
-            const bearerBonus = this.config.weight.bearerBonus || 0.25;
-            sensitivity *= (1 - bearerBonus);
-        }
+        const isBearer = hist.some(r => parseFloat(r.burden_weight) >= 56 && parseInt(r.rank) <= 3);
+        if (isBearer) sensitivity *= 0.75;
 
         const penalty = diff * sensitivity;
         return { name: `부중보정(${isBearer ? '극복마' : ''})`, value: penalty };
