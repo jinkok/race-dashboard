@@ -167,6 +167,7 @@ const SimulationZone = ({ race, loc, trackInfo, statsAnalysis, sireInfo, jockeyS
         <div className="bg-[#0b0f1a] border border-slate-800 rounded-[44px] overflow-hidden shadow-2xl mb-8 flex flex-col font-sans w-full max-w-full">
             {/* [STRICT UI SYNC] - Forcing Side-by-Side Horizontal Layout */}
             <div className="p-5 md:p-8 lg:p-10 border-b border-slate-800 flex flex-col gap-6 md:gap-8 bg-slate-900/10 backdrop-blur-3xl">
+                {/* [FRESH START] - Triggering build in a clean environment */}
                 {/* Deployment Test Trigger - Ready to verify responsive header */}
                 {/* Row 1: Title (Left) and Tabs (Right) - Responsive Layout */}
                 <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between w-full gap-5">
