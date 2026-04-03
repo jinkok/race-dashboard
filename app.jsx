@@ -351,7 +351,7 @@ function App() {
             if (!key.startsWith(prefix) || !Array.isArray(resArr)) return;
 
             const rNo = Number(key.split('_').pop());
-            if (rNo > currentRaceNo) return;
+            // Filter removed: all trophies for the day are accumulated regardless of current raceIdx
 
             const raceData = dbData?.locations?.[loc]?.races?.find(r => Number(r.race_no) === rNo);
             if (!raceData) return;
@@ -376,7 +376,7 @@ function App() {
             });
         });
         return stats;
-    }, [raceResults, realtimeResults, date, loc, dbData, raceIdx]);
+    }, [raceResults, realtimeResults, date, loc, dbData]);
 
     const TrophyBadge = ({ rank, count }) => {
         if (!count || count <= 0) return null;
@@ -1055,21 +1055,32 @@ function App() {
                                             )}
                                         </div>
                                         <div className="flex items-center gap-3">
-                                            {results?.length > 0 && (
-                                                <div className="flex items-center gap-1.5 pr-3 border-r border-slate-200">
-                                                    {results.map((no, rIdx) => (
-                                                        <div key={rIdx} className="flex flex-col items-center gap-0.5">
-                                                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter leading-none">{rIdx === 0 ? '1st' : rIdx === 1 ? '2nd' : '3rd'}</span>
-                                                            <button 
-                                                                onClick={(e) => { e.stopPropagation(); if(isResultEditMode) toggleRaceResult(no); }}
-                                                                className={`w-7 h-7 rounded-lg font-black text-sm flex items-center justify-center shadow-sm transition-all ${isResultEditMode ? 'hover:scale-110 active:bg-red-500 active:text-white' : 'pointer-events-none'} ${getBadgeStyle(no)}`}
-                                                            >
-                                                                {no}
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
+                                            {(() => {
+                                                // 🥇 결과 우선순위: 수동 입력(배팅용) > 크롤링 데이터(자동)
+                                                const displayedResults = (results && results.length > 0) 
+                                                    ? results 
+                                                    : (realtimeResults && realtimeResults.winners) 
+                                                        ? realtimeResults.winners 
+                                                        : [];
+                                                
+                                                if (displayedResults.length === 0) return null;
+                                                
+                                                return (
+                                                    <div className="flex items-center gap-1.5 pr-3 border-r border-slate-200">
+                                                        {displayedResults.slice(0, 3).map((no, rIdx) => (
+                                                            <div key={rIdx} className="flex flex-col items-center gap-0.5">
+                                                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter leading-none">{rIdx === 0 ? '1st' : rIdx === 1 ? '2nd' : '3rd'}</span>
+                                                                <button 
+                                                                    onClick={(e) => { e.stopPropagation(); if(isResultEditMode) toggleRaceResult(no); }}
+                                                                    className={`w-7 h-7 rounded-lg font-black text-sm flex items-center justify-center shadow-sm transition-all ${isResultEditMode ? 'hover:scale-110 active:bg-red-500 active:text-white' : 'pointer-events-none'} ${getBadgeStyle(no)}`}
+                                                                >
+                                                                    {no}
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            })()}
                                             <div className="flex flex-col items-end">
                                                 <span className="text-[10px] text-slate-400 font-bold uppercase">우승마 평균기록</span>
                                                 <div className="font-black text-slate-800 text-sm tabular flex items-center gap-1"><Icon name="timer" size={14} className="text-indigo-500" />{stats?.avg_record || '-'}</div>
@@ -1574,9 +1585,9 @@ function App() {
                                                                             return (
                                                                                 <div className="flex flex-wrap gap-1 items-center">
                                                                                     {uniqueRides.map((rNo, ridx) => {
-                                                                                        const res = raceResults[`${date}_${loc}_${rNo}`];
+                                                                                        const res = raceResults[`${date}_${loc}_${rNo}`] || realtimeResults?.[`${date}_${loc}_${rNo}`]?.winners;
                                                                                         let emoji = "";
-                                                                                        if (res && rNo <= raceIdx + 1) {
+                                                                                        if (res) {
                                                                                             const rData = currentLocData.races.find(r => Number(r.race_no) === Number(rNo));
                                                                                             const horseInRace = rData?.horses.find(bh => normalizeName(bh.jockey) === jName);
                                                                                             if (horseInRace) {
