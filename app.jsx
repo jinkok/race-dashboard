@@ -1401,7 +1401,10 @@ function App() {
                                                     <div className="flex flex-col items-start shrink-0 border-l border-slate-100 pl-1.5">
                                                         <span className="text-[8px] text-slate-400 leading-tight">훈련</span>
                                                         <span className={`text-[10px] font-bold tabular leading-tight ${getNum(h.training_cnt) === maxTraining ? 'text-rose-500' : getNum(h.training_cnt) === minTraining ? 'text-blue-500' : 'text-slate-700'}`}>
-                                                            {h.training_cnt || '-'}{h.jockey_training_cnt > 0 ? `(${h.jockey_training_cnt})` : ''}회
+                                                            {h.training_cnt || '-'}{(() => {
+                                                                const count = h.training_history?.filter(tr => normalizeName(tr.rider) === normalizeName(h.jockey)).length;
+                                                                return count > 0 ? `(${count})` : '';
+                                                            })()}회
                                                         </span>
                                                     </div>
                                                     <div className="flex flex-col items-start shrink-0 border-l border-slate-100 pl-1.5">
