@@ -31,6 +31,9 @@ pnpm-debug.log*
 
 # [Sensitive]
 .env*
+
+# [Docs]    
+EngineGuid/ 
 docs/firebase-service-account.json
 !public/firebase-config.js
 !public/style.css
