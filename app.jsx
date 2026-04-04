@@ -42,24 +42,24 @@ function App() {
     const TicketSlot = ({ idx, activeGameIdx, setActiveGameIdx, g, count, results, realtimeResults, checkBetWin }) => {
         const isActive = activeGameIdx === idx;
         const hasSelection = count > 0;
-        
+
         // 🥇 결과 우선순위: 크롤링 데이터 > 수동 입력 데이터
         // 🚨 인덱싱 통일: { 1: 마번, 2: 마번, 3: 마번 } 형태로 변환 (checkBetWin 호환용)
         let finalResults = null;
         if (realtimeResults && realtimeResults.winners) {
-            finalResults = { 
-                1: realtimeResults.winners[0], 
-                2: realtimeResults.winners[1], 
-                3: realtimeResults.winners[2] 
+            finalResults = {
+                1: realtimeResults.winners[0],
+                2: realtimeResults.winners[1],
+                3: realtimeResults.winners[2]
             };
         } else if (Array.isArray(results) && results.length > 0) {
-            finalResults = { 
-                1: results[0], 
-                2: results[1], 
-                3: results[2] 
+            finalResults = {
+                1: results[0],
+                2: results[1],
+                3: results[2]
             };
         }
-            
+
         const isWin = finalResults && checkBetWin(g.type, g.ranks, finalResults);
 
         // 결과에 따른 보더 색상 결정
@@ -73,8 +73,8 @@ function App() {
             <button
                 onClick={() => setActiveGameIdx(idx)}
                 className={`h-full rounded-xl font-black transition-all duration-300 ease-out flex items-center px-1.5 relative border-2 ${isActive
-                        ? 'flex-[12] bg-blue-600 text-white shadow-lg'
-                        : 'flex-1 bg-slate-800 text-slate-500 hover:text-slate-400'
+                    ? 'flex-[12] bg-blue-600 text-white shadow-lg'
+                    : 'flex-1 bg-slate-800 text-slate-500 hover:text-slate-400'
                     } ${getResultBorder()}`}
             >
                 <div className="flex items-center min-w-0 w-full h-full relative">
@@ -130,7 +130,6 @@ function App() {
     // 🐎 [신규] 외부 데이터 로드 (SIRE_DATA, TRACK_INFO, STATS)
     const [trackInfo, setTrackInfo] = useState(null);
     const [mergedRaceData, setMergedRaceData] = useState(null);
-    const [isSimOpen, setIsSimOpen] = useState(false);
 
     useEffect(() => {
         // Sire Info (Static)
@@ -184,10 +183,17 @@ function App() {
         return localStorage.getItem(`local_memo_${pickPath}`) || '';
     });
     const [isBetPanelOpen, setIsBetPanelOpen] = useState(false);
+    const [isSimOpen, setIsSimOpen] = useState(false);
+    const [isBulletinOpen, setIsBulletinOpen] = useState(false);
+    const [isOddsOpen, setIsOddsOpen] = useState(false);
+    const [hasNewBulletin, setHasNewBulletin] = useState(false);
     const [raceResults, setRaceResults] = useState({});
     const [realtimeResults, setRealtimeResults] = useState(null);
     const [allRealtimeResults, setAllRealtimeResults] = useState({});
     const [realtimeWeights, setRealtimeWeights] = useState(null);
+    const [realtimeBulletins, setRealtimeBulletins] = useState({ scratches: [], jockeyChanges: {}, startTime: "" });
+    const [bulletinHistory, setBulletinHistory] = useState([]);
+    const [realtimeMoisture, setRealtimeMoisture] = useState(null);
     const [isResultEditMode, setIsResultEditMode] = useState(false);
     const [picksStatus, setPicksStatus] = useState('loading'); // 'loading', 'synced', 'local', 'modified'
     const lastLoadedPath = useRef(null);
@@ -345,10 +351,10 @@ function App() {
 
         const prefix = `${date}_${loc}_`;
         const currentRaceNo = raceIdx + 1;
-        
+
         // 1. Manual Results
         const allResults = { ...raceResults };
-        
+
         // 2. Automated Results (Merge allRealtimeResults)
         Object.entries(allRealtimeResults).forEach(([rNo, data]) => {
             if (data && data.winners) {
@@ -372,7 +378,7 @@ function App() {
             resArr.forEach((horseNo, idx) => {
                 const rank = idx + 1;
                 if (!horseNo) return;
-                
+
                 const horse = raceData.horses.find(h => Number(h.horse_no) === Number(horseNo));
                 if (!horse) return;
 
@@ -394,7 +400,7 @@ function App() {
     const TrophyBadge = ({ rank, count }) => {
         if (!count || count <= 0) return null;
         const emojis = { 1: "🥇", 2: "🥈", 3: "🥉" };
-        
+
         return (
             <div className="flex items-center gap-0.5 animate-fade-in">
                 <span className="text-sm">{emojis[rank]}</span>
@@ -429,7 +435,7 @@ function App() {
             if (window.fb && window.fb.isReady) {
                 clearInterval(interval);
                 const { auth, onAuthStateChanged, signInAnonymously } = window.fb;
-                
+
                 // 인증 상태 감시
                 onAuthStateChanged(auth, u => {
                     setUser(u);
@@ -473,7 +479,7 @@ function App() {
         const { db, doc, onSnapshot } = window.fb;
         const appId = 'race-app-3e41d';
         const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'raceDataJson', date);
-        
+
         const unsub = onSnapshot(docRef, (snap) => {
             if (snap.exists()) {
                 setDbData(snap.data());
@@ -486,7 +492,7 @@ function App() {
             console.error("Race data sync error:", err);
             setSyncStatus('error');
         });
-        
+
         return () => unsub();
     }, [user, date]);
 
@@ -496,7 +502,7 @@ function App() {
         const { db, doc, onSnapshot } = window.fb;
         const notesRef = doc(db, 'artifacts', 'race-app-3e41d', 'public', 'horseNotesData');
         const resultsRef = doc(db, 'artifacts', 'race-app-3e41d', 'public', 'raceResultsData');
-        
+
         onSnapshot(notesRef, (snap) => {
             if (snap.exists()) setHorseNotes(snap.data());
         }, (err) => console.error("Notes data sync error:", err));
@@ -510,11 +516,11 @@ function App() {
     useEffect(() => {
         if (!user || !window.fb?.isReady || !date || !loc) return;
         const { db, doc, onSnapshot } = window.fb;
-        
+
         // 🔥 Crawler와 날짜 형식 통일 (2026-03-29 -> 20260329)
         const fbDate = date.replace(/-/g, '');
         if (!fbDate) return;
-        
+
         // 1. Results Sync
         const resPath = `realtime/results/${fbDate}/${loc}/races/${raceIdx + 1}`;
         const resRef = doc(db, resPath);
@@ -531,9 +537,39 @@ function App() {
             else setRealtimeWeights(null);
         }, (err) => console.error("Realtime Weights sync error:", err));
 
-        return () => { unsubRes(); unsubWeight(); };
+        // 3. Bulletins Sync (속보: 제외, 기수변경, 시간변경)
+        const bulletinPath = `realtime/bulletins/${fbDate}/${loc}/races/${raceIdx + 1}`;
+        const bulletinRef = doc(db, bulletinPath);
+        const unsubBulletin = onSnapshot(bulletinRef, (snap) => {
+            if (snap.exists()) {
+                const data = snap.data();
+                setRealtimeBulletins(data);
+
+                // 새로운 속보 히스토리 누적 (최신순)
+                if (data.logs && Array.isArray(data.logs)) {
+                    setBulletinHistory(prev => {
+                        // 중복 체크 및 최신순 정렬
+                        const combined = [...data.logs];
+                        return combined.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                    });
+                    setHasNewBulletin(true);
+                }
+            }
+        }, (err) => console.error("Realtime Bulletin sync error:", err));
+
+        // 4. Track Sync (함수율)
+        const trackPath = `realtime/track/${fbDate}/${loc}/races/${raceIdx + 1}`;
+        const trackRef = doc(db, trackPath);
+        const unsubTrack = onSnapshot(trackRef, (snap) => {
+            if (snap.exists()) {
+                const data = snap.data();
+                if (data.moisture !== undefined) setRealtimeMoisture(data.moisture);
+            }
+        }, (err) => console.error("Realtime Track sync error:", err));
+
+        return () => { unsubRes(); unsubWeight(); unsubBulletin(); unsubTrack(); };
     }, [user, date, loc, raceIdx]);
-    
+
     // 3.2 [신규] 금일 전체 실시간 데이터 연동 (트로피 집계용)
     useEffect(() => {
         if (!user || !window.fb?.isReady || !date || !loc) return;
@@ -543,7 +579,7 @@ function App() {
 
         const racesPath = `realtime/results/${fbDate}/${loc}/races`;
         const racesCol = collection(db, racesPath);
-        
+
         const unsub = onSnapshot(racesCol, (snap) => {
             const resultsMap = {};
             snap.forEach(doc => {
@@ -558,12 +594,12 @@ function App() {
     // 3.5 Local Selections Persistence (Save changes to local storage IMMEDIATELY)
     useEffect(() => {
         const pickPath = `picks_${date}_${loc}_${raceIdx + 1}`;
-        
+
         // 중요: 현재 로드된 경주와 저장하려는 경로가 일치할 때만 로컬 저장 수행 (경주 이동 시 데이터 오염 방지)
         if (lastLoadedPath.current === pickPath && picksStatus !== 'loading') {
             localStorage.setItem(`local_${pickPath}`, JSON.stringify(betGames));
             localStorage.setItem(`local_memo_${pickPath}`, betMemo);
-            
+
             // 수정됨 상태로 변경 (기존이 'synced' 또는 'local'일 때만)
             if (picksStatus === 'synced' || picksStatus === 'local') {
                 // 실제 변경 사항이 있는지 심층 비교는 생략하고 상태만 업데이트 (편의성)
@@ -597,8 +633,8 @@ function App() {
             } else {
                 const saved = localStorage.getItem(`local_${pickPath}`);
                 if (saved) {
-                    try { 
-                        setBetGames(JSON.parse(saved)); 
+                    try {
+                        setBetGames(JSON.parse(saved));
                         setPicksStatus('local');
                     } catch (e) { setPicksStatus('none'); }
                 } else {
@@ -663,7 +699,7 @@ function App() {
         if (!user || user.isAnonymous) return alert('결과를 입력하려면 구글 계정으로 로그인해 주세요.');
         const resKey = `${date}_${loc}_${race?.race_no}`;
         const currentRes = raceResults[resKey] || [];
-        
+
         let nextRes;
         if (currentRes.includes(no)) {
             nextRes = currentRes.filter(h => h !== no);
@@ -691,7 +727,7 @@ function App() {
         const { db, doc, setDoc } = window.fb;
         const appId = 'race-app-3e41d';
         const pickPath = `picks_${date}_${loc}_${raceIdx + 1}`;
-        
+
         // 로컬에 선저장
         localStorage.setItem(`local_${pickPath}`, JSON.stringify(betGames));
         localStorage.setItem(`local_memo_${pickPath}`, betMemo);
@@ -760,33 +796,33 @@ function App() {
             try {
                 const json = JSON.parse(ev.target.result);
                 if (!json || !json.date) throw new Error("유효하지 않은 파일 형식입니다 (날짜 정보 없음).");
-                
+
                 // 🚨 실시간 동기화 파일(kra_sync) 등 불완전한 파일 업로드 방지
                 const hasRaces = json.locations && Object.values(json.locations).some(loc => loc.races && Array.isArray(loc.races));
                 if (!hasRaces) {
                     throw new Error("경주마 정보(races)가 없는 불완전한 파일입니다. 메인 DB 파일 (Merged_Race_Data_*.json)을 업로드해주세요.");
                 }
-                
+
                 const dateMatch = String(json.date).match(/(\d{4}-\d{2}-\d{2})/);
                 const targetDate = dateMatch ? dateMatch[1] : date;
-                
+
                 // 🚨 실시간 상태 초기화
-                setRealtimeResults(null); 
+                setRealtimeResults(null);
                 setRealtimeWeights(null);
                 setDbData(json);
                 setRaceIdx(0); // 🚨 [필수] 인덱스 초기화
-                
+
                 setDate(targetDate);
-                
+
                 if (user && !user.isAnonymous) {
                     const { db, doc, setDoc } = window.fb;
                     const docRef = doc(db, 'artifacts', 'race-app-3e41d', 'public', 'data', 'raceDataJson', targetDate);
                     await setDoc(docRef, { ...json, lastUpdated: new Date().toISOString() });
                     setSyncStatus('synced');
                 }
-            } catch (err) { 
+            } catch (err) {
                 console.error("Upload error:", err);
-                alert("파일 로드 실패: " + err.message); 
+                alert("파일 로드 실패: " + err.message);
             }
         };
         reader.readAsText(file);
@@ -894,7 +930,7 @@ function App() {
         });
 
         const targetDistNum = info && info.distance ? parseInt(String(info.distance).replace(/\D/g, '')) : 0;
-        
+
         // 🚨 [필수] race 또는 horses가 없을 경우 대비 가드 (파일 업로드 직후 등)
         const horsePerformance = (race && race.horses) ? race.horses.map(h => {
             const validHistory = h.recent_history?.filter(hist =>
@@ -977,10 +1013,10 @@ function App() {
                     <div className="flex items-center gap-1.5 min-w-0 shrink-0">
                         <div className="bg-yellow-400 p-1 rounded-lg text-slate-900 shrink-0 scale-90 md:scale-100"><Icon name="trophy" size={14} /></div>
                         <span className="font-black italic text-base md:text-lg tracking-tighter truncate leading-none">SMART<span className="text-yellow-400">RACING</span></span>
-                        
+
                         <div className="shrink-0 flex items-center">
                             {user && !user.isAnonymous ? (
-                                <button 
+                                <button
                                     onClick={logout}
                                     className="group relative flex items-center justify-center animate-fade-in ml-0.5"
                                     title="로그아웃 하시겠습니까?"
@@ -992,7 +1028,7 @@ function App() {
                                     </div>
                                 </button>
                             ) : (
-                                <button 
+                                <button
                                     onClick={loginWithGoogle}
                                     className="w-6 h-6 md:w-7 md:h-7 bg-slate-800 rounded-full flex items-center justify-center border border-slate-700 hover:border-indigo-400 hover:bg-slate-700 transition-all shadow-lg group ml-0.5"
                                     title="구글 로그인"
@@ -1002,11 +1038,11 @@ function App() {
                             )}
                         </div>
                     </div>
-                    
+
                     <div className="flex-1"></div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
-                        <button 
+                        <button
                             onClick={() => dateInputRef.current?.showPicker()}
                             className="relative flex items-center bg-slate-800 text-white text-[10px] md:text-[11px] font-black px-2 py-1 md:px-3 md:py-1.5 rounded-xl border border-slate-700/50 hover:border-yellow-400/50 transition-all shadow-lg group overflow-hidden"
                         >
@@ -1014,12 +1050,12 @@ function App() {
                                 {formatDisplayDate(date)}
                                 <Icon name="calendar" size={10} className="text-yellow-400 opacity-80 group-hover:scale-110 transition-transform" />
                             </span>
-                            <input 
+                            <input
                                 type="date"
                                 ref={dateInputRef}
-                                value={date} 
-                                onChange={(e) => setDate(e.target.value)} 
-                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-20" 
+                                value={date}
+                                onChange={(e) => setDate(e.target.value)}
+                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-20"
                             />
                         </button>
                         {user && !user.isAnonymous && (
@@ -1037,13 +1073,15 @@ function App() {
                                         <h2 className="text-2xl font-black text-white italic tracking-tight">{currentLocData.location_name} {race?.race_no}<span className="text-lg font-bold text-slate-400 not-italic ml-1">경주</span></h2>
                                     </div>
                                     {isResultEntryPossible && user && !user.isAnonymous && (
-                                        <button 
-                                            onClick={() => setIsResultEditMode(!isResultEditMode)} 
-                                            className={`ml-1 flex items-center gap-1.5 px-2 py-1 rounded-lg border-2 transition-all active:scale-95 ${isResultEditMode ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
-                                        >
-                                            <Icon name={isResultEditMode ? "check-circle" : "edit-2"} size={12} />
-                                            <span className="text-[10px] font-black">{isResultEditMode ? "입력완료" : "결과입력"}</span>
-                                        </button>
+                                        <div className="flex items-center gap-1.5 ml-1">
+                                            <button
+                                                onClick={() => setIsResultEditMode(!isResultEditMode)}
+                                                className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border-2 transition-all active:scale-95 ${isResultEditMode ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
+                                            >
+                                                <Icon name={isResultEditMode ? "check-circle" : "edit-2"} size={12} />
+                                                <span className="text-[10px] font-black">{isResultEditMode ? "입력완료" : "결과입력"}</span>
+                                            </button>
+                                        </div>
                                     )}
                                     <div className="flex items-center gap-2 ml-2">
                                         <div className="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700 shadow-inner">
@@ -1085,7 +1123,9 @@ function App() {
                                             <div className="flex items-center gap-3">
                                                 <span className="bg-indigo-600 text-white text-[11px] font-black px-2.5 py-1 rounded-lg">{info.class}</span>
                                                 <span className="text-base font-bold text-slate-800 tabular">{info.distance}</span>
-                                                <span className="text-xs text-slate-400 font-medium tabular">| {info.start_time}</span>
+                                                <span className="text-xs font-medium tabular text-slate-400">
+                                                    | {realtimeBulletins.startTime || info.start_time}
+                                                </span>
                                             </div>
                                             {info.conditions && (
                                                 <div className="text-[10px] text-slate-500 font-bold flex items-center gap-1 mt-0.5 bg-slate-100/50 px-2 py-0.5 rounded-md w-fit">
@@ -1096,21 +1136,21 @@ function App() {
                                         <div className="flex items-center gap-3">
                                             {(() => {
                                                 // 🥇 결과 우선순위: 수동 입력(배팅용) > 크롤링 데이터(자동)
-                                                const displayedResults = (results && results.length > 0) 
-                                                    ? results 
-                                                    : (realtimeResults && realtimeResults.winners) 
-                                                        ? realtimeResults.winners 
+                                                const displayedResults = (results && results.length > 0)
+                                                    ? results
+                                                    : (realtimeResults && realtimeResults.winners)
+                                                        ? realtimeResults.winners
                                                         : [];
-                                                
+
                                                 if (displayedResults.length === 0) return null;
-                                                
+
                                                 return (
                                                     <div className="flex items-center gap-1.5 pr-3 border-r border-slate-200">
                                                         {displayedResults.slice(0, 3).map((no, rIdx) => (
                                                             <div key={rIdx} className="flex flex-col items-center gap-0.5">
                                                                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter leading-none">{rIdx === 0 ? '1st' : rIdx === 1 ? '2nd' : '3rd'}</span>
-                                                                <button 
-                                                                    onClick={(e) => { e.stopPropagation(); if(isResultEditMode) toggleRaceResult(no); }}
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); if (isResultEditMode) toggleRaceResult(no); }}
                                                                     className={`w-7 h-7 rounded-lg font-black text-sm flex items-center justify-center shadow-sm transition-all ${isResultEditMode ? 'hover:scale-110 active:bg-red-500 active:text-white' : 'pointer-events-none'} ${getBadgeStyle(no)}`}
                                                                 >
                                                                     {no}
@@ -1158,35 +1198,136 @@ function App() {
                                             )}
                                         </div>
                                     )}
-                                    <button 
-                                        onClick={() => setIsSimOpen(!isSimOpen)}
-                                        className={`w-full mt-2 py-1.5 flex items-center justify-center gap-2 border-t border-slate-100 hover:bg-slate-50 transition-all active:bg-slate-100 rounded-b-3xl -mx-4 w-[calc(100%+32px)] group transition-all duration-300`}
-                                    >
-                                        <div className="flex items-center gap-1.5">
-                                            <span className={`text-[10px] font-black tracking-tighter ${isSimOpen ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'}`}>
-                                                {isSimOpen ? "분석 보드 닫기" : "AI 몬테카를로 분석 보기"}
-                                            </span>
-                                            <Icon 
-                                                name={isSimOpen ? "chevron-up" : "chevron-down"} 
-                                                size={12} 
-                                                className={`transition-transform duration-300 ${isSimOpen ? 'text-indigo-500' : 'text-slate-300 group-hover:translate-y-0.5'}`} 
-                                            />
-                                        </div>
-                                    </button>
+                                    <div className="flex border-t border-slate-100 rounded-b-3xl -mx-4 w-[calc(100%+32px)]">
+                                        <button
+                                            onClick={() => {
+                                                const nextValue = !isSimOpen;
+                                                setIsSimOpen(nextValue);
+                                                if (nextValue) {
+                                                    setIsBulletinOpen(false);
+                                                    setIsBetPanelOpen(false);
+                                                }
+                                            }}
+                                            className="flex-1 py-2 flex items-center justify-center gap-2 hover:bg-slate-50 transition-all active:bg-slate-100 border-r border-slate-100 group"
+                                        >
+                                            <div className="flex items-center gap-1.5">
+                                                <span className={`text-[10px] font-black tracking-tighter ${isSimOpen ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'}`}>
+                                                    {isSimOpen ? "분석 보드 닫기" : "AI 몬테카를로 분석"}
+                                                </span>
+                                                <Icon
+                                                    name={isSimOpen ? "chevron-up" : "chevron-down"}
+                                                    size={12}
+                                                    className={`transition-transform duration-300 ${isSimOpen ? 'text-indigo-500' : 'text-slate-300 group-hover:translate-y-0.5'}`}
+                                                />
+                                            </div>
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                const nextValue = !isBulletinOpen;
+                                                setIsBulletinOpen(nextValue);
+                                                setHasNewBulletin(false);
+                                                if (nextValue) {
+                                                    setIsSimOpen(false);
+                                                    setIsBetPanelOpen(false);
+                                                }
+                                            }}
+                                            className="flex-1 py-2 flex items-center justify-center gap-2 hover:bg-slate-50 transition-all active:bg-slate-100 border-r border-slate-100 relative group"
+                                        >
+                                            <div className="flex items-center gap-1.5">
+                                                <span className={`text-[10px] font-black tracking-tighter ${isBulletinOpen ? 'text-rose-600' : hasNewBulletin ? 'text-rose-500 animate-blink' : 'text-slate-400 group-hover:text-slate-600'}`}>
+                                                    경주속보
+                                                </span>
+                                                <Icon
+                                                    name="megaphone"
+                                                    size={12}
+                                                    className={`${isBulletinOpen ? 'text-rose-500' : hasNewBulletin ? 'text-rose-500 animate-blink' : 'text-slate-300'}`}
+                                                />
+                                                {hasNewBulletin && <span className="absolute top-2 right-4 w-1.5 h-1.5 bg-rose-500 rounded-full animate-ping"></span>}
+                                            </div>
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                const nextValue = !isBetPanelOpen;
+                                                setIsBetPanelOpen(nextValue);
+                                                if (nextValue) {
+                                                    setIsSimOpen(false);
+                                                    setIsBulletinOpen(false);
+                                                }
+                                            }}
+                                            className="flex-1 py-2 flex items-center justify-center gap-2 hover:bg-slate-50 transition-all active:bg-slate-100 group"
+                                        >
+                                            <div className="flex items-center gap-1.5">
+                                                <span className={`text-[10px] font-black tracking-tighter ${isBetPanelOpen ? 'text-emerald-600' : 'text-slate-400 group-hover:text-slate-600'}`}>
+                                                    {isBetPanelOpen ? "닫기" : "배팅 및 결과"}
+                                                </span>
+                                                <Icon
+                                                    name="layout"
+                                                    size={12}
+                                                    className={`${isBetPanelOpen ? 'text-emerald-500' : 'text-slate-300'}`}
+                                                />
+                                            </div>
+                                        </button>
+                                    </div>
                                 </div>
+                            </div>
+                        )}
 
+                        {/* 📣 경주 속보 패널 (확장형 - 몬테카를로 근처 배치) */}
+                        {isBulletinOpen && (
+                            <div className="px-4 mb-4">
+                                <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-lg animate-slide-down">
+                                    <div className="bg-slate-900 px-4 py-2.5 flex justify-between items-center">
+                                        <div className="flex items-center gap-2">
+                                            <div className="bg-rose-500 p-1 rounded-md animate-pulse">
+                                                <Icon name="megaphone" size={14} className="text-white" />
+                                            </div>
+                                            <span className="text-[11px] font-black text-white italic tracking-wider uppercase">Real-time Race Bulletin</span>
+                                        </div>
+                                        <button onClick={() => setIsBulletinOpen(false)} className="text-slate-400 hover:text-white transition-colors">
+                                            <Icon name="x" size={16} />
+                                        </button>
+                                    </div>
+                                    <div className="max-h-[220px] overflow-y-auto p-3 space-y-2 bg-slate-50/50 scrollbar-hide">
+                                        {bulletinHistory.length > 0 ? (
+                                            bulletinHistory.map((log, idx) => (
+                                                <div key={idx} className="flex gap-3 p-3 bg-white rounded-2xl border border-slate-200/60 shadow-sm animate-fade-in text-left group hover:border-rose-200 transition-colors">
+                                                    <div className="flex flex-col items-center gap-1 shrink-0">
+                                                        <span className="text-[9px] font-black text-slate-400 tabular leading-none">{new Date(log.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                        <div className="w-px h-full bg-slate-100 group-last:hidden"></div>
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <div className="text-[11px] font-bold text-slate-800 leading-snug whitespace-pre-wrap">{log.message}</div>
+                                                        <div className="flex gap-1.5 mt-2">
+                                                            {log.type === 'scratch' && <span className="bg-rose-50 text-rose-600 px-2 py-0.5 rounded-lg text-[9px] font-black border border-rose-100 italic">출전제외</span>}
+                                                            {log.type === 'jockey' && <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-lg text-[9px] font-black border border-indigo-100 italic">기수변경</span>}
+                                                            {log.type === 'time' && <span className="bg-amber-50 text-amber-600 px-2 py-0.5 rounded-lg text-[9px] font-black border border-amber-100 italic">시간변경</span>}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="py-10 text-center flex flex-col items-center gap-3">
+                                                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border border-slate-100 shadow-sm">
+                                                    <Icon name="info" size={24} className="text-slate-200" />
+                                                </div>
+                                                <div className="text-slate-400 text-[10px] font-medium italic">수신된 실시간 속보가 없습니다.</div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         )}
 
                         {/* AI 시뮬레이션 존 (신규 엔진 통합, 토글 상태 반영) */}
                         {isSimOpen && (
                             <div className="px-4 mb-6">
-                                <SimulationZone 
-                                    race={race} 
-                                    info={info} 
-                                    loc={loc} 
+                                <SimulationZone
+                                    race={race}
+                                    info={info}
+                                    loc={loc}
                                     trackInfo={trackInfo}
                                     statsAnalysis={race?.stats_analysis}
+                                    realtimeMoisture={realtimeMoisture}
                                     sireInfo={Object.values(sireMap)}
                                     user={user}
                                 />
@@ -1296,7 +1437,7 @@ function App() {
 
                                 return (
                                     <div key={h.horse_no} className={`bg-white rounded-2xl shadow-sm border transition-all duration-300 overflow-hidden animate-up relative ${isExp ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-slate-100'} ${isResultEditMode && results.includes(h.horse_no) ? 'ring-2 ring-indigo-600 ring-offset-2' : ''}`} style={{ animationDelay: `${0.2 + (i * 0.05)}s` }}>
-                                        <div className="p-3 flex items-stretch cursor-pointer" onClick={() => {
+                                        <div className={`p-3 flex items-stretch cursor-pointer ${(realtimeBulletins.scratches?.includes(h.horse_no) || realtimeBulletins.scratches?.includes(Number(h.horse_no))) ? 'opacity-40 grayscale pointer-events-none' : ''}`} onClick={() => {
                                             if (isResultEditMode) {
                                                 toggleRaceResult(h.horse_no);
                                             } else if (expanded === h.horse_no) {
@@ -1306,6 +1447,12 @@ function App() {
                                                 setSubTab('records');
                                             }
                                         }}>
+                                            {/* 출전 제외 표시 오버레이 */}
+                                            {(realtimeBulletins.scratches?.includes(h.horse_no) || realtimeBulletins.scratches?.includes(Number(h.horse_no))) && (
+                                                <div className="absolute inset-0 flex items-center justify-center z-10 bg-slate-900/5 backdrop-blur-[1px]">
+                                                    <div className="bg-slate-900/80 text-white px-3 py-1 rounded-full text-[10px] font-black tracking-widest border border-slate-700 translate-y-[-10px]">출전제외</div>
+                                                </div>
+                                            )}
                                             {/* 좌측 구획: 마명정보(상) + 상세수치(하) - 너비 최적화 */}
                                             <div className="flex flex-col w-[185px] shrink-0 pr-4 relative">
                                                 {/* Equipment Tooltip Overlay */}
@@ -1355,14 +1502,18 @@ function App() {
                                                             <span className="text-slate-400 font-medium shrink-0">{h.origin}/{h.sex}/{h.age}</span>
                                                             <span className="text-indigo-600 font-black flex items-center gap-0.5 truncate">
                                                                 <Icon name="user" size={10} />
-                                                                {h.jockey}
                                                                 {(() => {
-                                                                    const stats = winStatsToday?.jockeys?.[normalizeName(h.jockey)];
-                                                                    if (!stats) return "";
+                                                                    const effJockey = realtimeBulletins.jockeyChanges?.[h.horse_no] || h.jockey;
+                                                                    const stats = winStatsToday?.jockeys?.[normalizeName(effJockey)];
                                                                     return (
-                                                                        <span className="ml-1 tracking-[-2.5px] opacity-90 scale-90 inline-block">
-                                                                            {"🥇".repeat(stats[1] || 0)}{"🥈".repeat(stats[2] || 0)}{"🥉".repeat(stats[3] || 0)}
-                                                                        </span>
+                                                                        <>
+                                                                            {effJockey}
+                                                                            {stats && (
+                                                                                <span className="ml-1 tracking-[-2.5px] opacity-90 scale-90 inline-block">
+                                                                                    {"🥇".repeat(stats[1] || 0)}{"🥈".repeat(stats[2] || 0)}{"🥉".repeat(stats[3] || 0)}
+                                                                                </span>
+                                                                            )}
+                                                                        </>
                                                                     );
                                                                 })()}
                                                             </span>
@@ -1402,7 +1553,8 @@ function App() {
                                                         <span className="text-[8px] text-slate-400 leading-tight">훈련</span>
                                                         <span className={`text-[10px] font-bold tabular leading-tight ${getNum(h.training_cnt) === maxTraining ? 'text-rose-500' : getNum(h.training_cnt) === minTraining ? 'text-blue-500' : 'text-slate-700'}`}>
                                                             {h.training_cnt || '-'}{(() => {
-                                                                const count = h.training_history?.filter(tr => normalizeName(tr.rider) === normalizeName(h.jockey)).length;
+                                                                const effJockey = realtimeBulletins.jockeyChanges?.[h.horse_no] || h.jockey;
+                                                                const count = (h.training_logs_detailed || h.training_history || h.training_logs || [])?.filter(tr => normalizeName(tr.rider || tr.jockey || tr.name) === normalizeName(effJockey)).length;
                                                                 return count > 0 ? `(${count})` : '';
                                                             })()}회
                                                         </span>
@@ -1528,7 +1680,8 @@ function App() {
                                                     {[
                                                         {
                                                             id: 'jockey', label: (() => {
-                                                                const jName = (h.jockey || '').replace(/[^가-힣]/g, '');
+                                                                const effJockey = realtimeBulletins.jockeyChanges?.[h.horse_no] || h.jockey;
+                                                                const jName = (effJockey || '').replace(/[^가-힣]/g, '');
                                                                 const rides = jockeyRidesMap[jName];
                                                                 const idx = rides ? rides.indexOf(race.race_no) + 1 : 0;
                                                                 return `${jName}${rides ? `(${idx}/${rides.length})` : ''}`;
@@ -1624,17 +1777,19 @@ function App() {
                                                         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm bg-gradient-to-br from-white to-indigo-50/30">
                                                             <div className="flex items-center justify-between mb-3 border-b border-indigo-100 pb-2">
                                                                 <div className="flex items-center gap-2">
-                                                                    <Icon name="user" size={14} className="text-indigo-600" />
-                                                                    <span className="text-xs font-black text-slate-800">기수 성적: {h.jockey}</span>
+                                                                    <span className="text-xs font-black text-slate-800">
+                                                                        기수 성적: {realtimeBulletins.jockeyChanges?.[h.horse_no] || h.jockey}
+                                                                    </span>
                                                                 </div>
                                                                 <div className="flex items-center gap-2">
                                                                     <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto scrollbar-hide py-1">
                                                                         {(() => {
-                                                                            const jName = normalizeName(h.jockey);
+                                                                            const effJockey = realtimeBulletins.jockeyChanges?.[h.horse_no] || h.jockey;
+                                                                            const jName = normalizeName(effJockey);
                                                                             const rides = jockeyRidesMap[jName];
                                                                             if (!rides || rides.length === 0) return null;
                                                                             const uniqueRides = [...new Set(rides)];
-                                                                            
+
                                                                             return (
                                                                                 <div className="flex flex-wrap gap-1 items-center">
                                                                                     {uniqueRides.map((rNo, ridx) => {
@@ -2067,6 +2222,49 @@ function App() {
                         ) : (
                             <div className="px-4 py-10 text-center text-slate-400 text-xs">선택된 경주에 대한 분석 데이터가 없습니다.</div>
                         )}
+                        {/* 📣 경주 속보 패널 (확장형 - 몬테카를로 근처 배치) */}
+                        {isBulletinOpen && (
+                            <div className="px-4 mb-4">
+                                <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-lg animate-slide-down">
+                                    <div className="bg-slate-900 px-4 py-2.5 flex justify-between items-center">
+                                        <div className="flex items-center gap-2">
+                                            <div className="bg-rose-500 p-1 rounded-md animate-pulse">
+                                                <Icon name="megaphone" size={14} className="text-white" />
+                                            </div>
+                                            <span className="text-[11px] font-black text-white italic tracking-wider uppercase">Real-time Race Bulletin</span>
+                                        </div>
+                                        <button onClick={() => setIsBulletinOpen(false)} className="text-slate-400 hover:text-white transition-colors">
+                                            <Icon name="x" size={16} />
+                                        </button>
+                                    </div>
+                                    <div className="max-h-[300px] overflow-y-auto p-4 space-y-3 bg-slate-50/50 scrollbar-hide">
+                                        {bulletinHistory.length > 0 ? (
+                                            bulletinHistory.map((log, bIdx) => (
+                                                <div key={bIdx} className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-1.5 animate-up">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${log.type === 'scratch' ? 'bg-rose-100 text-rose-600' :
+                                                            log.type === 'jockey' ? 'bg-indigo-100 text-indigo-600' :
+                                                                'bg-amber-100 text-amber-600'
+                                                            }`}>
+                                                            {log.type === 'scratch' ? '출전제외' : log.type === 'jockey' ? '기수변경' : '시간변경'}
+                                                        </span>
+                                                        <span className="text-[9px] text-slate-400 font-bold tabular">{log.time}</span>
+                                                    </div>
+                                                    <p className="text-xs font-bold text-slate-800 leading-relaxed whitespace-pre-wrap">{log.message}</p>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="py-12 text-center">
+                                                <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm border border-slate-100">
+                                                    <Icon name="inbox" size={20} className="text-slate-200" />
+                                                </div>
+                                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">수집된 속보가 없습니다</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </>
                 )}
             </main>
@@ -2075,7 +2273,7 @@ function App() {
             {viewMode === 'app' && (
                 <div className={`fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-[100] transition-transform duration-500 ease-in-out ${isBetPanelOpen ? 'translate-y-0' : 'translate-y-[calc(100%-60px)]'}`}>
                     <div className="bg-white rounded-t-[32px] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.3)] overflow-hidden border-t border-slate-200 flex flex-col">
-                        
+
                         {/* 🟢 상단 통합 헤더 */}
                         <div className="bg-slate-900 text-white px-3 py-3 flex items-center gap-2 shrink-0 shadow-lg z-20">
                             <div className="flex items-center gap-1 shrink-0 cursor-pointer hover:bg-slate-800 px-3 py-1.5 rounded-2xl transition-all group" onClick={() => setIsBetPanelOpen(!isBetPanelOpen)}>
@@ -2115,7 +2313,7 @@ function App() {
                                             <div className="w-1.5 h-4 bg-indigo-500 rounded-full"></div>
                                             <span className="text-[11px] font-black text-indigo-400 uppercase tracking-widest italic">Live Dividends</span>
                                         </div>
-                                        
+
                                         <div className="grid grid-cols-1 gap-2">
                                             {realtimeResults?.dividends ? (
                                                 (() => {
@@ -2164,7 +2362,7 @@ function App() {
                                                                 } else if (['삼복승', '삼쌍승'].includes(type) && winners[0] && winners[1] && winners[2]) {
                                                                     combo = `(${winners[0]}-${winners[1]}-${winners[2]})`;
                                                                 }
-                                                                
+
                                                                 displayContent = (
                                                                     <div className="flex items-center gap-2">
                                                                         {combo && <span className="text-indigo-400/60 font-black">{combo}</span>}
@@ -2198,8 +2396,8 @@ function App() {
                                     {isResultEntryPossible && user && (
                                         <div className="bg-white/50 p-3 rounded-xl border border-dashed border-slate-200 flex items-center justify-between">
                                             <span className="text-[10px] font-bold text-slate-400">결과가 틀린 것 같나요?</span>
-                                            <button 
-                                                onClick={() => setIsResultEditMode(!isResultEditMode)} 
+                                            <button
+                                                onClick={() => setIsResultEditMode(!isResultEditMode)}
                                                 className="text-[10px] font-black text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded-lg transition-all"
                                             >
                                                 {isResultEditMode ? "입력 종료" : "수동 입력 (백업)"}
@@ -2223,8 +2421,8 @@ function App() {
                                                         setModified();
                                                     }}
                                                     className={`py-1.5 rounded-lg border-2 text-[10px] font-black transition-all ${betGames[activeGameIdx].type === type
-                                                            ? 'bg-slate-800 border-slate-800 text-white shadow-md z-10 scale-105'
-                                                            : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
+                                                        ? 'bg-slate-800 border-slate-800 text-white shadow-md z-10 scale-105'
+                                                        : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
                                                         } ${isLocked ? 'opacity-50 cursor-not-allowed grayscale-[0.5]' : ''}`}
                                                 >
                                                     {type}
@@ -2251,7 +2449,7 @@ function App() {
                                             <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-2xl border border-slate-200 shadow-sm">
                                                 <span className="text-[10px] font-black text-slate-400 uppercase leading-none">Live Combo</span>
                                                 <span className="text-base font-black text-blue-600 tabular-nums leading-none">
-                                                {(betCombinationCounts[activeGameIdx] ?? 0).toLocaleString()}
+                                                    {(betCombinationCounts[activeGameIdx] ?? 0).toLocaleString()}
                                                 </span>
                                             </div>
                                         </div>
@@ -2275,16 +2473,16 @@ function App() {
                                                             const isParticipating = activeHorseNos.includes(num);
                                                             const isSelected = g.ranks[r]?.includes(num);
                                                             const usedElsewhere = Object.entries(g.ranks).some(([rk, nums]) => Number(rk) !== r && nums.includes(num));
-                                                            
+
                                                             return (
                                                                 <button
                                                                     key={num}
                                                                     disabled={!isParticipating || isLocked}
                                                                     onClick={() => toggleHorseSelection(num, r)}
                                                                     className={`h-8 rounded-lg text-xs font-bold border-2 transition-all ${!isParticipating ? 'invisible' :
-                                                                            isSelected ? 'bg-blue-600 border-blue-600 text-white shadow-lg z-10 scale-105' :
-                                                                                usedElsewhere ? 'bg-slate-50 border-slate-100 text-slate-200 cursor-not-allowed opacity-50' :
-                                                                                    'bg-white border-slate-100 text-slate-700 hover:border-blue-200'
+                                                                        isSelected ? 'bg-blue-600 border-blue-600 text-white shadow-lg z-10 scale-105' :
+                                                                            usedElsewhere ? 'bg-slate-50 border-slate-100 text-slate-200 cursor-not-allowed opacity-50' :
+                                                                                'bg-white border-slate-100 text-slate-700 hover:border-blue-200'
                                                                         } ${isLocked ? 'opacity-40 grayscale-[0.8] cursor-not-allowed' : ''}`}
                                                                 >
                                                                     {num}
@@ -2300,10 +2498,10 @@ function App() {
                                             onClick={savePicks}
                                             disabled={isLocked || totalBetCombinationCount === 0}
                                             className={`w-full py-3 rounded-2xl font-black text-base shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-3 ${isLocked
-                                                    ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                                                    : totalBetCombinationCount > 0
-                                                        ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-100'
-                                                        : 'bg-slate-100 text-slate-300 shadow-none'
+                                                ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                                                : totalBetCombinationCount > 0
+                                                    ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-100'
+                                                    : 'bg-slate-100 text-slate-300 shadow-none'
                                                 }`}
                                         >
                                             {isLocked ? (
