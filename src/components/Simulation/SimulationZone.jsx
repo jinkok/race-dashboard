@@ -2,15 +2,22 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import Icon from '../Icon.jsx';
 import { AdvancedSimulationEngine } from '../../engines/AdvancedSimulationEngine.js';
 
-const SimulationZone = ({ race, loc, trackInfo, statsAnalysis, sireInfo, jockeyStats, trainerStats, moistureIndex: initialMoisture, user }) => {
+const SimulationZone = ({ race, loc, trackInfo, statsAnalysis, sireInfo, jockeyStats, trainerStats, realtimeMoisture, user }) => {
     const [isSimulating, setIsSimulating] = useState(false);
     const [simResults, setSimResults] = useState([]);
     const [horsePositions, setHorsePositions] = useState({});
     const [isRunning, setIsRunning] = useState(false);
     const [simPhase, setSimPhase] = useState(0); 
     const [displayMode, setDisplayMode] = useState('track'); 
-    const [moisture, setMoisture] = useState(initialMoisture || 10);
+    const [moisture, setMoisture] = useState(realtimeMoisture || 10);
     const [expandedTraces, setExpandedTraces] = useState({});
+
+    // [REAL-TIME SYNC] Update local moisture state when prop changes (from Firestore/Parent)
+    useEffect(() => {
+        if (realtimeMoisture !== undefined && realtimeMoisture !== null) {
+            setMoisture(Number(realtimeMoisture));
+        }
+    }, [realtimeMoisture]);
     
     // Animation frame reference
     const requestRef = useRef();
