@@ -12,6 +12,8 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@emnapi/core": "^1.9.2",
+    "@emnapi/runtime": "^1.9.2",
     "@vitejs/plugin-react": "^4.3.4",
     "vite": "^6.0.5"
   }
