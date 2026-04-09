@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ feature/simulateEngine, main ]
+    branches: [ feature/simulateEngine, main, update/realtimereports ]
   workflow_dispatch:
 
 permissions:
