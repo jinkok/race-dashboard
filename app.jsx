@@ -201,6 +201,53 @@ function App() {
     const [realtimeBulletins, setRealtimeBulletins] = useState({ scratches: [], jockeyChanges: {}, startTime: "" });
     const [realtimeLogs, setRealtimeLogs] = useState([]);
     const [realtimeGlobalReports, setRealtimeGlobalReports] = useState(null);
+    const globalJockeyChangesRef = React.useRef({}); // { [loc]: { [raceNo]: { [horseNo]: jockeyName } } }
+
+    // 🐎 [최종 위치 이동] 기수변경/출전제외 통합 맵 (모든 의존 상태 정의 이후)
+    const { jockeyChangesMap, scratchedHorsesSet } = React.useMemo(() => {
+        const jMap = {};
+        const sSet = new Set();
+        const currentRaceNo = raceIdx + 1;
+
+        const processSource = (source) => {
+            if (!source) return;
+            // 기수변경 처리
+            source.jockey_changes?.forEach(jc => {
+                if (Number(jc.race_no) === currentRaceNo) {
+                    // [지능형 매핑] to가 없으면 reason에서 추출 시도 (예: 사유에 '마이아'라고 오는 경우)
+                    let jcTo = jc.to || jc.curr || jc.jockey || jc.new_jockey || jc.curr_jockey || jc.jockey_name || jc.curr_jockey_name || "-";
+                    
+                    if (jcTo === "-" && jc.reason && jc.reason.length <= 4 && !jc.reason.includes("부상") && !jc.reason.includes("질병")) {
+                        jcTo = jc.reason;
+                    }
+                    
+                    if (jcTo && jcTo !== "-") jMap[String(jc.horse_no)] = jcTo;
+                }
+            });
+            // 출전제외 처리
+            source.exclusions?.forEach(ex => {
+                if (Number(ex.race_no) === currentRaceNo) {
+                    sSet.add(String(ex.horse_no));
+                }
+            });
+        };
+
+        // 1. 정적 데이터 반영
+        processSource(mergedRaceData?.locations?.[loc]?.reports);
+        // 2. 실시간 글로벌 데이터 반영
+        processSource(realtimeGlobalReports);
+        // 3. 실시간 개별 경주 데이터 반영 (우선순위 높음)
+        if (realtimeBulletins?.jockeyChanges) {
+            Object.entries(realtimeBulletins.jockeyChanges).forEach(([hNo, jName]) => {
+                if (jName && jName !== "-") jMap[String(hNo)] = jName;
+            });
+        }
+        if (realtimeBulletins?.scratches) {
+            realtimeBulletins.scratches.forEach(hNo => sSet.add(String(hNo)));
+        }
+
+        return { jockeyChangesMap: jMap, scratchedHorsesSet: sSet };
+    }, [mergedRaceData, realtimeGlobalReports, realtimeBulletins, loc, raceIdx]);
     const [lastCombinedCount, setLastCombinedCount] = useState(0);
     const [realtimeMoisture, setRealtimeMoisture] = useState(null);
     const [isResultEditMode, setIsResultEditMode] = useState(false);
@@ -393,8 +440,13 @@ function App() {
                 const horse = raceData.horses.find(h => Number(h.horse_no) === Number(horseNo));
                 if (!horse) return;
 
-                if (horse.jockey) {
-                    const jName = normalizeName(horse.jockey);
+                // 실시간 기수변경 반영 (해당 경주의 기수가 바뀐 경우 바뀐 기수의 승수로 집계)
+                const currentJockey = (Number(raceData.race_no) === raceIdx + 1) 
+                    ? (jockeyChangesMap[String(horse.horse_no)] || horse.jockey)
+                    : horse.jockey;
+
+                if (currentJockey) {
+                    const jName = normalizeName(currentJockey);
                     if (!stats.jockeys[jName]) stats.jockeys[jName] = { 1: 0, 2: 0, 3: 0 };
                     stats.jockeys[jName][rank]++;
                 }
@@ -566,6 +618,15 @@ function App() {
                 if (Array.isArray(incomingLogs)) {
                     setRealtimeLogs(incomingLogs);
                 }
+
+                // [전역 메모리 누적] 현재 확인한 경주의 기수 변경사항을 메모리에 저장 (다른 경주 이동 시에도 유지용)
+                if (data.jockeyChanges) {
+                    if (!globalJockeyChangesRef.current[loc]) globalJockeyChangesRef.current[loc] = {};
+                    if (!globalJockeyChangesRef.current[loc][raceIdx + 1]) globalJockeyChangesRef.current[loc][raceIdx + 1] = {};
+                    Object.entries(data.jockeyChanges).forEach(([hNo, jName]) => {
+                        if (jName && jName !== "-") globalJockeyChangesRef.current[loc][raceIdx + 1][String(hNo)] = jName;
+                    });
+                }
             } else {
                 setRealtimeBulletins({ scratches: [], jockeyChanges: {}, startTime: "" });
                 setRealtimeLogs([]);
@@ -621,9 +682,15 @@ function App() {
                 });
             });
             source.jockey_changes?.forEach(jc => {
-                // [Extremely Resilient Mapping] 지원되는 모든 필드명 체크
+                // [Extremely Resilient Mapping] 지원되는 모든 필드명 체크 (jc.name은 마명이므로 기수명 후보에서 제외)
                 const jcFrom = jc.from || jc.prev || jc.old_jockey || jc.prev_jockey || "-";
-                const jcTo = jc.to || jc.curr || jc.new_jockey || jc.curr_jockey || jc.name || "-";
+                let jcTo = jc.to || jc.curr || jc.jockey || jc.new_jockey || jc.curr_jockey || jc.jockey_name || jc.curr_jockey_name || "-";
+
+                // [지능형 보정] to가 '-'인데 사유에 기수명이 적힌 경우 반영 (예: 사유: 마이아)
+                if (jcTo === "-" && jc.reason && jc.reason.length <= 4 && !jc.reason.includes("부상") && !jc.reason.includes("질병")) {
+                    jcTo = jc.reason;
+                }
+
                 history.push({
                     type: 'jockey',
                     message: `[${jc.race_no}R 기수변경] ${jc.horse_no}번 ${jc.name || ""}: ${jcFrom} → ${jcTo} (사유: ${jc.reason || '사유미기재'})`,
@@ -1010,6 +1077,51 @@ function App() {
     let maxTraining = 0, minTraining = 999;
     let minWeight = 999, maxWeight = 0;
     let minCycle = 999, maxCycle = 0;
+    
+    // [수정] 오늘 기수의 모든 기승 경주 번호 맵 (실시간 변경사항 반영)
+    const jockeyRidesMap = React.useMemo(() => {
+        const map = {};
+        
+        // 통합 기수 변경 데이터를 참고하여 기수별 기승 경주 번호 수집
+        const allChangesForLocation = {}; // { raceNo: { horseNo: jockeyName } }
+        
+        // 글로벌 리포트에서 모든 경주의 변경사항 미리 수집
+        realtimeGlobalReports?.jockey_changes?.forEach(jc => {
+            if (!allChangesForLocation[jc.race_no]) allChangesForLocation[jc.race_no] = {};
+            const jcTo = jc.to || jc.curr || jc.jockey || jc.new_jockey || jc.curr_jockey || jc.jockey_name || "-";
+            if (jcTo && jcTo !== "-") allChangesForLocation[jc.race_no][String(jc.horse_no)] = jcTo;
+        });
+        
+        // 정적 리포트 정보도 통합
+        dbData?.locations?.[loc]?.reports?.jockey_changes?.forEach(jc => {
+            if (!allChangesForLocation[jc.race_no]) allChangesForLocation[jc.race_no] = {};
+            const jcTo = jc.to || jc.curr || jc.jockey || jc.new_jockey || jc.curr_jockey || jc.jockey_name || "-";
+            if (jcTo && jcTo !== "-") allChangesForLocation[jc.race_no][String(jc.horse_no)] = jcTo;
+        });
+
+        races.forEach(r => {
+            const rNo = String(r.race_no);
+            r.horses.forEach(h => {
+                // 1. 글로벌 리포트/정적 리포트 우선 확인
+                let activeJockey = allChangesForLocation[rNo]?.[String(h.horse_no)];
+                
+                // 2. 전역 메모리(사용자가 이전에 봤던 속보들) 확인 - 가장 최신/정확
+                const rememberedJockey = globalJockeyChangesRef.current[loc]?.[rNo]?.[String(h.horse_no)];
+                if (rememberedJockey) activeJockey = rememberedJockey;
+
+                // 3. 현재 보고 있는 경주의 실시간 속보 확인 (즉시성)
+                if (Number(rNo) === raceIdx + 1) {
+                    activeJockey = jockeyChangesMap[String(h.horse_no)] || activeJockey;
+                }
+                
+                const finalJockeyName = (activeJockey || h.jockey || '').replace(/[^가-힣]/g, '');
+                if (!map[finalJockeyName]) map[finalJockeyName] = [];
+                map[finalJockeyName].push(r.race_no);
+            });
+        });
+        return map;
+    }, [races, jockeyChangesMap, realtimeGlobalReports, dbData, loc, raceIdx]);
+
     let topStartHorseNo = null, topFinishHorseNo = null;
     let topDistHorseNo = null, avgDistHorseNo = null, recentDistHorseNo = null;
     let topSIHorseNo = null, topBokWinHorseNo = null, topPrizeHorseNo = null, topDistWinHorseNo = null, topBestRecHorseNo = null;
@@ -1090,23 +1202,6 @@ function App() {
         topBestRecordValue = stats.best_record_horses[0].rec;
     }
 
-    // 기수별 당일 기승 스케줄 계산
-    const jockeyRidesMap = React.useMemo(() => {
-        const map = {};
-        if (!currentLocData || !currentLocData.races) return map;
-        currentLocData.races.forEach(r => {
-            r.horses?.forEach(h => {
-                if (!h.jockey) return;
-                const jName = (h.jockey || '').replace(/[^가-힣]/g, ''); // 이름만 추출
-                if (!map[jName]) map[jName] = [];
-                if (!map[jName].includes(r.race_no)) {
-                    map[jName].push(r.race_no);
-                }
-            });
-        });
-        Object.keys(map).forEach(j => map[j].sort((a, b) => a - b));
-        return map;
-    }, [currentLocData]);
 
     const trainerEntriesMap = React.useMemo(() => {
         const map = {};
@@ -1533,7 +1628,14 @@ function App() {
                         {isSimOpen && (
                             <div className="px-4 mb-6">
                                 <SimulationZone
-                                    race={race}
+                                    race={{
+                                        ...race,
+                                        horses: race?.horses?.map(h => ({
+                                            ...h,
+                                            jockey: jockeyChangesMap[String(h.horse_no)] || h.jockey,
+                                            isScratched: scratchedHorsesSet.has(String(h.horse_no))
+                                        }))
+                                    }}
                                     info={info}
                                     loc={loc}
                                     trackInfo={trackInfo}
@@ -1580,28 +1682,13 @@ function App() {
                                     });
                                 }
 
-                                // 📣 [신규] 속보 데이터 기반 상태 반영 (출전제외, 기수변경)
-                                const currentRaceNo = String(raceIdx + 1);
-                                
-                                // 1. 출전제외 확인
-                                const isScratched = bulletinHistory.some(b => 
-                                    b.type === 'scratch' && 
-                                    b.message.includes(`${currentRaceNo}R`) && 
-                                    b.message.includes(`${h.horse_no}번`)
-                                );
-
-                                // 2. 기수변경 확인
-                                const jockeyChangeMsg = bulletinHistory.find(b => 
-                                    b.type === 'jockey' && 
-                                    b.message.includes(`${currentRaceNo}R`) && 
-                                    b.message.includes(`${h.horse_no}번`)
-                                );
-                                const displayJockey = jockeyChangeMsg 
-                                    ? jockeyChangeMsg.message.split('→')[1]?.trim().split(' ')[0] || h.jockey 
-                                    : h.jockey;
+                                // 📣 [신규] 통합 속보 데이터 기반 상태 반영 (출전제외, 기수변경)
+                                const isScratched = scratchedHorsesSet.has(String(h.horse_no));
+                                const displayJockey = jockeyChangesMap[String(h.horse_no)] || h.jockey;
+                                const isJockeyChanged = !!jockeyChangesMap[String(h.horse_no)];
 
                                 if (isScratched) badges.push({ emoji: "🚫", text: "출전제외", color: "gray" });
-                                if (jockeyChangeMsg) badges.push({ emoji: "🔄", text: "기수교체", color: "indigo" });
+                                if (isJockeyChanged) badges.push({ emoji: "🔄", text: "기수교체", color: "indigo" });
 
                                 if (recentRecord) badges.push({ emoji: "⏱️", text: recentRecord, color: "yellow" });
                                 if (isPick) badges.push({ emoji: "⭐", text: "추천", color: "red" });
@@ -1734,8 +1821,8 @@ function App() {
                                                         {/* Line 2: 기수 정보 */}
                                                         <div className="flex items-center gap-1.5 text-[10px] truncate leading-none">
                                                             <span className="text-slate-400 font-medium shrink-0">{h.origin}/{h.sex}/{h.age}</span>
-                                                            <span className="text-indigo-600 font-black flex items-center gap-0.5 truncate">
-                                                                 <Icon name="user" size={10} />
+                                                            <span className={`${isJockeyChanged ? 'text-rose-600 font-black animate-pulse' : 'text-indigo-600 font-black'} flex items-center gap-0.5 truncate`}>
+                                                                 <Icon name={isJockeyChanged ? "alert-circle" : "user"} size={10} className={isJockeyChanged ? 'text-rose-500' : ''} />
                                                                  {(() => {
                                                                      const stats = winStatsToday?.jockeys?.[normalizeName(displayJockey)];
                                                                      return (
@@ -1786,7 +1873,7 @@ function App() {
                                                         <span className="text-[8px] text-slate-400 leading-tight">훈련</span>
                                                         <span className={`text-[10px] font-bold tabular leading-tight ${getNum(h.training_cnt) === maxTraining ? 'text-rose-500' : getNum(h.training_cnt) === minTraining ? 'text-blue-500' : 'text-slate-700'}`}>
                                                             {h.training_cnt || '-'}{(() => {
-                                                                const effJockey = realtimeBulletins.jockeyChanges?.[h.horse_no] || h.jockey;
+                                                                            const effJockey = jockeyChangesMap[String(h.horse_no)] || h.jockey;
                                                                 const count = (h.training_logs_detailed || h.training_history || h.training_logs || [])?.filter(tr => normalizeName(tr.rider || tr.jockey || tr.name) === normalizeName(effJockey)).length;
                                                                 return count > 0 ? `(${count})` : '';
                                                             })()}회
@@ -1913,7 +2000,7 @@ function App() {
                                                     {[
                                                         {
                                                             id: 'jockey', label: (() => {
-                                                                const effJockey = realtimeBulletins.jockeyChanges?.[h.horse_no] || h.jockey;
+                                                                            const effJockey = jockeyChangesMap[String(h.horse_no)] || h.jockey;
                                                                 const jName = (effJockey || '').replace(/[^가-힣]/g, '');
                                                                 const rides = jockeyRidesMap[jName];
                                                                 const idx = rides ? rides.indexOf(race.race_no) + 1 : 0;
@@ -2010,14 +2097,15 @@ function App() {
                                                         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm bg-gradient-to-br from-white to-indigo-50/30">
                                                             <div className="flex items-center justify-between mb-3 border-b border-indigo-100 pb-2">
                                                                 <div className="flex items-center gap-2">
-                                                                    <span className="text-xs font-black text-slate-800">
-                                                                        기수 성적: {realtimeBulletins.jockeyChanges?.[h.horse_no] || h.jockey}
+                                                                    <span className={`text-xs font-black ${jockeyChangesMap[String(h.horse_no)] ? 'text-rose-600' : 'text-slate-800'}`}>
+                                                                        기수 성적: {jockeyChangesMap[String(h.horse_no)] || h.jockey}
+                                                                        {jockeyChangesMap[String(h.horse_no)] && <span className="ml-1.5 text-[9px] bg-rose-100 px-1 py-0.5 rounded text-rose-600 font-bold">변경됨</span>}
                                                                     </span>
                                                                 </div>
                                                                 <div className="flex items-center gap-2">
                                                                     <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto scrollbar-hide py-1">
                                                                         {(() => {
-                                                                            const effJockey = realtimeBulletins.jockeyChanges?.[h.horse_no] || h.jockey;
+                                                                            const effJockey = jockeyChangesMap[String(h.horse_no)] || h.jockey;
                                                                             const jName = normalizeName(effJockey);
                                                                             const rides = jockeyRidesMap[jName];
                                                                             if (!rides || rides.length === 0) return null;
