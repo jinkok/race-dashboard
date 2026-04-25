@@ -48,7 +48,7 @@ export class MonteCarloSimulator {
             let bestS1FTime = Infinity;
             let leaderId = null;
 
-            const globalNoise = randomGaussian(0, 0.2);
+            const globalNoise = randomGaussian(0, 0.15);
 
             items.forEach(item => {
                 // 1. 선행 확률 계산 (S1F 지점)

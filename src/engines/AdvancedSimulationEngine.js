@@ -93,7 +93,7 @@ export class AdvancedSimulationEngine {
                 id: horse.horse_no,
                 horse_no: horse.horse_no,
                 meanTime: finalMu,
-                stdDev: finalSigma,
+                stdDev: Math.min(0.8, finalSigma), // 시그마가 너무 크면 비현실적인 로또 우승이 발생하므로 0.8로 캡핑
                 s1fMean: this.extractAvgSpeed(horse, 's1f'),
                 s1fSigma: 0.15, // S1F 변동폭은 결승선보다 좁음
                 style: this.paceAnalyzer.classifyRunStyle(horse),

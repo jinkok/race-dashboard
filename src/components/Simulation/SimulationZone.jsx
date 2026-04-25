@@ -274,9 +274,9 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
             // 1순위: Firestore 실시간 연동 데이터 (app.jsx에서 주입)
             // 2순위: 서버 시뮬레이션 결과 파일 (.json)
             // 3순위: 로컬 엔진 연산 결과
-            const localData = localSimResults.find(r => r.horse_no === horseNo) || null;
-            const firestoreData = (race.server_sim?.horses || [])?.find(r => (r.horse_no || r.no) === horseNo) || null;
-            const serverFileData = serverSimResults?.find(r => (r.horse_no || r.no) === horseNo) || null;
+            const localData = localSimResults.find(r => String(r.horse_no) === String(horseNo)) || null;
+            const firestoreData = (race.server_sim?.horses || [])?.find(r => String(r.horse_no || r.no) === String(horseNo)) || null;
+            const serverFileData = serverSimResults?.find(r => String(r.horse_no || r.no) === String(horseNo)) || null;
             
             // 로컬 연산 결과(localData)가 있으면 최우선으로 적용 (재분석 대응)
             const combinedData = localData || firestoreData || serverFileData || {};
@@ -323,7 +323,7 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
     }, [race, localSimResults, sortConfig]);
 
     const raceStats = useMemo(() => {
-        const validMus = enhancedHorses.map(h => h.mu).filter(m => m > 0);
+        const validMus = enhancedHorses.map(h => h.mu).filter(m => m > 10); // 10초 이하는 비정상 데이터로 간주
         const avg = validMus.length > 0 ? validMus.reduce((a, b) => a + b, 0) / validMus.length : 0;
         const s1fTimes = enhancedHorses.map(h => getPhysicalProfile(h).s1f);
         const g1fTimes = enhancedHorses.map(h => getPhysicalProfile(h).g1f);
@@ -455,7 +455,7 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
                                     {enhancedHorses.map((h, idx) => {
                                         const isUnderdog = (h.underdog_index || 0) >= 50;
                                         const isFavorite = idx === 0;
-                                        const advantage = raceStats.avg ? (raceStats.avg - h.mu) : 0;
+                                        const advantage = raceStats.avg ? (h.mu - raceStats.avg) : 0;
                                         const profile = getPhysicalProfile(h);
 
                                         return (
@@ -489,9 +489,13 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
                                                 <td className="px-0 py-2 md:py-3 text-center text-slate-300 font-bold text-[10px] md:text-xs">{(h.sim_stats?.top3 || 0).toFixed(0)}</td>
                                                 <td className="px-0 py-2 md:py-3 text-center text-rose-400 font-bold text-[10px] md:text-xs">{(h.sim_stats?.leads || 0).toFixed(0)}</td>
                                                 <td className="px-0 py-2 md:py-3 text-center">
-                                                    <span className={`font-mono font-bold text-[9px] md:text-xs px-0.5 py-0 rounded ${advantage >= 0 ? 'bg-emerald-900/30 text-emerald-400' : 'bg-rose-900/30 text-rose-400'}`}>
-                                                        {advantage.toFixed(1)}
-                                                    </span>
+                                                    {h.mu > 0 ? (
+                                                        <span className={`font-mono font-bold text-[9px] md:text-xs px-0.5 py-0 rounded ${advantage <= 0 ? 'bg-emerald-900/30 text-emerald-400' : 'bg-rose-900/30 text-rose-400'}`}>
+                                                            {advantage > 0 ? '+' : ''}{advantage.toFixed(1)}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-slate-600 text-[10px]">-</span>
+                                                    )}
                                                 </td>
                                                 <td className="px-0 py-2 md:py-3 text-center text-amber-500 font-mono text-[10px] md:text-xs font-bold">{(h.sigma || 0).toFixed(1)}</td>
                                             </tr>
