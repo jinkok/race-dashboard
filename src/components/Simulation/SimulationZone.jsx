@@ -47,7 +47,7 @@ const HorseDetailPanel = ({ selectedHorse, onClose }) => {
     const winProb = selectedHorse.win_prob !== undefined ? selectedHorse.win_prob * 100 : (selectedHorse.winProbability || 0);
 
     return (
-        <div className="fixed right-0 top-0 h-full w-[90%] max-w-[400px] bg-slate-900 border-l border-slate-700 p-6 shadow-2xl z-50 overflow-y-auto" style={{ animation: 'slideInRight 0.3s ease-out forwards' }}>
+        <div className="fixed right-0 top-0 h-full w-[75%] sm:w-[90%] max-w-[400px] bg-slate-900/95 backdrop-blur-xl border-l border-slate-700 p-4 md:p-6 shadow-2xl z-50 overflow-y-auto" style={{ animation: 'slideInRight 0.3s ease-out forwards' }}>
             <div className="flex justify-between items-start mb-6">
                 <div>
                     <div className="flex items-center gap-2 mb-2">
