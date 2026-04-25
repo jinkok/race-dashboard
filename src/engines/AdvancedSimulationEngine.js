@@ -82,45 +82,66 @@ export class AdvancedSimulationEngine {
 
     runSimulation() {
         const horses = this.race.horses || [];
-        const simItems = horses.map(horse => {
+        
+        // 1단계: 모든 마필의 최종 Mu/Sigma/Trace를 먼저 계산
+        const analyzed = horses.map(horse => {
             const trace = [];
             let baseMu = this.calculateBaseMu(horse, trace);
             let baseSigma = this.calculateBaseSigma(horse, trace);
             let finalMu = this.applyMuModifiers(baseMu, horse, trace);
             let finalSigma = this.applySigmaModifiers(baseSigma, horse, trace);
+            return { horse, finalMu, finalSigma, trace };
+        });
+
+        // 2단계: 전체 평균 Mu 산출
+        const avgMu = analyzed.length > 0 ? analyzed.reduce((s, a) => s + a.finalMu, 0) / analyzed.length : 80;
+
+        // 3단계: 시뮬레이션 입력용 아이템 생성 (마필 개성 존중 및 정합성 유지)
+        const simItems = analyzed.map(a => {
+            // 기수 숙련도 팩터 계산 (AdvancedMonteCarloSimulator 참고)
+            const jTrainingCnt = parseInt(a.horse.jockey_training_cnt || 0);
+            let jockeyFactor = 1.0;
+            if (jTrainingCnt >= 2) jockeyFactor = 0.85; // 안정적 기수
+            else if (jTrainingCnt === 0) jockeyFactor = 1.15; // 불안정 기수
 
             return {
-                id: horse.horse_no,
-                horse_no: horse.horse_no,
-                meanTime: finalMu,
-                stdDev: Math.min(0.8, finalSigma), // 시그마가 너무 크면 비현실적인 로또 우승이 발생하므로 0.8로 캡핑
-                s1fMean: this.extractAvgSpeed(horse, 's1f'),
-                s1fSigma: 0.15, // S1F 변동폭은 결승선보다 좁음
-                style: this.paceAnalyzer.classifyRunStyle(horse),
-                trace: trace
+                id: a.horse.horse_no,
+                horse_no: a.horse.horse_no,
+                meanTime: a.finalMu,
+                stdDev: a.finalSigma,
+                distance: parseInt(this.race.distance) || 1200,
+                jockeyFactor: jockeyFactor,
+                recordCount: a.horse.recent_history?.length || 0,
+                s1fMean: this.extractAvgSpeed(a.horse, 's1f'),
+                style: this.paceAnalyzer.classifyRunStyle(a.horse),
+                trace: a.trace
             };
         });
 
         const mcResults = this.mcEngine.run(simItems);
 
-        return Object.keys(mcResults).map(id => {
-            const item = simItems.find(i => i.id == id);
+        const results = Object.keys(mcResults).map(id => {
+            const item = simItems.find(i => String(i.id) === String(id));
             const styleLabel = item.style === 'E' ? '선행' : (item.style === 'P' ? '선입' : '추입');
+            
             return {
                 horse_no: parseInt(id),
                 win_prob: mcResults[id].winProbability || 0,
                 winProbability: mcResults[id].winProbability || 0,
+                top3Probability: mcResults[id].top3Probability || 0,
                 expectedTime: mcResults[id].simulatedMeanTime || item.meanTime,
                 mu: mcResults[id].simulatedMeanTime || item.meanTime,
-                style: styleLabel,
                 sigma: item.stdDev,
+                style: styleLabel,
                 sim_stats: {
                     leads: mcResults[id].leadProbability || 0,
-                    top3: (mcResults[id].winProbability || 0) * 2.2 // 입상은 우승의 약 2.2배 가중
+                    top3: mcResults[id].top3Probability || 0
                 },
                 trace: item.trace
             };
-        }).sort((a, b) => b.win_prob - a.win_prob);
+        });
+
+        return results.sort((a, b) => b.win_prob - a.win_prob);
     }
 
     calculateBaseMu(horse, trace) {
@@ -148,7 +169,15 @@ export class AdvancedSimulationEngine {
             });
         }
 
-        let baseTime = (totalWeight > 0) ? (weightedTimeSum / totalWeight) : this.raceContext.classStandardTime;
+        // 데이터가 없는 마필에게 너무 느린 기록(80s)을 주면 다른 말이 반사 이익을 얻음
+        // 해당 등급/거리의 평균적인 기록(약 74.5s)을 기본값으로 부여하여 정합성 유지
+        let baseTime = (totalWeight > 0) ? (weightedTimeSum / totalWeight) : (this.raceContext.classStandardTime || 74.5);
+        
+        // 로그 출력: 데이터가 없는 경우 경고 표시 (원인 파악용)
+        if (totalWeight === 0) {
+            console.warn(`[Engine] No history for horse ${horse.horse_no}, using fallback: ${baseTime}s`);
+        }
+
         trace.push({ factor: "기초기록(가중)", impact: `${baseTime.toFixed(2)}s` });
         return baseTime;
     }

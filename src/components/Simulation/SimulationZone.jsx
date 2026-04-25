@@ -258,12 +258,12 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
         }, 300);
     };
 
-    // 서버 데이터도 없고 원본 데이터도 없을 경우에만 자동 로컬 연산 실행
+    // 서버 데이터가 있더라도 데이터 정합성을 위해 로컬 시뮬레이션을 항상 1회 강제 실행
     useEffect(() => {
-        if (!hasSimulationData && race && race.horses && localSimResults.length === 0 && !isSimulating && !isLoadingServerData) {
+        if (race && race.horses && localSimResults.length === 0 && !isSimulating) {
             runLocalSimulation();
         }
-    }, [race, hasSimulationData, isLoadingServerData]);
+    }, [race?.race_id, localSimResults.length]);
 
     const enhancedHorses = useMemo(() => {
         const horses = race?.horses || [];
