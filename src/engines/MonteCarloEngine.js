@@ -23,51 +23,63 @@ export class MonteCarloSimulator {
     }
 
     /**
-     * @param {Array} items - 마필 목록. 각 객체는 반드시 id, meanTime, stdDev 속성이 있어야 함.
-     * @returns {Object} 각 마필(id)별 진정한 우승 확률(winProbability) 및 통계 데이터
+     * @param {Array} items - 마필 목록. 각 객체는 id, meanTime, stdDev가 필수. 
+     *                        옵션으로 s1fMean, s1fSigma가 있으면 선행확률도 계산.
+     * @returns {Object} 각 마필(id)별 진정한 우승 확률 및 선행 확률 데이터
      */
     run(items) {
         if (!items || items.length === 0) return {};
 
         const wins = {};
+        const leads = {};
         const totalTimes = {};
         
         items.forEach(item => {
             wins[item.id] = 0;
+            leads[item.id] = 0;
             totalTimes[item.id] = 0;
         });
 
         // 몬테카를로 루프 실행
         for (let i = 0; i < this.iterations; i++) {
-            let bestTime = Infinity;
+            let bestFinishTime = Infinity;
             let winnerId = null;
             
-            // 글로벌 노이즈: 트랙 전반의 상태 당일 돌발 변수(페이스 붕괴, 날씨 급변 등) 모사
-            // 평균 0초, 표준편차 0.3초의 공통 환경 변수
-            const globalNoise = randomGaussian(0, 0.3);
+            let bestS1FTime = Infinity;
+            let leaderId = null;
+
+            const globalNoise = randomGaussian(0, 0.2);
 
             items.forEach(item => {
-                // 마필 고유의 주행 기록 난수 + 글로벌 노이즈 반영
-                const time = randomGaussian(item.meanTime, item.stdDev) + globalNoise;
-                totalTimes[item.id] += time;
+                // 1. 선행 확률 계산 (S1F 지점)
+                if (item.s1fMean) {
+                    const s1fTime = randomGaussian(item.s1fMean, item.s1fSigma || 0.15) + (globalNoise * 0.5);
+                    if (s1fTime < bestS1FTime) {
+                        bestS1FTime = s1fTime;
+                        leaderId = item.id;
+                    }
+                }
+
+                // 2. 우승 확률 계산 (결승선 지점)
+                const finishTime = randomGaussian(item.meanTime, item.stdDev) + globalNoise;
+                totalTimes[item.id] += finishTime;
                 
-                // 시간 경마이므로 가장 짧은 시간이 우승
-                if (time < bestTime) {
-                    bestTime = time;
+                if (finishTime < bestFinishTime) {
+                    bestFinishTime = finishTime;
                     winnerId = item.id;
                 }
             });
 
-            if (winnerId !== null) {
-                wins[winnerId]++;
-            }
+            if (winnerId !== null) wins[winnerId]++;
+            if (leaderId !== null) leads[leaderId]++;
         }
 
         const results = {};
         items.forEach(item => {
             results[item.id] = {
                 id: item.id,
-                winProbability: (wins[item.id] / this.iterations) * 100, // 백분율
+                winProbability: (wins[item.id] / this.iterations) * 100,
+                leadProbability: (leads[item.id] / this.iterations) * 100,
                 simulatedMeanTime: totalTimes[item.id] / this.iterations,
                 baseMeanTime: item.meanTime,
                 stdDev: item.stdDev

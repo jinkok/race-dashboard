@@ -536,17 +536,24 @@ function App() {
         }
     };
 
-    // 2. Race Data Sync (depends on date)
     useEffect(() => {
         if (!user || !window.fb?.isReady || !date) return;
         const { db, doc, onSnapshot } = window.fb;
+
         const appId = 'race-app-3e41d';
         const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'raceDataJson', date);
-
         const unsub = onSnapshot(docRef, (snap) => {
             if (snap.exists()) {
-                setDbData(snap.data());
-                setSyncStatus('synced');
+                const data = snap.data();
+                // 핵심 데이터(locations)가 없으면 동기화되지 않은 것으로 간주하여 로컬 파일 사용 유도
+                if (data.locations) {
+                    setDbData(data);
+                    setSyncStatus('synced');
+                } else {
+                    console.warn("Firestore data exists but missing 'locations' key. Falling back to local data.");
+                    setDbData(defaultData);
+                    setSyncStatus('no-data');
+                }
             } else {
                 setDbData(defaultData);
                 setSyncStatus('no-data');
@@ -633,15 +640,26 @@ function App() {
             }
         }, (err) => console.error("Realtime Bulletin sync error:", err));
 
-        // 4. Track Sync (함수율)
+        // 4. Track Sync (함수율: 개별 경주 + 장소 전체 통합)
         const trackPath = `realtime/track/${fbDate}/${loc}/races/${raceIdx + 1}`;
-        const trackRef = doc(db, trackPath);
-        const unsubTrack = onSnapshot(trackRef, (snap) => {
+        const globalTrackPath = `realtime/track/${fbDate}/${loc}`;
+        const globalTrackPathUpper = `realtime/track/${fbDate}/${loc.toUpperCase()}`;
+        
+        const processMoisture = (snap, source) => {
             if (snap.exists()) {
                 const data = snap.data();
-                if (data.moisture !== undefined) setRealtimeMoisture(data.moisture);
+                if (data.moisture !== undefined) {
+                    const val = Number(String(data.moisture).replace(/[^0-9.]/g, ''));
+                    if (!isNaN(val)) {
+                        console.log(`📡 [${source}] 함수율 수신:`, val);
+                        setRealtimeMoisture(val);
+                    }
+                }
             }
-        }, (err) => console.error("Realtime Track sync error:", err));
+        };
+        const unsubTrack = onSnapshot(doc(db, trackPath), (snap) => processMoisture(snap, "Individual"));
+        const unsubGlobalTrack = onSnapshot(doc(db, globalTrackPath), (snap) => processMoisture(snap, "Global-Lower"));
+        const unsubGlobalTrackUpper = onSnapshot(doc(db, globalTrackPathUpper), (snap) => processMoisture(snap, "Global-Upper"));
 
         // 5. Global Reports Sync (전체 리포트: 출전제외, 기수변경 등 통합)
         const reportsPath = `realtime/reports/${fbDate}/${loc}`;
@@ -659,7 +677,9 @@ function App() {
             }
         }, (err) => console.error("Realtime Global Reports sync error:", err));
 
-        return () => { unsubRes(); unsubWeight(); unsubBulletin(); unsubTrack(); unsubReports(); };
+        return () => { 
+            unsubRes(); unsubWeight(); unsubBulletin(); unsubTrack(); unsubGlobalTrack(); unsubGlobalTrackUpper(); unsubReports(); 
+        };
     }, [user, date, loc, raceIdx]);
 
     // ➕ [수정] 모든 속보 데이터(정적 reports + 글로벌 실시간 reports + 개별 실시간 logs) 통합 계산
@@ -1014,8 +1034,12 @@ function App() {
         reader.readAsText(file);
     };
 
-    const currentLocData = dbData?.locations?.[loc] || { location_name: loc === 'seoul' ? "서울" : "부산", races: [] };
-    const races = currentLocData.races || [];
+    const currentLocData = dbData?.locations?.[loc] || {};
+    const localLocData = mergedRaceData?.locations?.[loc] || {};
+    // 서버에 경주 리스트가 없으면 로컬 데이터 사용
+    const races = (currentLocData.races && currentLocData.races.length > 0) 
+        ? currentLocData.races 
+        : (localLocData.races || []);
     const race = races[raceIdx];
     const expert = race?.expert_opinion;
     const stats = race?.stats_analysis;
@@ -1630,6 +1654,14 @@ function App() {
                                 <SimulationZone
                                     race={{
                                         ...race,
+                                        // 1순위: Firestore sim_results (서버)
+                                        // 2순위: race.sim_results (로컬 JSON에 포함된 경우)
+                                        server_sim: (() => {
+                                            const sims = dbData?.locations?.[loc]?.sim_results || race.sim_results || {};
+                                            const targetNo = String(race.race_no);
+                                            const matchKey = Object.keys(sims).find(k => k.endsWith(`_${targetNo}`) || k.endsWith(`_0${targetNo}`));
+                                            return matchKey ? sims[matchKey] : null;
+                                        })(),
                                         horses: race?.horses?.map(h => ({
                                             ...h,
                                             jockey: jockeyChangesMap[String(h.horse_no)] || h.jockey,

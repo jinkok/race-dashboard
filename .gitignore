@@ -39,3 +39,8 @@ docs/firebase-service-account.json
 !public/style.css
 !public/sire_info.json
 !public/race_track_info.json
+
+# [Scratch & Temporary Data]
+scratch/
+public/*.parquet
+public/*_sim_results.json
