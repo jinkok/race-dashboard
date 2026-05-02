@@ -1657,8 +1657,9 @@ function App() {
                                         // 1순위: Firestore sim_results (서버)
                                         // 2순위: race.sim_results (로컬 JSON에 포함된 경우)
                                         server_sim: (() => {
-                                            const sims = dbData?.locations?.[loc]?.sim_results || race.sim_results || {};
-                                            const targetNo = String(race.race_no);
+                                            if (!race) return null;
+                                            const sims = dbData?.locations?.[loc]?.sim_results || race?.sim_results || {};
+                                            const targetNo = String(race?.race_no || '');
                                             const matchKey = Object.keys(sims).find(k => k.endsWith(`_${targetNo}`) || k.endsWith(`_0${targetNo}`));
                                             return matchKey ? sims[matchKey] : null;
                                         })(),

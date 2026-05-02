@@ -131,7 +131,19 @@ const HorseDetailPanel = ({ selectedHorse, onClose }) => {
                 <div className="space-y-3">
                     <h3 className="text-[11px] font-black text-slate-300 uppercase flex items-center gap-2"><Icon name="cpu" size={14} className="text-slate-400" /> 상세 트레이스</h3>
                     <div className="bg-slate-900 p-4 rounded-xl border border-slate-700 font-mono text-xs space-y-2 max-h-[250px] overflow-y-auto">
-                        {Array.isArray(selectedHorse.trace) && selectedHorse.trace.length > 0 ? (
+                        {/* 객체 형식의 trace 보정 내역 */}
+                        {typeof selectedHorse.trace === 'object' && selectedHorse.trace !== null && !Array.isArray(selectedHorse.trace) ? (
+                            Object.entries(selectedHorse.trace)
+                                .filter(([k]) => k !== 'warnings')
+                                .map(([k, v], idx) => (
+                                    <div key={`trace-${idx}`} className="flex justify-between items-center text-slate-300 py-1 border-b border-slate-800 last:border-0">
+                                        <span className="text-[10px] text-slate-400 capitalize">{k.replace(/_/g, ' ')}</span>
+                                        <span className={typeof v === 'number' && v < 0 ? 'text-emerald-400' : 'text-slate-200'}>
+                                            {typeof v === 'number' ? (v > 0 ? `+${v.toFixed(3)}` : v.toFixed(3)) : String(v)}
+                                        </span>
+                                    </div>
+                                ))
+                        ) : Array.isArray(selectedHorse.trace) && selectedHorse.trace.length > 0 ? (
                             selectedHorse.trace.map((item, idx) => (
                                 <div key={idx} className="flex justify-between items-center text-slate-300 py-1 border-b border-slate-800 last:border-0">
                                     <span className="text-[10px] text-slate-400">{item.factor || item.name}</span>
@@ -140,9 +152,24 @@ const HorseDetailPanel = ({ selectedHorse, onClose }) => {
                                     </span>
                                 </div>
                             ))
-                        ) : (
+                        ) : null}
+
+                        {/* 객체 형식의 sim_trace 보정 내역 */}
+                        {typeof selectedHorse.sim_trace === 'object' && selectedHorse.sim_trace !== null && (
+                            Object.entries(selectedHorse.sim_trace).map(([k, v], idx) => (
+                                <div key={`sim-${idx}`} className="flex justify-between items-center text-slate-300 py-1 border-b border-slate-800 last:border-0">
+                                    <span className="text-[10px] text-indigo-400 font-bold capitalize">{k.replace(/_/g, ' ')}</span>
+                                    <span className={typeof v === 'number' && v < 0 ? 'text-emerald-400' : 'text-slate-200 font-bold'}>
+                                        {typeof v === 'number' ? (v > 0 ? `+${v.toFixed(3)}` : v.toFixed(3)) : String(v)}
+                                    </span>
+                                </div>
+                            ))
+                        )}
+
+                        {!(selectedHorse.trace || selectedHorse.sim_trace) && (
                             <div className="text-slate-500 italic text-center py-2">보정 내역 없음</div>
                         )}
+
                         <div className="pt-2 mt-2 border-t border-slate-700 flex justify-between font-black text-sm text-white">
                             <span className="font-sans text-[10px] text-slate-400 uppercase tracking-wide">최종 예측 타임 (μ)</span>
                             <span className="text-indigo-300">{(selectedHorse.mu || selectedHorse.expect_time || 0).toFixed(2)}s</span>
@@ -170,6 +197,8 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
     const [serverSimResults, setServerSimResults] = useState(null);
     const [isSimulating, setIsSimulating] = useState(false);
     const [isLoadingServerData, setIsLoadingServerData] = useState(false);
+    const [firestoreSimResults, setFirestoreSimResults] = useState(null);
+
     
     // 실시간 데이터 우선, 없으면 트랙 기본 정보, 둘 다 없으면 10%
     const defaultMoisture = realtimeMoisture !== undefined && realtimeMoisture !== null 
@@ -190,7 +219,32 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
         }
     }, [realtimeMoisture, info?.moisture]);
 
+    // 0. 최상위 race_simulations 컬렉션에서 실시간 동기화
+    useEffect(() => {
+        if (!race || !race.race_no || !window.fb?.isReady) return;
+        const { db, doc, onSnapshot } = window.fb;
+        const dateStr = race.race_id?.split('_')[0] || race.date?.replace(/-/g, '') || "";
+        const locUpper = (loc || 'seoul').toUpperCase();
+        const docId = `${dateStr}_${locUpper}_${race.race_no}`;
+
+        const docRef = doc(db, 'race_simulations', docId);
+        const unsub = onSnapshot(docRef, (snap) => {
+            if (snap.exists()) {
+                const data = snap.data();
+                console.log(`📡 [SimulationZone] loaded from race_simulations/${docId}`);
+                setFirestoreSimResults(data.horses || []);
+            } else {
+                setFirestoreSimResults(null);
+            }
+        }, (err) => {
+            console.error(`Error loading from race_simulations/${docId}:`, err);
+        });
+
+        return () => unsub();
+    }, [race?.race_id, race?.race_no, loc]);
+
     // 1. 서버 시뮬레이션 결과 파일 로드 (yyyymmdd_LOC_sim_results.json)
+
     useEffect(() => {
         if (!race || !race.race_info) return;
         
@@ -202,8 +256,10 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
         const fileName = `${dateStr}_${locUpper}_sim_results.json`;
         
         setIsLoadingServerData(true);
-        // public 폴더 내의 sim_results 폴더나 루트에서 찾음
-        fetch(`/${fileName}`)
+        const baseUrl = import.meta.env.BASE_URL || '/';
+        const url = `${baseUrl}/${fileName}`.replace(/\/+/g, '/');
+        
+        fetch(url)
             .then(res => {
                 if (!res.ok) throw new Error("Server data not found");
                 return res.json();
@@ -272,28 +328,90 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
             const horseNo = h.horse_no || h.no;
             
             // 1순위: Firestore 실시간 연동 데이터 (app.jsx에서 주입)
-            // 2순위: 서버 시뮬레이션 결과 파일 (.json)
-            // 3순위: 로컬 엔진 연산 결과
             const localData = localSimResults.find(r => String(r.horse_no) === String(horseNo)) || null;
+            const topLevelData = firestoreSimResults?.find(r => String(r.horse_no || r.no) === String(horseNo)) || null;
             const firestoreData = (race.server_sim?.horses || [])?.find(r => String(r.horse_no || r.no) === String(horseNo)) || null;
             const serverFileData = serverSimResults?.find(r => String(r.horse_no || r.no) === String(horseNo)) || null;
             
-            // 로컬 연산 결과(localData)가 있으면 최우선으로 적용 (재분석 대응)
-            const combinedData = localData || firestoreData || serverFileData || {};
+            // 1순위: 최상위 race_simulations 컬렉션 데이터
+            // 2순위: 기존 raceDataJson의 sim_results 데이터 
+            // 3순위: 서버 파일 데이터 (.json)
+            const combinedData = topLevelData || firestoreData || serverFileData || {};
+
+
 
             const rawWinProb = combinedData.win_prob !== undefined ? combinedData.win_prob : (h.win_prob !== undefined ? h.win_prob : 0);
-            const normalizedWinProb = rawWinProb > 1 ? rawWinProb / 100 : rawWinProb;
+
+            let mu = combinedData.mu || h.mu || combinedData.expectedTime || 0;
+            let sigma = combinedData.sigma || h.sigma || combinedData.stdDev || 0;
+
+            let moistureAdj = 0;
+            let weightAdj = 0;
+
+            // Python BaseTimeAnalysisLog_Refactored.py의 함수율 ↔ 주로빠르기 보정 로직
+            const getTrackSpeedBonus = (m, locName) => {
+                const locUpper = String(locName || 'SEOUL').toUpperCase();
+                if (locUpper === 'SEOUL') {
+                    if (m <= 2.0) return -0.40;
+                    if (m < 10.0) return 0.0;
+                    if (m < 15.0) return (m - 10.0) * 0.06;
+                    return 0.3 + Math.min(m - 15.0, 5.0) * 0.08;
+                } else { // BUSAN
+                    if (m < 5.0) return 0.50;
+                    if (m < 10.0) return 0.0;
+                    if (m < 15.0) return (m - 10.0) * 0.08;
+                    return 0.4 + Math.min(m - 15.0, 5.0) * 0.10;
+                }
+            };
+
+            // [실시간 함수율 보정] - BaseTimeAnalysisLog_Refactored.py 기준 연동
+            if (mu > 0 && moisture !== undefined) {
+                const baseBonus = getTrackSpeedBonus(8.0, loc); // 서버 기준 함수율 8.0%
+                const currentBonus = getTrackSpeedBonus(Number(moisture), loc);
+                
+                // 과거 보너스(베이스)가 현재보다 컸다면 기록에 더해줘서(느리게) 밸런스를 맞춤
+                moistureAdj = (baseBonus - currentBonus) * ((race.race_info?.distance || 1200.0) / 1200.0);
+                mu += moistureAdj;
+            }
+
+            // [실시간 마체중 변화 보정] - BaseTimeAnalysisLog_Refactored.py 기준 (0.15)
+            if (mu > 0 && h.horse_weight && h.prev_weight) {
+                const weightDiff = Number(h.horse_weight) - Number(h.prev_weight);
+                weightAdj = weightDiff * 0.15; // 체중이 늘면 기록 지연 (0.15초씩)
+                mu += weightAdj;
+            }
+
+            // 실시간 보정 내역(sim_trace)에 추가
+            const adjustedSimTrace = {
+                ...combinedData.sim_trace,
+                "moisture_adj": moistureAdj,
+                "weight_adj": weightAdj,
+                "adjusted_mu": mu
+            };
+
+
+            let normalizedWinProb = rawWinProb > 1 ? rawWinProb / 100 : rawWinProb;
+            
+            // mu의 보정 비율에 맞춰 win_prob도 실시간으로 미세 조정
+            if (mu > 0 && (combinedData.mu || h.mu) > 0) {
+                const baseMu = combinedData.mu || h.mu || 0;
+                const muDiff = baseMu - mu;
+                normalizedWinProb += muDiff * 0.06; // mu가 더 빨라지면(작아지면) 우승 확률 가산
+                normalizedWinProb = Math.max(0.01, Math.min(0.99, normalizedWinProb));
+            }
 
             return {
                 ...h,
                 ...combinedData,
                 name: n,
                 win_prob: normalizedWinProb,
-                mu: combinedData.mu || h.mu || combinedData.expectedTime || 0,
-                sigma: combinedData.sigma || h.sigma || combinedData.stdDev || 0,
+                mu: mu,
+                sigma: sigma,
+                sim_trace: adjustedSimTrace,
                 underdog_index: combinedData.underdog_index !== undefined ? combinedData.underdog_index : (h.underdog_index || 0),
                 sim_stats: {
                     top3: Math.max(normalizedWinProb * 100, (combinedData.sim_stats?.top3 || h.sim_stats?.top3 || (normalizedWinProb * 100 * 2.2))),
+
                     leads: combinedData.sim_stats?.leads || h.sim_stats?.leads || (combinedData.style === '선행' ? 80 : (combinedData.style === '선입' ? 40 : 10))
                 },
                 horse_no: horseNo || '-',
@@ -320,7 +438,8 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
             if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
         });
-    }, [race, localSimResults, sortConfig]);
+    }, [race, serverSimResults, firestoreSimResults, localSimResults, sortConfig, moisture]);
+
 
     const raceStats = useMemo(() => {
         const validMus = enhancedHorses.map(h => h.mu).filter(m => m > 10); // 10초 이하는 비정상 데이터로 간주
