@@ -155,6 +155,23 @@ const HorseDetailPanel = ({ selectedHorse, onClose }) => {
                     </div>
                 </div>
 
+                <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                        <Icon name="clock" size={14} className="text-amber-400" />
+                        <h3 className="text-[11px] font-black text-slate-300 uppercase tracking-wide">Mu Analysis</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="p-3 bg-slate-900 rounded-xl border border-slate-700 text-center">
+                            <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">보정 평균 (Smoothed)</p>
+                            <span className="text-lg font-black text-white">{(selectedHorse.smoothed_mu && selectedHorse.smoothed_mu > 0) ? selectedHorse.smoothed_mu.toFixed(2) : '--'}s</span>
+                        </div>
+                        <div className="p-3 bg-slate-900 rounded-xl border border-slate-700 text-center">
+                            <p className="text-[9px] font-bold text-amber-500/80 uppercase mb-1">최종 타임 (Final)</p>
+                            <span className="text-lg font-black text-amber-400">{(selectedHorse.mu && selectedHorse.mu > 0) ? selectedHorse.mu.toFixed(2) : '--'}s</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div className="space-y-3">
                     <h3 className="text-[11px] font-black text-slate-300 uppercase flex items-center gap-2"><Icon name="cpu" size={14} className="text-slate-400" /> 상세 트레이스</h3>
                     <div className="bg-slate-900 p-4 rounded-xl border border-slate-700 font-mono text-xs space-y-2 max-h-[250px] overflow-y-auto">
@@ -224,7 +241,7 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
     const [isLoadingServerData, setIsLoadingServerData] = useState(false);
     const [firestoreSimResults, setFirestoreSimResults] = useState(null);
     const [paceTally, setPaceTally] = useState(null);
-    const [selectedPace, setSelectedPace] = useState('auto');
+    const [selectedPace, setSelectedPace] = useState('전체');
 
     
     // 실시간 데이터 우선, 없으면 트랙 기본 정보, 둘 다 없으면 10%
@@ -237,6 +254,14 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
             ? Number(realtimeMoisture) 
             : (info?.moisture ? Number(String(info.moisture).replace('%', '')) : 10)
     );
+    
+    // 경주가 변경될 때마다 데이터 및 선택된 마필 초기화 (상세 패널 닫기)
+    useEffect(() => {
+        setSelectedHorse(null);
+        setLocalSimResults([]);
+        setServerSimResults(null);
+        setFirestoreSimResults(null);
+    }, [race?.race_no, race?.race_id]);
     
     useEffect(() => {
         if (realtimeMoisture !== undefined && realtimeMoisture !== null) {
@@ -380,9 +405,10 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
                 }
             }
 
-            let mu = combinedData.mu || h.mu || combinedData.expectedTime || 0;
+            let base_mu_val = combinedData.mu || h.mu || combinedData.expectedTime || 0;
+            let mu = combinedData.sim_trace?.adjusted_mu || base_mu_val;
             let sigma = combinedData.sigma || h.sigma || combinedData.stdDev || 0;
-            let smoothed_mu = combinedData.trace?.smoothed_mu || h.trace?.smoothed_mu || combinedData.smoothed_mu || h.smoothed_mu || mu;
+            let smoothed_mu = combinedData.trace?.smoothed_mu || h.trace?.smoothed_mu || combinedData.smoothed_mu || h.smoothed_mu || base_mu_val;
 
             let moistureAdj = 0;
             let weightAdj = 0;
@@ -422,12 +448,7 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
                 "adjusted_mu": mu
             };
 
-            let normalizedWinProb = rawWinProb;
-            if (rawWinProb > 0.01 && !String(rawWinProb).startsWith("0.00")) {
-                normalizedWinProb = rawWinProb / 100;
-            } else if (rawWinProb <= 0.01) {
-                normalizedWinProb = rawWinProb / 100;
-            }
+            let normalizedWinProb = rawWinProb / 100;
             if (mu > 0 && (combinedData.mu || h.mu) > 0) {
                 const baseMu = combinedData.mu || h.mu || 0;
                 const muDiff = baseMu - mu;
@@ -447,8 +468,8 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
                 underdog_index: combinedData.underdog_index !== undefined ? combinedData.underdog_index : (h.underdog_index || 0),
                 sim_stats: {
                     ...(combinedData.sim_stats || {}),
-                    top3: Math.max(normalizedWinProb * 100, (combinedData.sim_stats?.top3 || h.sim_stats?.top3 || (normalizedWinProb * 100 * 2.2))),
-                    leads: combinedData.sim_stats?.leads || h.sim_stats?.leads || (combinedData.style === '선행' ? 80 : (combinedData.style === '선입' ? 40 : 10))
+                    top3: Math.max(normalizedWinProb * 100, combinedData.sim_stats?.top3 !== undefined ? combinedData.sim_stats.top3 : (h.sim_stats?.top3 !== undefined ? h.sim_stats.top3 : (normalizedWinProb * 100 * 2.2))),
+                    leads: combinedData.sim_stats?.leads !== undefined ? combinedData.sim_stats.leads : (h.sim_stats?.leads !== undefined ? h.sim_stats.leads : (combinedData.style === '선행' ? 80 : (combinedData.style === '선입' ? 40 : 10)))
                 },
                 horse_no: horseNo || '-',
                 style: combinedData.style || h.style || '알수없음',
@@ -466,8 +487,7 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
             const key = sortConfig.key;
             if (key === 'top3') { aVal = a.sim_stats?.top3 || 0; bVal = b.sim_stats?.top3 || 0; }
             else if (key === 'leads') { aVal = a.sim_stats?.leads || 0; bVal = b.sim_stats?.leads || 0; }
-            else if (key === 'base_mu') { aVal = a.mu || 999; bVal = b.mu || 999; }
-            else if (key === 'smoothed_mu') { aVal = a.smoothed_mu || a.mu || 999; bVal = b.smoothed_mu || b.mu || 999; }
+            else if (key === 'base_mu') { aVal = (a.trace?.base_mu || a.mu || 999); bVal = (b.trace?.base_mu || b.mu || 999); }
             else if (key === 'horse_no') { aVal = Number(a.horse_no) || 99; bVal = Number(b.horse_no) || 99; }
             else { aVal = a[key] || 0; bVal = b[key] || 0; }
 
@@ -606,7 +626,6 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
                                         <th onClick={() => handleSort('top3')} className="px-1 py-2 md:py-3 text-center cursor-pointer hover:text-white">입상%</th>
                                         <th onClick={() => handleSort('leads')} className="px-1 py-2 md:py-3 text-center cursor-pointer hover:text-white">선행%</th>
                                         <th onClick={() => handleSort('base_mu')} className="px-1 py-2 md:py-3 text-center cursor-pointer hover:text-white hidden sm:table-cell">기준값</th>
-                                        <th onClick={() => handleSort('smoothed_mu')} className="px-1 py-2 md:py-3 text-center text-amber-500/80 cursor-pointer hover:text-white">보정 평균</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-700/50">
@@ -635,8 +654,7 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
                                                 <td className="px-1 py-2 md:py-3 text-center text-indigo-400 font-black text-[11px] md:text-sm">{(h.win_prob * 100).toFixed(0)}%</td>
                                                 <td className="px-1 py-2 md:py-3 text-center text-slate-300 font-bold text-[10px] md:text-xs">{(h.sim_stats?.top3 || 0).toFixed(0)}%</td>
                                                 <td className="px-1 py-2 md:py-3 text-center text-rose-400 font-bold text-[10px] md:text-xs">{(h.sim_stats?.leads || 0).toFixed(0)}%</td>
-                                                <td className="px-1 py-2 md:py-3 text-center text-slate-400 font-mono text-[10px] md:text-xs hidden sm:table-cell">{(h.mu || 0).toFixed(1)}</td>
-                                                <td className="px-1 py-2 md:py-3 text-center text-amber-500 font-mono text-[10px] md:text-xs font-bold">{(h.smoothed_mu || h.mu || 0).toFixed(2)}</td>
+                                                <td className="px-1 py-2 md:py-3 text-center text-slate-400 font-mono text-[10px] md:text-xs hidden sm:table-cell">{(h.trace?.base_mu || h.mu || 0).toFixed(1)}</td>
                                             </tr>
                                         );
                                     })}
