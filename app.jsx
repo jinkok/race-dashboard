@@ -2097,6 +2097,7 @@ function App() {
                                                                     <th>순위</th>
                                                                     <th>부중</th>
                                                                     <th>기수</th>
+                                                                    <th>빠르기</th>
                                                                     <th>S1F</th>
                                                                     <th>G3F</th>
                                                                     <th className="pr-4">G1F</th>
@@ -2112,6 +2113,7 @@ function App() {
                                                                         <td className={`font-bold ${Number(hist.result_rank) <= 3 ? 'text-rose-600' : 'text-slate-400'}`}>{hist.result_rank}위</td>
                                                                         <td className="text-slate-600">{hist.weight}</td>
                                                                         <td className="text-[10px] font-medium">{hist.jockey}</td>
+                                                                        <td className="text-[10px] text-slate-500">{hist.track_speed}</td>
                                                                         <td>{hist.s1f}</td>
                                                                         <td className="text-green-600 font-bold">{hist.g3f}</td>
                                                                         <td className="pr-4">{hist.g1f}</td>

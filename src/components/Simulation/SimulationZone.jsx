@@ -230,6 +230,147 @@ const HorseDetailPanel = ({ selectedHorse, onClose }) => {
 };
 
 // ==========================================
+// 1.5 메인 대시보드 커스텀 뷰 (Trajectory & Status)
+// ==========================================
+const SimulationDashboardView = ({ enhancedHorses }) => {
+    // Only show top 5 horses for clarity in the charts
+    const topHorses = enhancedHorses.slice(0, 5);
+
+    // Color palette for top 5
+    const colors = ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+
+    return (
+        <div className="p-4 md:p-6 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* 1. Trajectory Chart */}
+                <div className="lg:col-span-2 bg-slate-900/50 border border-slate-700/50 rounded-2xl p-4 md:p-6 shadow-inner relative">
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                        <Icon name="trending-up" size={14} className="text-indigo-400"/> 전개 궤적 시뮬레이션
+                    </h3>
+                    <div className="relative w-full h-[250px] md:h-[300px]">
+                        {/* Custom SVG Line Chart */}
+                        <svg viewBox="0 -5 100 110" className="w-full h-full" preserveAspectRatio="none">
+                            {/* Grid Lines */}
+                            {[1, 5, 10, 15].map(rank => (
+                                <g key={rank}>
+                                    <line x1="0" y1={rank * (100/15)} x2="100" y2={rank * (100/15)} stroke="#334155" strokeWidth="0.5" strokeDasharray="2 2" />
+                                    <text x="1" y={(rank * (100/15)) - 2} fill="#64748b" fontSize="3" fontWeight="bold">{rank}위</text>
+                                </g>
+                            ))}
+                            {/* Vertical Markers */}
+                            {['S1F (1코너)', 'C3 (3코너)', 'G1F (결승선)'].map((label, idx) => (
+                                <g key={label}>
+                                    <line x1={idx * 50} y1="0" x2={idx * 50} y2="100" stroke="#334155" strokeWidth="0.5" />
+                                    <text x={idx * 50 + (idx === 0 ? 1 : idx === 2 ? -1 : 0)} y="105" fill="#94a3b8" fontSize="3.5" fontWeight="bold" textAnchor={idx === 0 ? "start" : idx === 2 ? "end" : "middle"}>{label}</text>
+                                </g>
+                            ))}
+
+                            {/* Lines for top horses */}
+                            {topHorses.map((h, i) => {
+                                const s1f = h.sim_trace?.avg_positions?.S1F || h.meta?.pos_s1f || 8;
+                                const c3 = h.sim_trace?.avg_positions?.C3 || h.meta?.pos_c3 || 8;
+                                const g1f = h.sim_trace?.avg_positions?.G1F || h.meta?.pos_g1f || 8;
+                                
+                                const y1 = Math.min(100, Math.max(0, s1f * (100/15)));
+                                const y2 = Math.min(100, Math.max(0, c3 * (100/15)));
+                                const y3 = Math.min(100, Math.max(0, g1f * (100/15)));
+                                
+                                return (
+                                    <g key={h.name}>
+                                        <polyline 
+                                            points={`0,${y1} 50,${y2} 100,${y3}`} 
+                                            fill="none" 
+                                            stroke={colors[i]} 
+                                            strokeWidth="1.5" 
+                                            className="opacity-80 drop-shadow-md"
+                                        />
+                                        <circle cx="0" cy={y1} r="1.5" fill={colors[i]} />
+                                        <circle cx="50" cy={y2} r="1.5" fill={colors[i]} />
+                                        <circle cx="100" cy={y3} r="1.5" fill={colors[i]} />
+                                        
+                                        {/* Label near G1F */}
+                                        <text x="96" y={y3 - 2} fill={colors[i]} fontSize="3" fontWeight="bold" textAnchor="end">
+                                            {h.horse_no}.{h.name}
+                                        </text>
+                                    </g>
+                                );
+                            })}
+                        </svg>
+                    </div>
+                </div>
+
+                {/* 2. Energy & Risk Badges */}
+                <div className="space-y-4">
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                        <Icon name="battery" size={14} className="text-emerald-400"/> 스태미나 & 리스크 (Top 5)
+                    </h3>
+                    <div className="flex flex-col gap-3">
+                        {topHorses.map((h, i) => {
+                            const energy = h.sim_trace?.energy_efficiency || 100;
+                            const collapse = h.sim_trace?.collapse_prob || 0;
+                            const isLowEnergy = energy < 80;
+                            const isCollapseWarning = collapse > 20;
+
+                            return (
+                                <div key={h.name} className="bg-slate-900/80 p-3 rounded-xl border border-slate-700/50 flex items-center gap-3 relative overflow-hidden">
+                                    <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{backgroundColor: colors[i]}}></div>
+                                    <div className="w-10 text-center shrink-0 pl-1.5">
+                                        <span className="text-xl font-black text-slate-300" style={{color: colors[i]}}>{h.horse_no}</span>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="text-sm font-black text-white truncate">{h.name}</span>
+                                            <span className={`text-[10px] font-bold ${isLowEnergy ? 'text-rose-400' : 'text-emerald-400'}`}>
+                                                체력 {energy.toFixed(1)}%
+                                            </span>
+                                        </div>
+                                        {/* Battery Bar */}
+                                        <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden shadow-inner">
+                                            <div 
+                                                className={`h-full transition-all duration-500 ${isLowEnergy ? 'bg-rose-500' : 'bg-emerald-500'}`} 
+                                                style={{width: `${Math.min(100, Math.max(0, energy))}%`}}
+                                            ></div>
+                                        </div>
+                                        {/* Badges */}
+                                        <div className="flex flex-wrap gap-1 mt-2">
+                                            {isCollapseWarning && (
+                                                <span className="text-[9px] font-black bg-rose-500/20 text-rose-400 px-1.5 py-0.5 rounded border border-rose-500/30 flex items-center gap-1">
+                                                    <Icon name="alert-triangle" size={10} /> 퍼짐 {collapse.toFixed(0)}%
+                                                </span>
+                                            )}
+                                            {h.sim_trace?.gate_penalty > 0.5 && (
+                                                <span className="text-[9px] font-black bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded border border-orange-500/30">
+                                                    외곽 불리
+                                                </span>
+                                            )}
+                                            {h.sim_trace?.pace_conflict_impact > 0.5 && (
+                                                <span className="text-[9px] font-black bg-rose-500/20 text-rose-400 px-1.5 py-0.5 rounded border border-rose-500/30">
+                                                    선행 경합
+                                                </span>
+                                            )}
+                                            {h.sim_trace?.incident_risk_adj > 1.0 && (
+                                                <span className="text-[9px] font-black bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded border border-yellow-500/30">
+                                                    모래 취약
+                                                </span>
+                                            )}
+                                            {!isCollapseWarning && !(h.sim_trace?.gate_penalty > 0.5) && !(h.sim_trace?.pace_conflict_impact > 0.5) && !(h.sim_trace?.incident_risk_adj > 1.0) && (
+                                                <span className="text-[9px] font-black bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700">
+                                                    특이사항 없음
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ==========================================
 // 2. 메인 대시보드
 // ==========================================
 const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, jockeyStats, trainerStats, realtimeMoisture, user }) => {
@@ -242,7 +383,15 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
     const [firestoreSimResults, setFirestoreSimResults] = useState(null);
     const [paceTally, setPaceTally] = useState(null);
     const [selectedPace, setSelectedPace] = useState('전체');
+    const [activeTab, setActiveTab] = useState('leaderboard');
+    const [serverStrategies, setServerStrategies] = useState(race?.server_sim?.strategies || null);
 
+    // 부모 컴포넌트(App.jsx)에서 전달된 server_sim 데이터 활용
+    useEffect(() => {
+        if (race?.server_sim?.strategies) {
+            setServerStrategies(prev => prev || race.server_sim.strategies);
+        }
+    }, [race?.server_sim?.strategies]);
     
     // 실시간 데이터 우선, 없으면 트랙 기본 정보, 둘 다 없으면 10%
     const defaultMoisture = realtimeMoisture !== undefined && realtimeMoisture !== null 
@@ -261,6 +410,7 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
         setLocalSimResults([]);
         setServerSimResults(null);
         setFirestoreSimResults(null);
+        setServerStrategies(race?.server_sim?.strategies || null);
     }, [race?.race_no, race?.race_id]);
     
     useEffect(() => {
@@ -286,9 +436,11 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
                 console.log(`📡 [SimulationZone] loaded from race_simulations/${docId}`);
                 setFirestoreSimResults(data.horses || []);
                 if (data.pace_tally) setPaceTally(data.pace_tally);
+                if (data.strategies) setServerStrategies(data.strategies);
             } else {
                 setFirestoreSimResults(null);
-                setPaceTally(null);
+                setPaceTally(prev => prev || race?.server_sim?.pace_tally || null);
+                setServerStrategies(prev => prev || race?.server_sim?.strategies || null);
             }
         }, (err) => {
             console.error(`Error loading from race_simulations/${docId}:`, err);
@@ -321,10 +473,11 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
                 if (data.races && data.races[raceKey]) {
                     console.log(`[SimulationZone] Server data loaded for race ${raceKey}`);
                     setServerSimResults(data.races[raceKey].horses || []);
-                    if (data.races[raceKey].pace_tally) setPaceTally(data.races[raceKey].pace_tally);
+                    // Firestore 데이터가 우선이므로 덮어쓰지 않게 주의
+                    setServerStrategies(prev => prev || data.races[raceKey].strategies || null);
+                    setPaceTally(prev => prev || data.races[raceKey].pace_tally || null);
                 } else {
                     setServerSimResults(null);
-                    setPaceTally(null);
                 }
             })
             .catch(err => {
@@ -567,6 +720,69 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
 
             <main className="flex flex-col xl:flex-row gap-2 md:gap-6">
                 <div className="flex-1 min-w-0 space-y-2 md:space-y-4">
+                    {serverStrategies && serverStrategies.recommendation && (
+                        <div className="bg-gradient-to-br from-rose-950/80 to-slate-900 border border-rose-500/40 rounded-2xl p-3 md:p-4 shadow-md flex items-start gap-3 relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-rose-400 to-rose-600"></div>
+                            <div className="bg-rose-500/20 p-2 rounded-xl border border-rose-500/30 shrink-0 shadow-inner mt-0.5 flex items-center justify-center">
+                                <span className="text-lg">⚠️</span>
+                            </div>
+                            <div className="pt-0.5 flex-1 min-w-0">
+                                <h4 className="text-[11px] md:text-xs font-black text-rose-400 uppercase tracking-widest mb-1 flex items-center gap-2">
+                                    AI 시나리오 경고
+                                    <span className="relative flex h-2 w-2">
+                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                      <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                                    </span>
+                                </h4>
+                                <p className="text-[13px] md:text-sm font-bold text-rose-100/90 leading-relaxed tracking-wide break-keep">
+                                    {serverStrategies.recommendation}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {serverStrategies && serverStrategies.recommended_bet && (
+                        <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-indigo-500/30 rounded-2xl p-3 md:p-4 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative overflow-hidden group hover:border-indigo-500/50 transition-all duration-300">
+                            {/* Background glow effect */}
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none group-hover:bg-indigo-500/10 transition-all duration-500"></div>
+                            
+                            <div className="flex items-center gap-3 shrink-0 z-10 w-full md:w-auto">
+                                <div className="bg-indigo-500/20 p-2 rounded-xl border border-indigo-500/30 shrink-0 shadow-inner flex items-center justify-center">
+                                    <span className="text-lg">🎯</span>
+                                </div>
+                                <div className="flex flex-col min-w-0">
+                                    <h4 className="text-[11px] md:text-xs font-black text-indigo-400 uppercase tracking-widest mb-0.5 whitespace-nowrap">AI 베팅 픽</h4>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-sm md:text-base font-bold text-slate-300 whitespace-nowrap">추천 승식</span>
+                                        <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-md text-xs md:text-sm font-black whitespace-nowrap">
+                                            {serverStrategies.recommended_bet.type}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="flex flex-row flex-wrap items-center gap-2 w-full md:w-auto z-10">
+                                <div className="bg-slate-950/60 border border-slate-700/80 rounded-xl p-2 md:p-3 flex flex-col items-center flex-1 min-w-[110px] shadow-inner relative overflow-hidden group/main hover:border-rose-500/50 transition-colors">
+                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-rose-500 to-transparent opacity-50 group-hover/main:opacity-100 transition-opacity"></div>
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">주력 (MAIN)</span>
+                                    <span className="text-lg md:text-xl font-black text-rose-400 tracking-tighter whitespace-nowrap">{serverStrategies.recommended_bet.main}</span>
+                                </div>
+                                {serverStrategies.recommended_bet.defense && (
+                                    <>
+                                        <div className="flex items-center justify-center px-1 shrink-0">
+                                            <span className="text-slate-500 font-black text-xs">+</span>
+                                        </div>
+                                        <div className="bg-slate-950/60 border border-slate-700/80 rounded-xl p-2 md:p-3 flex flex-col items-center flex-1 min-w-[110px] shadow-inner relative overflow-hidden group/def hover:border-amber-500/50 transition-colors">
+                                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent opacity-50 group-hover/def:opacity-100 transition-opacity"></div>
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">방어 (DEFENSE)</span>
+                                            <span className="text-lg md:text-xl font-black text-amber-400 tracking-tighter whitespace-nowrap">{serverStrategies.recommended_bet.defense}</span>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                    
                     <div className="bg-slate-800/60 p-2 md:p-4 flex flex-wrap items-center gap-2 md:gap-6 border border-slate-700/50 rounded-xl md:rounded-2xl">
                         <div className="flex items-center gap-2 border-r border-slate-700 pr-4 shrink-0">
                             <Icon name="activity" size={16} className="text-indigo-400" />
@@ -588,19 +804,33 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
                     </div>
 
                     <div className="bg-slate-800/40 rounded-xl md:rounded-2xl overflow-hidden border border-slate-700/50 shadow-xl">
-                        <div className="px-2 md:px-5 py-2 md:py-3 border-b border-slate-700/50 flex justify-between items-center bg-slate-800/80">
-                            <div className="flex items-center gap-2">
-                                <Icon name="trophy" size={14} className="text-orange-400" />
-                                <h3 className="font-black text-[10px] md:text-xs tracking-widest text-slate-200 uppercase">분석 리더보드</h3>
-                                {dominantPace && (
-                                    <span className="ml-2 px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                                        페이스: {dominantPace}
-                                    </span>
-                                )}
+                        <div className="px-2 md:px-5 py-2 md:py-3 border-b border-slate-700/50 flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-800/80 gap-3">
+                            <div className="flex items-center gap-2 md:gap-4 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 scrollbar-hide">
+                                <button 
+                                    onClick={() => setActiveTab('leaderboard')} 
+                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all font-black text-[10px] md:text-xs tracking-widest uppercase shrink-0 ${activeTab === 'leaderboard' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30 shadow-[0_0_10px_rgba(249,115,22,0.2)]' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 border border-transparent'}`}
+                                >
+                                    <Icon name="trophy" size={14} />
+                                    분석 리더보드
+                                </button>
+                                <button 
+                                    onClick={() => setActiveTab('dashboard')} 
+                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all font-black text-[10px] md:text-xs tracking-widest uppercase shrink-0 ${activeTab === 'dashboard' ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shadow-[0_0_10px_rgba(99,102,241,0.2)]' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 border border-transparent'}`}
+                                >
+                                    <Icon name="bar-chart-2" size={14} />
+                                    전개 대시보드
+                                </button>
                             </div>
+                            
+                            {dominantPace && activeTab === 'leaderboard' && (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shrink-0">
+                                    페이스: {dominantPace}
+                                </span>
+                            )}
                         </div>
 
-                        <div className="overflow-x-auto w-full scrollbar-hide">
+                        {activeTab === 'leaderboard' ? (
+                            <div className="overflow-x-auto w-full scrollbar-hide">
                             <table className="w-full text-left border-collapse text-[10px] md:text-sm">
                                 <thead>
                                     <tr className="text-[9px] md:text-[10px] text-slate-400 uppercase font-bold border-b border-slate-700 bg-slate-900/50">
@@ -625,6 +855,7 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
                                         </th>
                                         <th onClick={() => handleSort('top3')} className="px-1 py-2 md:py-3 text-center cursor-pointer hover:text-white">입상%</th>
                                         <th onClick={() => handleSort('leads')} className="px-1 py-2 md:py-3 text-center cursor-pointer hover:text-white">선행%</th>
+                                        <th onClick={() => handleSort('underdog_index')} className="px-1 py-2 md:py-3 text-center cursor-pointer hover:text-rose-400 text-rose-500/80">복병(UD)</th>
                                         <th onClick={() => handleSort('base_mu')} className="px-1 py-2 md:py-3 text-center cursor-pointer hover:text-white hidden sm:table-cell">기준값</th>
                                     </tr>
                                 </thead>
@@ -654,6 +885,9 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
                                                 <td className="px-1 py-2 md:py-3 text-center text-indigo-400 font-black text-[11px] md:text-sm">{(h.win_prob * 100).toFixed(0)}%</td>
                                                 <td className="px-1 py-2 md:py-3 text-center text-slate-300 font-bold text-[10px] md:text-xs">{(h.sim_stats?.top3 || 0).toFixed(0)}%</td>
                                                 <td className="px-1 py-2 md:py-3 text-center text-rose-400 font-bold text-[10px] md:text-xs">{(h.sim_stats?.leads || 0).toFixed(0)}%</td>
+                                                <td className="px-1 py-2 md:py-3 text-center text-[10px] md:text-xs">
+                                                    {h.underdog_index >= 50 ? <span className="text-rose-400 font-black px-1.5 py-0.5 bg-rose-900/40 rounded border border-rose-500/50">{h.underdog_index}</span> : <span className="text-slate-500">{h.underdog_index || 0}</span>}
+                                                </td>
                                                 <td className="px-1 py-2 md:py-3 text-center text-slate-400 font-mono text-[10px] md:text-xs hidden sm:table-cell">{(h.trace?.base_mu || h.mu || 0).toFixed(1)}</td>
                                             </tr>
                                         );
@@ -661,6 +895,9 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
                                 </tbody>
                             </table>
                         </div>
+                        ) : (
+                            <SimulationDashboardView enhancedHorses={enhancedHorses} />
+                        )}
                     </div>
                 </div>
 
