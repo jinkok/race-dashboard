@@ -389,7 +389,7 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
     // 부모 컴포넌트(App.jsx)에서 전달된 server_sim 데이터 활용
     useEffect(() => {
         if (race?.server_sim?.strategies) {
-            setServerStrategies(prev => prev || race.server_sim.strategies);
+            setServerStrategies(race.server_sim.strategies);
         }
     }, [race?.server_sim?.strategies]);
     
@@ -439,8 +439,8 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
                 if (data.strategies) setServerStrategies(data.strategies);
             } else {
                 setFirestoreSimResults(null);
-                setPaceTally(prev => prev || race?.server_sim?.pace_tally || null);
-                setServerStrategies(prev => prev || race?.server_sim?.strategies || null);
+                setPaceTally(race?.server_sim?.pace_tally || null);
+                setServerStrategies(race?.server_sim?.strategies || null);
             }
         }, (err) => {
             console.error(`Error loading from race_simulations/${docId}:`, err);
@@ -474,8 +474,8 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
                     console.log(`[SimulationZone] Server data loaded for race ${raceKey}`);
                     setServerSimResults(data.races[raceKey].horses || []);
                     // Firestore 데이터가 우선이므로 덮어쓰지 않게 주의
-                    setServerStrategies(prev => prev || data.races[raceKey].strategies || null);
-                    setPaceTally(prev => prev || data.races[raceKey].pace_tally || null);
+                    setServerStrategies(data.races[raceKey].strategies || null);
+                    setPaceTally(data.races[raceKey].pace_tally || null);
                 } else {
                     setServerSimResults(null);
                 }
@@ -741,44 +741,92 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
                         </div>
                     )}
 
-                    {serverStrategies && serverStrategies.recommended_bet && (
-                        <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-indigo-500/30 rounded-2xl p-3 md:p-4 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative overflow-hidden group hover:border-indigo-500/50 transition-all duration-300">
+                    {serverStrategies && serverStrategies.combo_picks && (
+                        <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-indigo-500/30 rounded-2xl p-3 md:p-4 shadow-md flex flex-col items-start gap-4 relative overflow-hidden group hover:border-indigo-500/50 transition-all duration-300">
                             {/* Background glow effect */}
                             <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none group-hover:bg-indigo-500/10 transition-all duration-500"></div>
                             
-                            <div className="flex items-center gap-3 shrink-0 z-10 w-full md:w-auto">
-                                <div className="bg-indigo-500/20 p-2 rounded-xl border border-indigo-500/30 shrink-0 shadow-inner flex items-center justify-center">
-                                    <span className="text-lg">🎯</span>
-                                </div>
-                                <div className="flex flex-col min-w-0">
-                                    <h4 className="text-[11px] md:text-xs font-black text-indigo-400 uppercase tracking-widest mb-0.5 whitespace-nowrap">AI 베팅 픽</h4>
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="text-sm md:text-base font-bold text-slate-300 whitespace-nowrap">추천 승식</span>
-                                        <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-md text-xs md:text-sm font-black whitespace-nowrap">
-                                            {serverStrategies.recommended_bet.type}
-                                        </span>
+                            {/* Header */}
+                            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 w-full z-10">
+                                <div className="flex items-center gap-3 shrink-0">
+                                    <div className="bg-indigo-500/20 p-2 rounded-xl border border-indigo-500/30 shrink-0 shadow-inner flex items-center justify-center">
+                                        <span className="text-lg">🎯</span>
+                                    </div>
+                                    <div className="flex flex-col min-w-0">
+                                        <h4 className="text-[11px] md:text-xs font-black text-indigo-400 uppercase tracking-widest mb-0.5 whitespace-nowrap">AI 베팅 픽</h4>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="text-sm md:text-base font-bold text-slate-300 whitespace-nowrap">추천 승식</span>
+                                            <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-md text-xs md:text-sm font-black whitespace-nowrap">
+                                                {serverStrategies.combo_picks.recommended?.type || '삼복승'}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
+                                <p className="text-[11px] text-slate-400 font-bold italic leading-tight max-w-[300px]">
+                                    "{serverStrategies.recommendation?.substring(0, 50)}..."
+                                </p>
                             </div>
-                            
-                            <div className="flex flex-row flex-wrap items-center gap-2 w-full md:w-auto z-10">
-                                <div className="bg-slate-950/60 border border-slate-700/80 rounded-xl p-2 md:p-3 flex flex-col items-center flex-1 min-w-[110px] shadow-inner relative overflow-hidden group/main hover:border-rose-500/50 transition-colors">
-                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-rose-500 to-transparent opacity-50 group-hover/main:opacity-100 transition-opacity"></div>
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">주력 (MAIN)</span>
-                                    <span className="text-lg md:text-xl font-black text-rose-400 tracking-tighter whitespace-nowrap">{serverStrategies.recommended_bet.main}</span>
-                                </div>
-                                {serverStrategies.recommended_bet.defense && (
-                                    <>
-                                        <div className="flex items-center justify-center px-1 shrink-0">
-                                            <span className="text-slate-500 font-black text-xs">+</span>
+
+                            {/* Combo Picks */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full z-10">
+                                {/* Recommended Bet (추천 승식) - Full Width */}
+                                {serverStrategies.combo_picks?.recommended && (
+                                    <div className="md:col-span-2 bg-gradient-to-r from-emerald-950/40 to-teal-950/40 border border-emerald-500/30 rounded-xl p-3 flex flex-col gap-2">
+                                        <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                                            <Icon name="check-circle" size={14} /> AI 강력 추천 승식: {serverStrategies.combo_picks.recommended.type}
+                                        </h5>
+                                        <div className="flex flex-row flex-wrap items-center gap-2 md:gap-3">
+                                            <div className="bg-emerald-950/60 border border-emerald-700/80 rounded-xl p-2 md:p-3 flex flex-col items-center flex-1 shadow-inner relative group hover:border-emerald-400/50 transition-colors">
+                                                <span className="text-[10px] font-black text-emerald-300/80 uppercase mb-0.5">추천 주력</span>
+                                                <span className="text-xs md:text-base font-black text-emerald-400 tracking-tight whitespace-nowrap">{serverStrategies.combo_picks.recommended.main || '-'}</span>
+                                            </div>
+                                            {serverStrategies.combo_picks.recommended.defense && (
+                                                <div className="bg-slate-950/60 border border-slate-700/80 rounded-xl p-2 md:p-3 flex flex-col items-center flex-1 shadow-inner relative group hover:border-amber-500/50 transition-colors">
+                                                    <span className="text-[10px] font-black text-amber-400/80 uppercase mb-0.5">추천 방어</span>
+                                                    <span className="text-xs md:text-base font-black text-amber-400 tracking-tight whitespace-nowrap">{serverStrategies.combo_picks.recommended.defense || '-'}</span>
+                                                </div>
+                                            )}
                                         </div>
-                                        <div className="bg-slate-950/60 border border-slate-700/80 rounded-xl p-2 md:p-3 flex flex-col items-center flex-1 min-w-[110px] shadow-inner relative overflow-hidden group/def hover:border-amber-500/50 transition-colors">
-                                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent opacity-50 group-hover/def:opacity-100 transition-opacity"></div>
-                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">방어 (DEFENSE)</span>
-                                            <span className="text-lg md:text-xl font-black text-amber-400 tracking-tighter whitespace-nowrap">{serverStrategies.recommended_bet.defense}</span>
-                                        </div>
-                                    </>
+                                    </div>
                                 )}
+
+                                {/* Trio (삼복승) */}
+                                <div className="bg-slate-950/40 border border-slate-700/60 rounded-xl p-3 flex flex-col gap-2">
+                                    <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5"><Icon name="layers" size={12} /> 삼복승 (Trio)</h5>
+                                    <div className="flex flex-row flex-wrap items-center gap-1.5 md:gap-2">
+                                        <div className="bg-slate-950/60 border border-slate-700/80 rounded-xl p-1.5 md:p-2 flex flex-col items-center flex-1 shadow-inner relative group/main hover:border-rose-500/50 transition-colors">
+                                            <span className="text-[9px] font-black text-rose-400/80 uppercase mb-0.5">주력</span>
+                                            <span className="text-[11px] md:text-sm font-black text-rose-400 tracking-tight whitespace-nowrap">{serverStrategies.combo_picks.trio?.main || '-'}</span>
+                                        </div>
+                                        <div className="bg-slate-950/60 border border-slate-700/80 rounded-xl p-1.5 md:p-2 flex flex-col items-center flex-1 shadow-inner relative group/def hover:border-amber-500/50 transition-colors">
+                                            <span className="text-[9px] font-black text-amber-400/80 uppercase mb-0.5">방어</span>
+                                            <span className="text-[11px] md:text-sm font-black text-amber-400 tracking-tight whitespace-nowrap">{serverStrategies.combo_picks.trio?.defense || '-'}</span>
+                                        </div>
+                                        <div className="bg-slate-950/60 border border-slate-700/80 rounded-xl p-1.5 md:p-2 flex flex-col items-center flex-1 shadow-inner relative group/long hover:border-purple-500/50 transition-colors">
+                                            <span className="text-[9px] font-black text-purple-400/80 uppercase mb-0.5">고배당</span>
+                                            <span className="text-[11px] md:text-sm font-black text-purple-400 tracking-tight whitespace-nowrap">{serverStrategies.combo_picks.trio?.longshot || '-'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Trifecta (삼쌍승) */}
+                                <div className="bg-slate-950/40 border border-slate-700/60 rounded-xl p-2 md:p-3 flex flex-col gap-2">
+                                    <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5"><Icon name="target" size={12} /> 삼쌍승 (Trifecta)</h5>
+                                    <div className="flex flex-row flex-wrap items-center gap-1.5 md:gap-2">
+                                        <div className="bg-slate-950/60 border border-slate-700/80 rounded-xl p-1.5 md:p-2 flex flex-col items-center flex-1 shadow-inner relative group/main hover:border-rose-500/50 transition-colors">
+                                            <span className="text-[9px] font-black text-rose-400/80 uppercase mb-0.5">주력</span>
+                                            <span className="text-[11px] md:text-sm font-black text-rose-400 tracking-tight whitespace-nowrap">{serverStrategies.combo_picks.trifecta?.main || '-'}</span>
+                                        </div>
+                                        <div className="bg-slate-950/60 border border-slate-700/80 rounded-xl p-1.5 md:p-2 flex flex-col items-center flex-1 shadow-inner relative group/def hover:border-amber-500/50 transition-colors">
+                                            <span className="text-[9px] font-black text-amber-400/80 uppercase mb-0.5">방어</span>
+                                            <span className="text-[11px] md:text-sm font-black text-amber-400 tracking-tight whitespace-nowrap">{serverStrategies.combo_picks.trifecta?.defense || '-'}</span>
+                                        </div>
+                                        <div className="bg-slate-950/60 border border-slate-700/80 rounded-xl p-1.5 md:p-2 flex flex-col items-center flex-1 shadow-inner relative group/long hover:border-purple-500/50 transition-colors">
+                                            <span className="text-[9px] font-black text-purple-400/80 uppercase mb-0.5">고배당</span>
+                                            <span className="text-[11px] md:text-sm font-black text-purple-400 tracking-tight whitespace-nowrap">{serverStrategies.combo_picks.trifecta?.longshot || '-'}</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     )}
