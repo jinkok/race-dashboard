@@ -770,63 +770,55 @@ const SimulationZone = ({ race, loc, info, trackInfo, statsAnalysis, sireInfo, j
                             {/* Combo Picks */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full z-10">
                                 {/* Recommended Bet (추천 승식) - Full Width */}
-                                {serverStrategies.combo_picks?.recommended && (
-                                    <div className="md:col-span-2 bg-gradient-to-r from-emerald-950/40 to-teal-950/40 border border-emerald-500/30 rounded-xl p-3 flex flex-col gap-2">
-                                        <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
-                                            <Icon name="check-circle" size={14} /> AI 강력 추천 승식: {serverStrategies.combo_picks.recommended.type}
-                                        </h5>
-                                        <div className="flex flex-row flex-wrap items-center gap-2 md:gap-3">
-                                            <div className="bg-emerald-950/60 border border-emerald-700/80 rounded-xl p-2 md:p-3 flex flex-col items-center flex-1 shadow-inner relative group hover:border-emerald-400/50 transition-colors">
-                                                <span className="text-[10px] font-black text-emerald-300/80 uppercase mb-0.5">추천 주력</span>
-                                                <span className="text-xs md:text-base font-black text-emerald-400 tracking-tight whitespace-nowrap">{serverStrategies.combo_picks.recommended.main || '-'}</span>
+                                {serverStrategies.combo_picks?.recommended && (() => {
+                                    const picks = serverStrategies.combo_picks;
+                                    const recommended = picks.recommended || {};
+                                    return (
+                                        <div className="md:col-span-2 flex flex-col gap-3">
+                                            <div className="bg-gradient-to-r from-amber-950/40 to-yellow-950/40 border border-amber-500/30 rounded-xl p-3">
+                                                <h5 className="text-[11px] font-black text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
+                                                    <Icon name="check-circle" size={14} /> 추천 승식: [예상전개: {recommended.pace || '평범페이스'}] {recommended.type} {recommended.picks}
+                                                </h5>
                                             </div>
-                                            {serverStrategies.combo_picks.recommended.defense && (
-                                                <div className="bg-slate-950/60 border border-slate-700/80 rounded-xl p-2 md:p-3 flex flex-col items-center flex-1 shadow-inner relative group hover:border-amber-500/50 transition-colors">
-                                                    <span className="text-[10px] font-black text-amber-400/80 uppercase mb-0.5">추천 방어</span>
-                                                    <span className="text-xs md:text-base font-black text-amber-400 tracking-tight whitespace-nowrap">{serverStrategies.combo_picks.recommended.defense || '-'}</span>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                {picks.runaway && (
+                                                    <div className="bg-orange-950/40 rounded-xl p-3 border border-orange-500/30">
+                                                        <div className="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-2 flex items-center gap-1.5"><Icon name="zap" size={12}/>도주마 특수 조합</div>
+                                                        <div className="flex flex-col gap-1 text-[11px] text-white">
+                                                            <div><span className="font-bold text-slate-400 mr-2">삼복승</span> <span className="font-mono text-sm font-black">{picks.runaway.trio || '-'}</span></div>
+                                                            <div><span className="font-bold text-slate-400 mr-2">삼쌍승</span> <span className="font-mono text-sm font-black">{picks.runaway.trifecta || '-'}</span></div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                
+                                                <div className="bg-rose-950/40 rounded-xl p-3 border border-rose-500/30">
+                                                    <div className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-2 flex items-center gap-1.5"><Icon name="flame" size={12}/>하이페이스 대비</div>
+                                                    <div className="flex flex-col gap-1 text-[11px] text-white">
+                                                        <div><span className="font-bold text-slate-400 mr-2">삼복승</span> <span className="font-mono text-sm font-black">{picks.high_pace?.trio || '-'}</span></div>
+                                                        <div><span className="font-bold text-slate-400 mr-2">삼쌍승</span> <span className="font-mono text-sm font-black">{picks.high_pace?.trifecta || '-'}</span></div>
+                                                    </div>
                                                 </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
 
-                                {/* Trio (삼복승) */}
-                                <div className="bg-slate-950/40 border border-slate-700/60 rounded-xl p-3 flex flex-col gap-2">
-                                    <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5"><Icon name="layers" size={12} /> 삼복승 (Trio)</h5>
-                                    <div className="flex flex-row flex-wrap items-center gap-1.5 md:gap-2">
-                                        <div className="bg-slate-950/60 border border-slate-700/80 rounded-xl p-1.5 md:p-2 flex flex-col items-center flex-1 shadow-inner relative group/main hover:border-rose-500/50 transition-colors">
-                                            <span className="text-[9px] font-black text-rose-400/80 uppercase mb-0.5">주력</span>
-                                            <span className="text-[11px] md:text-sm font-black text-rose-400 tracking-tight whitespace-nowrap">{serverStrategies.combo_picks.trio?.main || '-'}</span>
-                                        </div>
-                                        <div className="bg-slate-950/60 border border-slate-700/80 rounded-xl p-1.5 md:p-2 flex flex-col items-center flex-1 shadow-inner relative group/def hover:border-amber-500/50 transition-colors">
-                                            <span className="text-[9px] font-black text-amber-400/80 uppercase mb-0.5">방어</span>
-                                            <span className="text-[11px] md:text-sm font-black text-amber-400 tracking-tight whitespace-nowrap">{serverStrategies.combo_picks.trio?.defense || '-'}</span>
-                                        </div>
-                                        <div className="bg-slate-950/60 border border-slate-700/80 rounded-xl p-1.5 md:p-2 flex flex-col items-center flex-1 shadow-inner relative group/long hover:border-purple-500/50 transition-colors">
-                                            <span className="text-[9px] font-black text-purple-400/80 uppercase mb-0.5">고배당</span>
-                                            <span className="text-[11px] md:text-sm font-black text-purple-400 tracking-tight whitespace-nowrap">{serverStrategies.combo_picks.trio?.longshot || '-'}</span>
-                                        </div>
-                                    </div>
-                                </div>
+                                                <div className="bg-indigo-950/40 rounded-xl p-3 border border-indigo-500/30">
+                                                    <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2 flex items-center gap-1.5"><Icon name="activity" size={12}/>로우페이스 대비</div>
+                                                    <div className="flex flex-col gap-1 text-[11px] text-white">
+                                                        <div><span className="font-bold text-slate-400 mr-2">삼복승</span> <span className="font-mono text-sm font-black">{picks.slow_pace?.trio || '-'}</span></div>
+                                                        <div><span className="font-bold text-slate-400 mr-2">삼쌍승</span> <span className="font-mono text-sm font-black">{picks.slow_pace?.trifecta || '-'}</span></div>
+                                                    </div>
+                                                </div>
 
-                                {/* Trifecta (삼쌍승) */}
-                                <div className="bg-slate-950/40 border border-slate-700/60 rounded-xl p-2 md:p-3 flex flex-col gap-2">
-                                    <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-1.5"><Icon name="target" size={12} /> 삼쌍승 (Trifecta)</h5>
-                                    <div className="flex flex-row flex-wrap items-center gap-1.5 md:gap-2">
-                                        <div className="bg-slate-950/60 border border-slate-700/80 rounded-xl p-1.5 md:p-2 flex flex-col items-center flex-1 shadow-inner relative group/main hover:border-rose-500/50 transition-colors">
-                                            <span className="text-[9px] font-black text-rose-400/80 uppercase mb-0.5">주력</span>
-                                            <span className="text-[11px] md:text-sm font-black text-rose-400 tracking-tight whitespace-nowrap">{serverStrategies.combo_picks.trifecta?.main || '-'}</span>
+                                                <div className="bg-slate-950/40 rounded-xl p-3 border border-slate-600/30">
+                                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">평범페이스 대비</div>
+                                                    <div className="flex flex-col gap-1 text-[11px] text-white">
+                                                        <div><span className="font-bold text-slate-400 mr-2">삼복승</span> <span className="font-mono text-sm font-black">{picks.normal_pace?.trio || '-'}</span></div>
+                                                        <div><span className="font-bold text-slate-400 mr-2">삼쌍승</span> <span className="font-mono text-sm font-black">{picks.normal_pace?.trifecta || '-'}</span></div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="bg-slate-950/60 border border-slate-700/80 rounded-xl p-1.5 md:p-2 flex flex-col items-center flex-1 shadow-inner relative group/def hover:border-amber-500/50 transition-colors">
-                                            <span className="text-[9px] font-black text-amber-400/80 uppercase mb-0.5">방어</span>
-                                            <span className="text-[11px] md:text-sm font-black text-amber-400 tracking-tight whitespace-nowrap">{serverStrategies.combo_picks.trifecta?.defense || '-'}</span>
-                                        </div>
-                                        <div className="bg-slate-950/60 border border-slate-700/80 rounded-xl p-1.5 md:p-2 flex flex-col items-center flex-1 shadow-inner relative group/long hover:border-purple-500/50 transition-colors">
-                                            <span className="text-[9px] font-black text-purple-400/80 uppercase mb-0.5">고배당</span>
-                                            <span className="text-[11px] md:text-sm font-black text-purple-400 tracking-tight whitespace-nowrap">{serverStrategies.combo_picks.trifecta?.longshot || '-'}</span>
-                                        </div>
-                                    </div>
-                                </div>
+                                    );
+                                })()}
                             </div>
                         </div>
                     )}
