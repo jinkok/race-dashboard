@@ -1,0 +1,38 @@
+{
+  "date": "20260426",
+  "last_updated": "2026-04-26T08:36:38.157232",
+  "locations": {
+    "seoul": {
+      "weights": {},
+      "results": {},
+      "track": {
+        "time": "요약 정보",
+        "moisture": "3%",
+        "status": "건조",
+        "sand": "8cm",
+        "updated_at": "2026-04-26 08:36:35"
+      },
+      "reports": {
+        "exclusions": [],
+        "jockey_changes": [],
+        "time_changes": []
+      }
+    },
+    "busan": {
+      "weights": {},
+      "results": {},
+      "track": {
+        "time": "요약 정보",
+        "moisture": "3%",
+        "status": "건조",
+        "sand": "8cm",
+        "updated_at": "2026-04-26 08:36:37"
+      },
+      "reports": {
+        "exclusions": [],
+        "jockey_changes": [],
+        "time_changes": []
+      }
+    }
+  }
+}
